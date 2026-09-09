@@ -294,15 +294,16 @@
 
   /* Nama periode dan tanggal pelaksanaan pada kartu survei. */
   .survey-period {
-    display: grid;
-    gap: 4px;
-    margin-top: 12px;
-    padding: 10px 12px;
-    background: #f1f6ff;
-    border-radius: 8px;
-    color: #526987;
-    font-size: 12px;
-    line-height: 1.6;
+    display: block;
+    margin-top: 6px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    font-size: 11px;
+    font-style: italic;
+    font-weight: 400;
+    line-height: 1.5;
+    color: #64748b;
   }
 
   .survey-period strong {
@@ -594,34 +595,27 @@
       }).format(tanggal);
     }
 
+    // Menampilkan rentang tanggal pelaksanaan saja.
+  function periodeHtml(survey) {
+    const periode = PERIODE_SURVEI.find(
+      item => item && item.survei === survey
+    );
+
+    if (!periode) return "";
+
+    return (
+      '<div class="survey-period">' +
+        esc(formatTanggalPeriode(periode.tanggal_mulai)) +
+        ' – ' +
+        esc(formatTanggalPeriode(periode.tanggal_selesai)) +
+      '</div>'
+    );
+  }
+
     // ==========================================================
     // TAMPILAN PERIODE PADA KARTU SURVEI
     // Mencocokkan nama survei dengan tab periode_survei.
     // ==========================================================
-    function periodeHtml(survey) {
-      const periode = PERIODE_SURVEI.find(
-        item => item && item.survei === survey
-      );
-
-      if (!periode) {
-        return '<div class="survey-period">Periode belum tersedia.</div>';
-      }
-
-      const nama = periode.nama_periode
-        ? '<strong>' + esc(periode.nama_periode) + '</strong>'
-        : "";
-
-      return (
-        '<div class="survey-period">' +
-          nama +
-          '<span>Pelaksanaan: ' +
-            esc(formatTanggalPeriode(periode.tanggal_mulai)) +
-            ' – ' +
-            esc(formatTanggalPeriode(periode.tanggal_selesai)) +
-          '</span>' +
-        '</div>'
-      );
-    }
 
     function surveyCard(survey){
       const rows=DATA.filter(r=>r.survei===survey),c=counts(rows);let start=0;
