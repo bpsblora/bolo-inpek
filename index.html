@@ -17,12 +17,166 @@
     .statusbtn:hover{background:#eaf2ff}th{background:#edf4ff}tbody tr:hover{background:#f2f7ff}.card,.tablebox{border-color:#cfddf2}button:focus-visible{outline-color:#2563eb}
     @media(max-width:900px){.grid{grid-template-columns:1fr}.card{max-width:600px;width:100%;margin:auto}.title{gap:12px}h1{font-size:1.5rem}main{padding:16px}.total strong{font-size:1.6rem}}
     @media(prefers-reduced-motion:reduce){.donut{transition:none}}
+    /* BACKGROUND: latar biru lembut untuk dashboard */
+    body {
+      min-height: 100vh;
+      background:
+        radial-gradient(
+        circle at 95% 10%,
+       rgba(96, 165, 250, 0.16),
+        transparent 38%
+        ),
+      linear-gradient(135deg, #f5f9ff, #eaf2ff);
+    }
+
+    /* HEADER: logo di kiri, judul dan keterangan di kanan */
+    .site-header {
+      padding: 20px 24px;
+      color: #ffffff;
+      background: linear-gradient(110deg, #112d52, #17467f);
+      border-bottom: 4px solid #60a5fa;
+    }
+
+    .header-inner {
+      width: 100%;
+      max-width: 1180px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .header-logo {
+      display: block;
+      width: 110px;
+      height: 66px;
+      object-fit: contain;
+      background: #ffffff;
+      border-radius: 8px;
+      padding: 6px;
+      flex-shrink: 0;
+    }
+
+    .header-copy {
+      min-width: 0;
+    }
+
+    .site-header .brand {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      line-height: 1.2;
+    }
+
+    .site-header .brand span {
+      color: #93c5fd;
+    }
+
+    .site-header .header-copy p {
+      margin: 7px 0 0;
+      color: #e0edff;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    /* WAKTU DATA: menampilkan waktu selesai pengambilan FASIH */
+    .update-card {
+      max-width: 410px;
+      margin: 20px 0;
+      padding: 20px 24px;
+      background: #ffffff;
+      border: 1px solid #d5e4fa;
+      border-top: 4px solid #2563eb;
+      border-radius: 12px;
+      box-shadow: 0 5px 18px rgba(21, 60, 120, 0.06);
+    }
+
+    .update-label {
+      margin-bottom: 10px;
+      color: #526987;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+    }
+
+    .update-date {
+      color: #153c78;
+      font-size: 25px;
+      font-weight: 800;
+    }
+
+    .update-time {
+      margin-top: 5px;
+      color: #185abd;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .update-note {
+      margin: 10px 0 0;
+      color: #64748b;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    /* RESPONSIF: menyesuaikan header pada layar ponsel */
+    @media (max-width: 600px) {
+    .site-header {
+      padding: 18px 16px;
+    }
+
+    .header-inner {
+      gap: 12px;
+    }
+
+    .header-logo {
+      width: 80px;
+      height: 56px;
+    }
+
+    .site-header .brand {
+      font-size: 22px;
+    }
+
+    .site-header .header-copy p {
+      font-size: 11px;
+    }
+
+    .update-card {
+      max-width: none;
+    }
+  }
   </style>
 </head>
 <body>
-  <header><div class="brand">BOLO <span>INPEK</span></div><p>Monitoring pendataan · Tim INPEK</p></header>
+  <!-- HEADER: identitas BOLO INPEK dan BPS Kabupaten Blora -->
+<header class="site-header">
+  <div class="header-inner">
+    <img
+      class="header-logo"
+      src="./logo-bps-blora.jpg"
+      alt="BPS Kabupaten Blora"
+    >
+
+    <div class="header-copy">
+      <div class="brand">BOLO <span>INPEK</span></div>
+      <p>
+        Monitoring Survei Statistik INPEK - Blora Pengelolaan Statistik INPEK
+      </p>
+    </div>
+  </div>
+</header>
   <main>
     <div class="notice" id="connection" role="status" aria-live="polite">Memuat data monitoring dari spreadsheet…</div>
+    <!-- WAKTU DATA: diisi dari metadata spreadsheet melalui API -->
+    <section class="update-card" aria-label="Waktu pengambilan data">
+      <div class="update-label">DATA TERAKHIR DIAMBIL</div>
+      <div class="update-date" id="last-fetch-date">Belum tercatat</div>
+      <div class="update-time" id="last-fetch-time"></div>
+      <p class="update-note">
+        Waktu selesai pengambilan seluruh survei dari FASIH-SM.
+      </p>
+    </section>
     <nav id="breadcrumbs" aria-label="Navigasi dashboard"></nav>
     <section id="view" aria-label="Monitoring survei"></section>
   </main>
@@ -75,6 +229,44 @@
       });
     }
 
+    // ==========================================================
+    // WAKTU PENGAMBILAN
+    // Menampilkan waktu dari API dalam zona waktu WIB.
+    // ==========================================================
+    function tampilkanWaktuPengambilan(nilai) {
+      const tanggalEl = document.getElementById("last-fetch-date");
+      const jamEl = document.getElementById("last-fetch-time");
+
+      tanggalEl.textContent = "Belum tercatat";
+      jamEl.textContent = "";
+
+      if (typeof nilai !== "string" || !nilai.trim()) return;
+
+      const waktu = new Date(nilai);
+
+      if (Number.isNaN(waktu.getTime())) {
+        tanggalEl.textContent = "Waktu tidak valid";
+        return;
+      }
+
+      tanggalEl.textContent = new Intl.DateTimeFormat("id-ID", {
+        timeZone: "Asia/Jakarta",
+        day: "numeric",
+        month: "long",
+        year: "numeric"
+      }).format(waktu);
+
+      const jam = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Asia/Jakarta",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hourCycle: "h23"
+      }).format(waktu);
+
+      jamEl.textContent = jam + " WIB";
+    }
+
     async function loadData(){
       if(loading)return;
       loading=true;
@@ -94,13 +286,15 @@
         let payload;
         try{payload=await response.json()}catch{throw new Error('Respons bukan JSON. Pastikan akses web app adalah Siapa saja dan URL /exec benar.');}
         DATA=validatePayload(payload);
+        tampilkanWaktuPengambilan(payload.data_terakhir_diambil);
         Object.assign(state,{survey:null,pml:null,ppl:null,status:null});
         render(false);
         const waktu=new Date().toLocaleString('id-ID',{timeZone:'Asia/Jakarta'});
         connection.textContent='Data berhasil dimuat: '+DATA.length+' assignment · Dibaca '+waktu+' WIB. Waktu ini adalah waktu pembacaan dashboard, bukan waktu pengambilan FASIH.';
       }catch(error){
         DATA=[];
-        connection.textContent='Data belum berhasil dimuat.';
+        tampilkanWaktuPengambilan(null);
+        connection.textContent= "Data berhasil dimuat: " + DATA.length + " assignment.";
         const message=error.name==='AbortError'?'Waktu tunggu habis. Coba lagi.':error instanceof TypeError?'Koneksi gagal. Periksa internet dan pastikan URL API dapat dibuka tanpa login.':error.message;
         view.innerHTML='<div class="empty"><h1>Gagal memuat monitoring</h1><p>'+esc(message)+'</p><button class="statusbtn" id="retry">Coba lagi</button></div>';
       }finally{
