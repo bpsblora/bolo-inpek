@@ -267,6 +267,15 @@
     }
   }
 
+    /* Tombol ekspor pada masing-masing kartu survei */
+    .cardhead {flex-wrap:wrap;gap:10px}
+    .export-actions {display:flex;gap:6px;flex-wrap:wrap}
+    .export-button {display:inline-flex;align-items:center;gap:5px;padding:7px 9px;border:1px solid #cbdcf5;border-radius:7px;background:#f5f9ff;color:#153c78;font-size:12px;font-weight:600}
+    .export-button svg {width:14px;height:14px}
+    .export-button:hover {background:#e4efff}
+    .export-button:disabled {opacity:.55;cursor:wait}
+    .export-feedback {margin:8px 0 0;font-size:12px;color:#526987;line-height:1.5}
+    .export-feedback:empty {display:none}
   </style>
 
 </head>
@@ -366,6 +375,7 @@
     // ========================================================
     const API_URL = 'https://script.google.com/macros/s/AKfycbzW6DV2EcCoaFwHsXcyfBWMqDJ7aqPgNsUrnepn-UsD6EI7Xf9k1ecirrBZt8Gx9Nzu1A/exec';
     let DATA = [];
+    let lastFetched = null;
     let loading = false;
 
     function validatePayload(payload){
@@ -394,6 +404,7 @@
     // Menampilkan waktu dari API dalam zona waktu WIB.
     // ==========================================================
     function tampilkanWaktuPengambilan(nilai) {
+      lastFetched = typeof nilai === 'string' && !Number.isNaN(Date.parse(nilai)) ? nilai : null;
       const tanggalEl = document.getElementById("last-fetch-date");
       const jamEl = document.getElementById("last-fetch-time");
 
@@ -494,7 +505,70 @@
     function surveyCard(survey){
       const rows=DATA.filter(r=>r.survei===survey),c=counts(rows);let start=0;
       const stops=rows.length?c.map((n,i)=>{const end=start+n/rows.length*100;const stop=STATUS[i].color+' '+start+'% '+end+'%';start=end;return stop}).join(','):'#e5e7eb 0% 100%';
-      return '<article class="card"><div class="cardhead"><h2>'+esc(survey)+'</h2><small>'+(rows.length?'Monitoring':'Belum ada data')+'</small></div><button class="chartlink" data-level="survey" data-value="'+esc(survey)+'" aria-label="Lihat progres PML '+esc(survey)+'"><div class="donut" style="background:conic-gradient('+stops+')"><div class="hole"><strong>'+rows.length+'</strong><small>assignment</small></div></div><span>Lihat progres PML →</span></button>'+legend(rows)+'</article>';
+      return '<article class="card"><div class="cardhead"><h2>'+esc(survey)+'</h2>'+exportButtons(survey)+'</div><p class="export-feedback" role="status" aria-live="polite"></p><button class="chartlink" data-level="survey" data-value="'+esc(survey)+'" aria-label="Lihat progres PML '+esc(survey)+'"><div class="donut" style="background:conic-gradient('+stops+')"><div class="hole"><strong>'+rows.length+'</strong><small>assignment</small></div></div><span>Lihat progres PML →</span></button>'+legend(rows)+'</article>';
+    }
+    // EKSPOR: hanya data survei yang dipilih, sesuai data yang tampil.
+    function exportButtons(survey) {
+      const icon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg>';
+      return '<div class="export-actions">'+[['excel','Excel'],['image','Gambar']].map(([kind,label])=>'<button type="button" class="export-button" data-export="'+kind+'" data-survey="'+esc(survey)+'" aria-label="Unduh '+label+' '+esc(survey)+'">'+icon+label+'</button>').join('')+'</div>';
+    }
+    function exportTime() {
+      return lastFetched ? new Date(lastFetched).toLocaleString('id-ID',{timeZone:'Asia/Jakarta'})+' WIB' : 'Belum tercatat';
+    }
+    function exportFilename(survey,extension) {
+      return 'BOLO_INPEK_'+survey.replace(/[^a-z0-9_-]/gi,'_')+'.'+extension;
+    }
+    let excelLibrary;
+    function loadExcelLibrary() {
+      if(!excelLibrary) excelLibrary=import('https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs').catch(()=>{
+        excelLibrary=null;
+        throw new Error('Komponen Excel belum berhasil dimuat. Periksa koneksi internet, lalu coba lagi.');
+      });
+      return excelLibrary;
+    }
+    async function downloadExcel(survey,rows) {
+      const XLSX=await loadExcelLibrary();
+      const workbook=XLSX.utils.book_new();
+      // Susunan sama dengan tab monitoring; nilai kosong tetap kosong.
+      const details=XLSX.utils.aoa_to_sheet([['survei','nama_assignment','status','ppl','pml'],...rows.map(r=>[r.survei,r.nama_assignment,r.status,r.ppl,r.pml])]);
+      details['!cols']=[{wch:16},{wch:48},{wch:16},{wch:30},{wch:30}];
+      details['!autofilter']={ref:details['!ref']};
+      XLSX.utils.book_append_sheet(workbook,details,'monitoring');
+      XLSX.writeFile(workbook,exportFilename(survey,'xlsx'),{compression:true});
+    }
+    // GAMBAR PNG: gambar ulang diagram agar hasil unduhan tajam.
+    async function downloadImage(survey,rows) {
+      const canvas=document.createElement('canvas');canvas.width=1200;canvas.height=800;
+      const ctx=canvas.getContext('2d');
+      if(!ctx)throw new Error('Browser belum mendukung pembuatan gambar.');
+      ctx.fillStyle='#ffffff';ctx.fillRect(0,0,1200,800);
+      ctx.fillStyle='#153c78';ctx.fillRect(0,0,1200,125);
+      ctx.fillStyle='#ffffff';ctx.font='bold 34px Arial';ctx.fillText('BOLO INPEK · '+survey,48,58);
+      ctx.font='20px Arial';ctx.fillText('Monitoring Survei Statistik INPEK · BPS Kabupaten Blora',48,96);
+      ctx.fillStyle='#153c78';ctx.font='bold 26px Arial';ctx.fillText('Progres Pendataan',48,180);
+      const c=counts(rows);let start=-Math.PI/2;
+      ctx.lineWidth=66;
+      if(!rows.length){ctx.strokeStyle='#e5e7eb';ctx.beginPath();ctx.arc(300,420,165,0,2*Math.PI);ctx.stroke();}
+      c.forEach((n,i)=>{if(!n)return;const end=start+n/rows.length*2*Math.PI;ctx.strokeStyle=STATUS[i].color;ctx.beginPath();ctx.arc(300,420,165,start,end);ctx.stroke();start=end;});
+      ctx.textAlign='center';ctx.fillStyle='#172c40';ctx.font='bold 60px Arial';ctx.fillText(String(rows.length),300,424);
+      ctx.font='22px Arial';ctx.fillStyle='#526987';ctx.fillText('assignment',300,465);
+      STATUS.forEach((s,i)=>{const y=270+i*70;ctx.fillStyle=s.color;ctx.beginPath();ctx.arc(600,y-8,9,0,Math.PI*2);ctx.fill();ctx.textAlign='left';ctx.fillStyle='#172c40';ctx.font='24px Arial';ctx.fillText(s.label,626,y);ctx.textAlign='right';ctx.font='bold 24px Arial';ctx.fillText(percent(c[i],rows.length),990,y);ctx.font='24px Arial';ctx.fillText(String(c[i]),1135,y);});
+      ctx.textAlign='left';ctx.fillStyle='#526987';ctx.font='20px Arial';ctx.fillText('Data terakhir diambil: '+exportTime(),48,700);
+      ctx.font='18px Arial';ctx.fillText('Sumber: FASIH-SM melalui Google Sheets · Persentase dari seluruh assignment survei',48,744);
+      const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
+      if(!blob)throw new Error('Gambar belum berhasil dibuat. Silakan coba lagi.');
+      const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=exportFilename(survey,'png');document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
+    }
+    async function handleExport(button) {
+      const survey=button.dataset.survey,rows=DATA.filter(r=>r.survei===survey);
+      const feedback=button.closest('.card').querySelector('.export-feedback');
+      const buttons=button.closest('.export-actions').querySelectorAll('button');
+      buttons.forEach(b=>b.disabled=true);feedback.textContent='Menyiapkan unduhan…';
+      try {
+        if(button.dataset.export==='excel')await downloadExcel(survey,rows);else await downloadImage(survey,rows);
+        feedback.textContent='File siap. Periksa unduhan browser.';
+      }catch(error){feedback.textContent=error.message||'Unduhan gagal. Silakan coba lagi.';}
+      finally{buttons.forEach(b=>b.disabled=false);}
     }
     function peopleTable(rows,key){
       if(!rows.length)return '<div class="empty">Belum ada assignment pada kelompok ini.</div>';
@@ -544,6 +618,8 @@
     }
 
     document.addEventListener('click',event=>{
+      const exportButton=event.target.closest('button[data-export]');
+      if(exportButton){if(!exportButton.disabled)handleExport(exportButton);return;}
       if(event.target.closest('#retry')){loadData();return;}
       const button=event.target.closest('button[data-level]');
       if(!button || button.disabled)return;
