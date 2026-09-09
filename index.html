@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BOLO INPEK — Monitoring Pendataan</title>
+  <meta name="description" content="Monitoring STPIM, SKTH, dan SIBSTR II dari Google Sheets BOLO INPEK.">
+  <style>
+    :root{font-family:Segoe UI,Arial,sans-serif;color:#172c40;background:#eff5ff;font-size:16px;--navy:#153c78;--accent:#185abd}
+    *{box-sizing:border-box}body{margin:0}button{font:inherit;cursor:pointer}button:focus-visible{outline:3px solid #e68a00;outline-offset:4px}header{background:var(--navy);color:white;padding:27px max(24px,calc((100vw - 1180px)/2))}
+    .brand{font-weight:800;letter-spacing:.12em;font-size:1.35rem}.brand span{color:#93c5fd}header p{margin:8px 0 0;color:#dbeafe;font-size:.9rem}
+    main{max-width:1228px;margin:auto;padding:24px}.notice{padding:12px 16px;border:1px solid #b5cff4;background:#e4efff;border-radius:8px;font-size:.9rem;color:#204d88}
+    nav{display:flex;align-items:center;flex-wrap:wrap;gap:8px;min-height:66px;font-size:.9rem}nav button{color:var(--accent);background:none;border:0;padding:8px 0;text-decoration:underline}nav span{color:#5d6b78}
+    .title{display:flex;align-items:start;justify-content:space-between;gap:20px;margin:12px 0 24px}h1{font-size:1.8rem;letter-spacing:-.04em;margin:0 0 8px}h2{font-size:1.2rem;margin:0}p{line-height:1.5}.sub{color:#5c6d7c;margin:0}.total{text-align:right;white-space:nowrap}.total strong{display:block;font-size:2rem;line-height:1.1}.total small{color:#5c6d7c;font-size:.85rem}
+    .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.card{background:white;border:1px solid #dce4eb;border-radius:14px;padding:24px;box-shadow:0 3px 12px #112e4505}.cardhead{display:flex;justify-content:space-between;align-items:center}.cardhead small{color:#5c6d7c}.chartlink{display:block;width:100%;border:0;background:none;color:inherit;padding:20px 0 10px}.chartlink:hover .donut{transform:scale(1.025)}.donut{width:188px;height:188px;border-radius:50%;margin:auto;display:grid;place-items:center;transition:transform .15s}.hole{width:126px;height:126px;background:white;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center}.hole strong{font-size:1.8rem}.hole small{font-size:.85rem;color:#5c6d7c}.chartlink>span{display:block;margin-top:18px;color:var(--accent);font-weight:600;font-size:.9rem}.legend{display:grid;gap:9px;margin-top:15px;font-size:.9rem}.legend>div{display:flex;align-items:center;gap:8px}.dot{display:inline-block;width:10px;height:10px;border-radius:50%;flex-shrink:0}.legend b{margin-left:auto}.legend small{width:28px;text-align:right;color:#687687;font-size:.85rem}
+    .tablebox{background:white;border:1px solid #dce4eb;border-radius:12px;overflow:auto}table{border-collapse:collapse;width:100%;min-width:780px;text-align:left}th,td{padding:16px;border-bottom:1px solid #e8edf1}th{font-size:.85rem;background:#f8fafb;color:#516473}td{font-size:.95rem}tbody tr:last-child td{border-bottom:0}tbody tr:hover{background:#f8fbfc}.person{color:var(--accent);border:0;background:none;font-weight:600;text-align:left;padding:5px 0}.metric{font-variant-numeric:tabular-nums}.metric strong{display:block;font-size:.95rem}.metric small{color:#687687}.statusbtn{border:1px solid #dce4eb;border-radius:7px;background:white;padding:8px;min-width:76px;color:#18384c}.statusbtn:hover{border-color:var(--accent);background:#effafa}.statusbtn:disabled{opacity:.5;cursor:default}.statuslabel{display:inline-flex;align-items:center;gap:7px;white-space:nowrap}.empty{padding:35px;text-align:center;color:#5c6d7c}.hint{font-size:.9rem;color:#5c6d7c;margin:16px 0 0}footer{max-width:1228px;margin:20px auto;padding:20px 24px;color:#687687;border-top:1px solid #dce4eb;font-size:.85rem}
+    .statusbtn:hover{background:#eaf2ff}th{background:#edf4ff}tbody tr:hover{background:#f2f7ff}.card,.tablebox{border-color:#cfddf2}button:focus-visible{outline-color:#2563eb}
+    @media(max-width:900px){.grid{grid-template-columns:1fr}.card{max-width:600px;width:100%;margin:auto}.title{gap:12px}h1{font-size:1.5rem}main{padding:16px}.total strong{font-size:1.6rem}}
+    @media(prefers-reduced-motion:reduce){.donut{transition:none}}
+  </style>
+</head>
+<body>
+  <header><div class="brand">BOLO <span>INPEK</span></div><p>Monitoring pendataan · Tim INPEK</p></header>
+  <main>
+    <div class="notice" id="connection" role="status" aria-live="polite">Memuat data monitoring dari spreadsheet…</div>
+    <nav id="breadcrumbs" aria-label="Navigasi dashboard"></nav>
+    <section id="view" aria-label="Monitoring survei"></section>
+  </main>
+  <footer>BOLO INPEK · Sumber: Google Sheets · Persentase dihitung dari seluruh assignment pada kelompok yang sedang dibuka. Data pendataan diperbarui setelah operator menjalankan Python.</footer>
+  <noscript>Aktifkan JavaScript untuk menggunakan dashboard ini.</noscript>
+  <script>
+    // ========================================================
+    // STATUS DASHBOARD: setiap assignment dihitung satu kali.
+    // ========================================================
+    const STATUS = [
+      {code:'OPEN', label:'Open', color:'#9ca3af'},
+      {code:'SUBMIT', label:'Submit', color:'#60a5fa'},
+      {code:'REJECT', label:'Reject', color:'#dc2626'},
+      {code:'APPROVE', label:'Approve', color:'#86d96b'},
+      {code:'COMPLETE', label:'Complete', color:'#166534'}
+    ];
+    const SURVEYS = ['STPIM','SKTH','SIBSTR II'];
+    const UNASSIGNED = 'Belum dialokasikan';
+    const state = {survey:null,pml:null,ppl:null,status:null};
+    const format = new Intl.NumberFormat('id-ID',{maximumFractionDigits:1});
+    const percent = (n,total) => format.format(total ? n/total*100 : 0)+'%';
+    const esc = value => String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+    // ========================================================
+    // KONEKSI APPS SCRIPT: baca data terbaru setiap halaman dibuka.
+    // Tidak menggunakan kredensial Google atau data demo cadangan.
+    // ========================================================
+    const API_URL = 'https://script.google.com/macros/s/AKfycbzW6DV2EcCoaFwHsXcyfBWMqDJ7aqPgNsUrnepn-UsD6EI7Xf9k1ecirrBZt8Gx9Nzu1A/exec';
+    let DATA = [];
+    let loading = false;
+
+    function validatePayload(payload){
+      if(!payload || payload.success!==true || !Array.isArray(payload.data)){
+        throw new Error('API belum mengembalikan data monitoring yang valid.');
+      }
+      if(!Number.isInteger(payload.total_assignment) || payload.total_assignment!==payload.data.length){
+        throw new Error('Jumlah assignment pada respons API tidak sesuai.');
+      }
+      return payload.data.map((row,index)=>{
+        if(!row || typeof row!=='object')throw new Error('Format baris data tidak valid.');
+        const clean={};
+        for(const key of ['survei','nama_assignment','status','ppl','pml']){
+          if(typeof row[key]!=='string')throw new Error('Kolom '+key+' tidak valid pada baris '+(index+2)+'.');
+          clean[key]=row[key].trim();
+        }
+        if(!SURVEYS.includes(clean.survei) || !clean.nama_assignment || !STATUS.some(s=>s.code===clean.status)){
+          throw new Error('Survei, nama assignment, atau status belum dikenali pada baris '+(index+2)+'. Periksa tab monitoring.');
+        }
+        return clean;
+      });
+    }
+
+    async function loadData(){
+      if(loading)return;
+      loading=true;
+      const connection=document.getElementById('connection');
+      const view=document.getElementById('view');
+      connection.textContent='Memuat data monitoring dari spreadsheet…';
+      document.getElementById('breadcrumbs').innerHTML='';
+      view.innerHTML='<div class="empty">Mohon tunggu, sedang mengambil data.</div>';
+      view.setAttribute('aria-busy','true');
+      const controller=new AbortController();
+      const timer=setTimeout(()=>controller.abort(),45000);
+      try{
+        const response=await fetch(API_URL+'?t='+Date.now(),{
+          method:'GET',credentials:'omit',redirect:'follow',signal:controller.signal
+        });
+        if(!response.ok)throw new Error('Server merespons HTTP '+response.status+'.');
+        let payload;
+        try{payload=await response.json()}catch{throw new Error('Respons bukan JSON. Pastikan akses web app adalah Siapa saja dan URL /exec benar.');}
+        DATA=validatePayload(payload);
+        Object.assign(state,{survey:null,pml:null,ppl:null,status:null});
+        render(false);
+        const waktu=new Date().toLocaleString('id-ID',{timeZone:'Asia/Jakarta'});
+        connection.textContent='Data berhasil dimuat: '+DATA.length+' assignment · Dibaca '+waktu+' WIB. Waktu ini adalah waktu pembacaan dashboard, bukan waktu pengambilan FASIH.';
+      }catch(error){
+        DATA=[];
+        connection.textContent='Data belum berhasil dimuat.';
+        const message=error.name==='AbortError'?'Waktu tunggu habis. Coba lagi.':error instanceof TypeError?'Koneksi gagal. Periksa internet dan pastikan URL API dapat dibuka tanpa login.':error.message;
+        view.innerHTML='<div class="empty"><h1>Gagal memuat monitoring</h1><p>'+esc(message)+'</p><button class="statusbtn" id="retry">Coba lagi</button></div>';
+      }finally{
+        clearTimeout(timer);loading=false;view.setAttribute('aria-busy','false');
+      }
+    }
+    const name = (row,key) => row[key] || UNASSIGNED;
+    function counts(rows){return STATUS.map(s=>rows.filter(r=>r.status===s.code).length)}
+    function selected(){return DATA.filter(r=>(state.survey===null||r.survei===state.survey)&&(state.pml===null||name(r,'pml')===state.pml)&&(state.ppl===null||name(r,'ppl')===state.ppl)&&(state.status===null||r.status===state.status))}
+    function go(level,value){
+      if(level==='home')Object.assign(state,{survey:null,pml:null,ppl:null,status:null});
+      if(level==='survey')Object.assign(state,{survey:value,pml:null,ppl:null,status:null});
+      if(level==='pml')Object.assign(state,{pml:value,ppl:null,status:null});
+      if(level==='ppl')Object.assign(state,{ppl:value,status:null});
+      if(level==='status')state.status=value;
+      render();
+    }
+    function title(text,description,total){return '<div class="title"><div><h1 tabindex="-1">'+esc(text)+'</h1><p class="sub">'+esc(description)+'</p></div><div class="total"><strong>'+total+'</strong><small>assignment</small></div></div>'}
+    function legend(rows){const c=counts(rows);return '<div class="legend">'+STATUS.map((s,i)=>'<div><span class="dot" style="background:'+s.color+'"></span><span>'+s.label+'</span><b>'+percent(c[i],rows.length)+'</b><small>'+c[i]+'</small></div>').join('')+'</div>'}
+    function surveyCard(survey){
+      const rows=DATA.filter(r=>r.survei===survey),c=counts(rows);let start=0;
+      const stops=rows.length?c.map((n,i)=>{const end=start+n/rows.length*100;const stop=STATUS[i].color+' '+start+'% '+end+'%';start=end;return stop}).join(','):'#e5e7eb 0% 100%';
+      return '<article class="card"><div class="cardhead"><h2>'+esc(survey)+'</h2><small>'+(rows.length?'Monitoring':'Belum ada data')+'</small></div><button class="chartlink" data-level="survey" data-value="'+esc(survey)+'" aria-label="Lihat progres PML '+esc(survey)+'"><div class="donut" style="background:conic-gradient('+stops+')"><div class="hole"><strong>'+rows.length+'</strong><small>assignment</small></div></div><span>Lihat progres PML →</span></button>'+legend(rows)+'</article>';
+    }
+    function peopleTable(rows,key){
+      if(!rows.length)return '<div class="empty">Belum ada assignment pada kelompok ini.</div>';
+      const people=[...new Set(rows.map(r=>name(r,key)))].sort((a,b)=>a===UNASSIGNED?1:b===UNASSIGNED?-1:a.localeCompare(b,'id'));
+      const header=STATUS.map(s=>'<th><span class="statuslabel"><span class="dot" style="background:'+s.color+'"></span>'+s.label+'</span></th>').join('');
+      const body=people.map(person=>{
+        const group=rows.filter(r=>name(r,key)===person),c=counts(group);
+        return '<tr><td><button class="person" data-level="'+key+'" data-value="'+esc(person)+'">'+esc(person)+' →</button></td><td>'+group.length+'</td>'+STATUS.map((s,i)=>{
+          const metric='<span class="metric"><strong>'+percent(c[i],group.length)+'</strong><small>'+c[i]+' assignment</small></span>';
+          return '<td>'+(key==='ppl'?'<button class="statusbtn" '+(c[i]?'':'disabled')+' data-level="status" data-person="'+esc(person)+'" data-value="'+s.code+'" aria-label="'+esc(person)+' '+s.label+' '+c[i]+' assignment">'+metric+'</button>':metric)+'</td>';
+        }).join('')+'</tr>';
+      }).join('');
+      return '<div class="tablebox"><table><thead><tr><th>'+key.toUpperCase()+'</th><th>Total</th>'+header+'</tr></thead><tbody>'+body+'</tbody></table></div>';
+    }
+    function assignmentTable(rows){return '<div class="tablebox"><table><thead><tr><th>Nama assignment</th><th>Status</th><th>PPL</th><th>PML</th></tr></thead><tbody>'+rows.map(r=>{const s=STATUS.find(s=>s.code===r.status);return '<tr><td>'+esc(r.nama_assignment)+'</td><td><span class="statuslabel"><span class="dot" style="background:'+s.color+'"></span>'+s.label+'</span></td><td>'+esc(name(r,'ppl'))+'</td><td>'+esc(name(r,'pml'))+'</td></tr>'}).join('')+'</tbody></table></div>'}
+    function render(focus=true){
+      const nav=document.getElementById('breadcrumbs');
+      const crumbs=[['home','Semua survei','']];
+      if(state.survey!==null)crumbs.push(['survey',state.survey,state.survey]);
+      if(state.pml!==null)crumbs.push(['pml',state.pml,state.pml]);
+      if(state.ppl!==null)crumbs.push(['ppl',state.ppl,state.ppl]);
+      if(state.status!==null)crumbs.push(['status',state.status,state.status]);
+      nav.innerHTML=crumbs.map(([level,label,value],i)=>i===crumbs.length-1?'<span aria-current="page">'+esc(label)+'</span>':'<button data-level="'+level+'" data-value="'+esc(value)+'">'+esc(label)+'</button>').join('<span aria-hidden="true"> / </span>');
+      const view=document.getElementById('view'),rows=selected();
+      if(state.survey===null){view.innerHTML=title('Progres pendataan','Pilih survei untuk melihat progres petugas.',DATA.length)+'<div class="grid">'+SURVEYS.map(surveyCard).join('')+'</div>';}
+      else if(state.status!==null){view.innerHTML=title('Assignment · '+state.status,state.survey+' · '+state.pml+' · '+state.ppl,rows.length)+(rows.length?assignmentTable(rows):'<div class="empty">Tidak ada assignment pada status ini.</div>');}
+      else if(state.ppl!==null){view.innerHTML=title(state.ppl,'Pilih status untuk melihat assignment.',rows.length)+peopleTable(rows,'ppl');}
+      else if(state.pml!==null){view.innerHTML=title('Progres PPL',state.survey+' · '+state.pml,rows.length)+peopleTable(rows,'ppl')+'<p class="hint">Klik persentase status pada baris PPL untuk membuka daftar assignment.</p>';}
+      else{view.innerHTML=title('Progres PML · '+state.survey,'Pilih PML untuk melihat progres PPL.',rows.length)+peopleTable(rows,'pml')+'<p class="hint">Complete tetap ditampilkan agar seluruh assignment terhitung. Kelompok tanpa alokasi tetap masuk total survei.</p>';}
+      if(focus)view.querySelector('h1').focus({preventScroll:true});
+    }
+    document.addEventListener('click',event=>{
+      if(event.target.closest('#retry')){loadData();return;}
+      const button=event.target.closest('button[data-level]');
+      if(!button || button.disabled)return;
+      if(button.dataset.level==='status' && button.dataset.person!==undefined)state.ppl=button.dataset.person;
+      go(button.dataset.level,button.dataset.value);
+    });
+    loadData();
+  </script>
+</body>
+</html>
