@@ -145,6 +145,7 @@
     .update-card {
       max-width: none;
     }
+   }
 
     #breadcrumbs[hidden] {
         display: none;
@@ -235,7 +236,7 @@
         grid-template-columns: 1fr;
       }
     }
-  }
+  
   </style>
 </head>
 <body>
@@ -258,8 +259,6 @@
 </header>
   <main>
     <div class="notice" id="connection" role="status" aria-live="polite">Memuat data monitoring dari spreadsheet…</div>
-    <!-- WAKTU DATA: diisi dari metadata spreadsheet melalui API -->
-    <section class="update-card" aria-label="Waktu pengambilan data">
       <!-- INFORMASI DATA: waktu pengambilan dan keterangan status -->
       <div class="info-grid">
 
@@ -339,7 +338,6 @@
         </section>
 
       </div>
-    </section>
     
     <nav id="breadcrumbs" aria-label="Navigasi dashboard"></nav>
     <section id="view" aria-label="Monitoring survei"></section>
@@ -460,7 +458,8 @@
       }catch(error){
         DATA=[];
         tampilkanWaktuPengambilan(null);
-        connection.textContent= "Data berhasil dimuat: " + DATA.length + " assignment.";
+        connection.hidden = false;
+        connection.textContent = "Data belum berhasil dimuat. Silakan coba lagi.";
         const message=error.name==='AbortError'?'Waktu tunggu habis. Coba lagi.':error instanceof TypeError?'Koneksi gagal. Periksa internet dan pastikan URL API dapat dibuka tanpa login.':error.message;
         view.innerHTML='<div class="empty"><h1>Gagal memuat monitoring</h1><p>'+esc(message)+'</p><button class="statusbtn" id="retry">Coba lagi</button></div>';
       }finally{
@@ -549,7 +548,7 @@
       document.getElementById('breadcrumbs').hidden =
         state.survey === null;
     }
-    
+
     document.addEventListener('click',event=>{
       if(event.target.closest('#retry')){loadData();return;}
       const button=event.target.closest('button[data-level]');
