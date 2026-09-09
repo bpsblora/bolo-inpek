@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BOLO INPEK — Monitoring Pendataan</title>
-  <meta name="description" content="Monitoring STPIM, SKTH, dan SIBSTR II dari Google Sheets BOLO INPEK.">
+  <meta name="description" content="Monitoring Survei INPEK BPS Blora by BOLO INPEK.">
   <style>
     :root{font-family:Segoe UI,Arial,sans-serif;color:#172c40;background:#eff5ff;font-size:16px;--navy:#153c78;--accent:#185abd}
     *{box-sizing:border-box}body{margin:0}button{font:inherit;cursor:pointer}button:focus-visible{outline:3px solid #e68a00;outline-offset:4px}header{background:var(--navy);color:white;padding:27px max(24px,calc((100vw - 1180px)/2))}
@@ -291,6 +291,24 @@
     align-self: start;
     padding: 20px;
     }
+
+  /* Nama periode dan tanggal pelaksanaan pada kartu survei. */
+  .survey-period {
+    display: grid;
+    gap: 4px;
+    margin-top: 12px;
+    padding: 10px 12px;
+    background: #f1f6ff;
+    border-radius: 8px;
+    color: #526987;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .survey-period strong {
+    color: #153c78;
+    font-weight: 700;
+  }
   }
 
     /* Tombol ekspor pada masing-masing kartu survei */
@@ -415,6 +433,7 @@
     // ========================================================
     const API_URL = 'https://script.google.com/macros/s/AKfycbzW6DV2EcCoaFwHsXcyfBWMqDJ7aqPgNsUrnepn-UsD6EI7Xf9k1ecirrBZt8Gx9Nzu1A/exec';
     let DATA = [];
+    let PERIODE_SURVEI = [];
     let lastFetched = null;
     let loading = false;
 
@@ -498,6 +517,10 @@
         let payload;
         try{payload=await response.json()}catch{throw new Error('Respons bukan JSON. Pastikan akses web app adalah Siapa saja dan URL /exec benar.');}
         DATA=validatePayload(payload);
+        PERIODE_SURVEI = Array.isArray(payload.periode_survei)
+          ? payload.periode_survei
+          : [];
+
         tampilkanWaktuPengambilan(payload.data_terakhir_diambil);
         Object.assign(state,{survey:null,pml:null,ppl:null,status:null});
         render(false);
@@ -542,10 +565,68 @@
     }
 
     function legend(rows){const c=counts(rows);return '<div class="legend">'+STATUS.map((s,i)=>'<div><span class="dot" style="background:'+s.color+'"></span><span>'+s.label+'</span><b>'+percent(c[i],rows.length)+'</b><small>'+c[i]+'</small></div>').join('')+'</div>'}
+    
+    // ==========================================================
+    // FORMAT TANGGAL PERIODE
+    // Memformat YYYY-MM-DD tanpa menggeser tanggal karena zona waktu.
+    // ==========================================================
+    function formatTanggalPeriode(nilai) {
+      const teks = String(nilai || "").trim();
+
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(teks)) {
+        return "Belum tercatat";
+      }
+
+      const tanggal = new Date(teks + "T00:00:00Z");
+
+      if (
+        Number.isNaN(tanggal.getTime()) ||
+        tanggal.toISOString().slice(0, 10) !== teks
+      ) {
+        return "Tanggal tidak valid";
+      }
+
+      return new Intl.DateTimeFormat("id-ID", {
+        timeZone: "UTC",
+        day: "numeric",
+        month: "long",
+        year: "numeric"
+      }).format(tanggal);
+    }
+
+    // ==========================================================
+    // TAMPILAN PERIODE PADA KARTU SURVEI
+    // Mencocokkan nama survei dengan tab periode_survei.
+    // ==========================================================
+    function periodeHtml(survey) {
+      const periode = PERIODE_SURVEI.find(
+        item => item && item.survei === survey
+      );
+
+      if (!periode) {
+        return '<div class="survey-period">Periode belum tersedia.</div>';
+      }
+
+      const nama = periode.nama_periode
+        ? '<strong>' + esc(periode.nama_periode) + '</strong>'
+        : "";
+
+      return (
+        '<div class="survey-period">' +
+          nama +
+          '<span>Pelaksanaan: ' +
+            esc(formatTanggalPeriode(periode.tanggal_mulai)) +
+            ' – ' +
+            esc(formatTanggalPeriode(periode.tanggal_selesai)) +
+          '</span>' +
+        '</div>'
+      );
+    }
+
     function surveyCard(survey){
       const rows=DATA.filter(r=>r.survei===survey),c=counts(rows);let start=0;
       const stops=rows.length?c.map((n,i)=>{const end=start+n/rows.length*100;const stop=STATUS[i].color+' '+start+'% '+end+'%';start=end;return stop}).join(','):'#e5e7eb 0% 100%';
-      return '<article class="card"><div class="cardhead"><h2>'+esc(survey)+'</h2>'+exportButtons(survey)+'</div><p class="export-feedback" role="status" aria-live="polite"></p><button class="chartlink" data-level="survey" data-value="'+esc(survey)+'" aria-label="Lihat progres PML '+esc(survey)+'"><div class="donut" style="background:conic-gradient('+stops+')"><div class="hole"><strong>'+rows.length+'</strong><small>assignment</small></div></div><span>Lihat progres PML →</span></button>'+legend(rows)+'</article>';
+      return '<article class="card"><div class="cardhead"><h2>'+esc(survey)+'</h2>'+exportButtons(survey)+'</div>'+periodeHtml(survey)+'<p class="export-feedback" role="status" aria-live="polite"></p><button class="chartlink" data-level="survey" data-value="'+esc(survey)+'" aria-label="Lihat progres PML '+esc(survey)+'"><div class="donut" style="background:conic-gradient('+stops+')"><div class="hole"><strong>'+rows.length+'</strong><small>assignment</small></div></div><span>Lihat progres PML →</span></button>'+legend(rows)+'</article>';
     }
     // EKSPOR: hanya data survei yang dipilih, sesuai data yang tampil.
     function exportButtons(survey) {
