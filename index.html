@@ -152,16 +152,16 @@
       }
 
     /* SUSUNAN INFORMASI: waktu di kiri, keterangan status di kanan */
-    .info-grid {
+    .monitoring-info {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1.8fr);
+      grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+      width: 100%;
       gap: 20px;
       align-items: stretch;
       margin: 20px 0 28px;
     }
 
-    .info-grid .update-card,
-    .info-grid .status-guide {
+    .monitoring-info-card {
       min-width: 0;
       max-width: none;
       margin: 0;
@@ -174,25 +174,21 @@
     }
 
     /* KETERANGAN STATUS */
-    .status-guide h2 {
+    .monitoring-info-title {
       margin: 0 0 16px;
       color: #153c78;
       font-size: 17px;
       font-weight: 700;
     }
 
-    .status-guide-list {
+    .monitoring-status-list {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 16px 24px;
       margin: 0;
     }
 
-    .status-guide-item:last-child {
-      grid-column: 1 / -1;
-    }
-
-    .status-guide-item dt {
+    .monitoring-status-list dt {
       display: flex;
       align-items: center;
       gap: 8px;
@@ -201,14 +197,14 @@
       font-weight: 700;
     }
 
-    .status-guide-item dd {
-      margin: 5px 0 0 18px;
+    .monitoring-status-list dd {
+      margin: 6px 0 0;
       color: #526987;
       font-size: 12px;
       line-height: 1.6;
     }
 
-    .status-mark {
+    .monitoring-status-list dt span {
       width: 10px;
       height: 10px;
       border-radius: 3px;
@@ -227,17 +223,25 @@
     }
 
     /* SUSUNAN PADA LAYAR KECIL */
-    @media (max-width: 760px) {
-      .info-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .status-guide-list {
-        grid-template-columns: 1fr;
+    @media (max-width: 1000px) {
+      .monitoring-status-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
-  
+
+  @media (max-width: 760px) {
+    .monitoring-info {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 420px) {
+    .monitoring-status-list {
+      grid-template-columns: 1fr;
+    }
+  }
   </style>
+
 </head>
 <body>
   <!-- HEADER: identitas BOLO INPEK dan BPS Kabupaten Blora -->
@@ -259,87 +263,54 @@
 </header>
   <main>
     <div class="notice" id="connection" role="status" aria-live="polite">Memuat data monitoring dari spreadsheet…</div>
-      <!-- INFORMASI DATA: waktu pengambilan dan keterangan status -->
-      <div class="info-grid">
+    <!-- Dua kotak sejajar: waktu dan keterangan status -->
+    <div class="monitoring-info">
 
-        <section class="update-card" aria-label="Waktu pengambilan data">
-          <div class="update-label">DATA TERAKHIR DIAMBIL</div>
+      <section class="monitoring-info-card">
+        <div class="update-label">DATA TERAKHIR DIAMBIL</div>
+        <div class="update-date" id="last-fetch-date">Belum tercatat</div>
+        <div class="update-time" id="last-fetch-time"></div>
 
-          <div class="update-date" id="last-fetch-date">
-          Belum tercatat
+        <p class="update-note">
+          Waktu selesai pengambilan seluruh survei Statistik INPEK
+          BPS Kabupaten Blora dari FASIH-SM.
+        </p>
+      </section>
+
+      <section class="monitoring-info-card">
+        <h2 class="monitoring-info-title">Keterangan Status</h2>
+
+        <dl class="monitoring-status-list">
+          <div>
+            <dt><span style="background:#9ca3af"></span>Open</dt>
+            <dd>Dokumen belum dikirim, termasuk yang belum dikerjakan atau masih dalam pengisian.</dd>
           </div>
 
-          <div class="update-time" id="last-fetch-time"></div>
+          <div>
+            <dt><span style="background:#60a5fa"></span>Submit</dt>
+            <dd>Dokumen sudah dikirim pencacah dan menunggu pemeriksaan pengawas.</dd>
+          </div>
 
-          <p class="update-note">
-            Waktu selesai pengambilan seluruh survei Statistik INPEK
-            BPS Kabupaten Blora dari FASIH-SM.
-          </p>
-        </section>
+          <div>
+            <dt><span style="background:#dc2626"></span>Reject</dt>
+            <dd>Dokumen dikembalikan untuk diperbaiki.</dd>
+          </div>
 
-        <section class="status-guide" aria-labelledby="status-guide-title">
-          <h2 id="status-guide-title">Keterangan Status</h2>
+          <div>
+            <dt><span style="background:#86d96b"></span>Approve</dt>
+            <dd>Dokumen disetujui pengawas dan menunggu penyelesaian admin kabupaten.</dd>
+          </div>
 
-          <dl class="status-guide-list">
-            <div class="status-guide-item">
-              <dt>
-                <span class="status-mark status-open" aria-hidden="true"></span>
-                Open
-              </dt>
-              <dd>
-                Dokumen belum dikirim oleh pencacah, termasuk yang
-                belum dikerjakan atau masih dalam pengisian.
-              </dd>
-            </div>
+          <div>
+            <dt><span style="background:#166534"></span>Complete</dt>
+            <dd>Dokumen mencapai status akhir: Approved oleh admin kabupaten pada STPIM atau Completed pada SKTH dan SIBSTR II.</dd>
+          </div>
+        </dl>
+      </section>
 
-            <div class="status-guide-item">
-              <dt>
-                <span class="status-mark status-submit" aria-hidden="true"></span>
-                Submit
-              </dt>
-              <dd>
-                Dokumen sudah dikirim oleh pencacah dan menunggu
-                pemeriksaan pengawas.
-              </dd>
-            </div>
-
-            <div class="status-guide-item">
-              <dt>
-                <span class="status-mark status-reject" aria-hidden="true"></span>
-                Reject
-              </dt>
-              <dd>
-                Dokumen dikembalikan untuk diperbaiki.
-              </dd>
-            </div>
-
-            <div class="status-guide-item">
-              <dt>
-                <span class="status-mark status-approve" aria-hidden="true"></span>
-                Approve
-              </dt>
-              <dd>
-                Dokumen sudah disetujui pengawas dan menunggu
-                penyelesaian oleh admin kabupaten.
-              </dd>
-            </div>
-
-            <div class="status-guide-item">
-              <dt>
-                <span class="status-mark status-complete" aria-hidden="true"></span>
-                Complete
-              </dt>
-              <dd>
-                Dokumen mencapai status akhir oleh admin kabupaten:
-                Approved pada STPIM atau Completed pada SKTH dan SIBSTR II.
-              </dd>
-            </div>
-          </dl>
-        </section>
-
-      </div>
+    </div>
     
-    <nav id="breadcrumbs" aria-label="Navigasi dashboard"></nav>
+    <nav id="breadcrumbs" aria-label="Navigasi dashboard" hidden></nav>
     <section id="view" aria-label="Monitoring survei"></section>
   </main>
   <footer>BOLO INPEK · Sumber: Google Sheets · Persentase dihitung dari seluruh assignment pada kelompok yang sedang dibuka. Data pendataan diperbarui setelah operator menjalankan Python.</footer>
@@ -452,7 +423,6 @@
         tampilkanWaktuPengambilan(payload.data_terakhir_diambil);
         Object.assign(state,{survey:null,pml:null,ppl:null,status:null});
         render(false);
-        const waktu=new Date().toLocaleString('id-ID',{timeZone:'Asia/Jakarta'});
         // Sembunyikan banner setelah data berhasil dimuat.
         connection.hidden = true;
       }catch(error){
@@ -544,9 +514,6 @@
       else if(state.pml!==null){view.innerHTML=title('Progres PPL',state.survey+' · '+state.pml,rows.length)+peopleTable(rows,'ppl')+'<p class="hint">Klik persentase status pada baris PPL untuk membuka daftar assignment.</p>';}
       else{view.innerHTML=title('Progres PML · '+state.survey,'Pilih PML untuk melihat progres PPL.',rows.length)+peopleTable(rows,'pml')+'<p class="hint">Complete tetap ditampilkan agar seluruh assignment terhitung. Kelompok tanpa alokasi tetap masuk total survei.</p>';}
       if(focus)view.querySelector('h1').focus({preventScroll:true});
-      // Halaman utama tidak menampilkan navigasi "Semua survei".
-      document.getElementById('breadcrumbs').hidden =
-        state.survey === null;
     }
 
     document.addEventListener('click',event=>{
