@@ -145,6 +145,10 @@
     .update-card {
       max-width: none;
     }
+
+    #breadcrumbs[hidden] {
+        display: none;
+      }
   }
   </style>
 </head>
@@ -175,7 +179,7 @@
       <div class="update-time" id="last-fetch-time"></div>
       <p class="update-note">
         Waktu selesai pengambilan dari FASIH-SM untuk seluruh survei<br>Statistik INPEK
-        BPS Kabupaten Blora.
+        BPS Kabupaten Blora
       </p>
     </section>
     <nav id="breadcrumbs" aria-label="Navigasi dashboard"></nav>
@@ -330,7 +334,7 @@
         totalHtml +
       '</div>';
     }
-    
+
     function legend(rows){const c=counts(rows);return '<div class="legend">'+STATUS.map((s,i)=>'<div><span class="dot" style="background:'+s.color+'"></span><span>'+s.label+'</span><b>'+percent(c[i],rows.length)+'</b><small>'+c[i]+'</small></div>').join('')+'</div>'}
     function surveyCard(survey){
       const rows=DATA.filter(r=>r.survei===survey),c=counts(rows);let start=0;
@@ -353,14 +357,30 @@
     function assignmentTable(rows){return '<div class="tablebox"><table><thead><tr><th>Nama assignment</th><th>Status</th><th>PPL</th><th>PML</th></tr></thead><tbody>'+rows.map(r=>{const s=STATUS.find(s=>s.code===r.status);return '<tr><td>'+esc(r.nama_assignment)+'</td><td><span class="statuslabel"><span class="dot" style="background:'+s.color+'"></span>'+s.label+'</span></td><td>'+esc(name(r,'ppl'))+'</td><td>'+esc(name(r,'pml'))+'</td></tr>'}).join('')+'</tbody></table></div>'}
     function render(focus=true){
       const nav=document.getElementById('breadcrumbs');
+      // Navigasi ditampilkan setelah salah satu survei dibuka.
+      nav.hidden = state.survey === null;
       const crumbs=[['home','Semua survei','']];
+      
       if(state.survey!==null)crumbs.push(['survey',state.survey,state.survey]);
       if(state.pml!==null)crumbs.push(['pml',state.pml,state.pml]);
       if(state.ppl!==null)crumbs.push(['ppl',state.ppl,state.ppl]);
       if(state.status!==null)crumbs.push(['status',state.status,state.status]);
       nav.innerHTML=crumbs.map(([level,label,value],i)=>i===crumbs.length-1?'<span aria-current="page">'+esc(label)+'</span>':'<button data-level="'+level+'" data-value="'+esc(value)+'">'+esc(label)+'</button>').join('<span aria-hidden="true"> / </span>');
       const view=document.getElementById('view'),rows=selected();
-      if(state.survey===null){view.innerHTML=title('Progres Pendataan Survei INPEK Berjalan','Pilih survei untuk melihat progres petugas.',DATA.length)+'<div class="grid">'+SURVEYS.map(surveyCard).join('')+'</div>';}
+      if (state.survey === null) {
+        view.innerHTML =
+          title(
+            'Progres Pendataan Survei INPEK Berjalan',
+            'Pilih survei untuk melihat progres petugas',
+            DATA.length
+          ) +
+          '<div class="grid">' +
+          SURVEYS.map(surveyCard).join('') +
+          '</div>';
+
+        // Cetak miring keterangan pada halaman utama saja.
+        view.querySelector('.title .sub').style.fontStyle = 'italic';
+      }
       else if(state.status!==null){view.innerHTML=title('Assignment · '+state.status,state.survey+' · '+state.pml+' · '+state.ppl,rows.length)+(rows.length?assignmentTable(rows):'<div class="empty">Tidak ada assignment pada status ini.</div>');}
       else if(state.ppl!==null){view.innerHTML=title(state.ppl,'Pilih status untuk melihat assignment.',rows.length)+peopleTable(rows,'ppl');}
       else if(state.pml!==null){view.innerHTML=title('Progres PPL',state.survey+' · '+state.pml,rows.length)+peopleTable(rows,'ppl')+'<p class="hint">Klik persentase status pada baris PPL untuk membuka daftar assignment.</p>';}
