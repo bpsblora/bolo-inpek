@@ -174,7 +174,8 @@
       <div class="update-date" id="last-fetch-date">Belum tercatat</div>
       <div class="update-time" id="last-fetch-time"></div>
       <p class="update-note">
-        Waktu selesai pengambilan seluruh survei dari FASIH-SM.
+        Waktu selesai pengambilan seluruh survei Statistik INPEK
+        BPS Kabupaten Blora dari FASIH-SM.
       </p>
     </section>
     <nav id="breadcrumbs" aria-label="Navigasi dashboard"></nav>
@@ -271,6 +272,7 @@
       if(loading)return;
       loading=true;
       const connection=document.getElementById('connection');
+      connection.hidden = false;
       const view=document.getElementById('view');
       connection.textContent='Memuat data monitoring dari spreadsheet…';
       document.getElementById('breadcrumbs').innerHTML='';
@@ -290,7 +292,8 @@
         Object.assign(state,{survey:null,pml:null,ppl:null,status:null});
         render(false);
         const waktu=new Date().toLocaleString('id-ID',{timeZone:'Asia/Jakarta'});
-        connection.textContent='Data berhasil dimuat: '+DATA.length+' assignment · Dibaca '+waktu+' WIB. Waktu ini adalah waktu pembacaan dashboard, bukan waktu pengambilan FASIH.';
+        // Sembunyikan banner setelah data berhasil dimuat.
+        connection.hidden = true;
       }catch(error){
         DATA=[];
         tampilkanWaktuPengambilan(null);
@@ -312,7 +315,22 @@
       if(level==='status')state.status=value;
       render();
     }
-    function title(text,description,total){return '<div class="title"><div><h1 tabindex="-1">'+esc(text)+'</h1><p class="sub">'+esc(description)+'</p></div><div class="total"><strong>'+total+'</strong><small>assignment</small></div></div>'}
+    // JUDUL HALAMAN: total ditampilkan hanya pada rincian survei.
+    function title(text, description, total) {
+      const totalHtml = state.survey !== null
+        ? '<div class="total"><strong>' + total +
+          '</strong><small>assignment</small></div>'
+        : '';
+
+      return '<div class="title">' +
+        '<div>' +
+          '<h1 tabindex="-1">' + esc(text) + '</h1>' +
+          '<p class="sub">' + esc(description) + '</p>' +
+        '</div>' +
+        totalHtml +
+      '</div>';
+    }
+    
     function legend(rows){const c=counts(rows);return '<div class="legend">'+STATUS.map((s,i)=>'<div><span class="dot" style="background:'+s.color+'"></span><span>'+s.label+'</span><b>'+percent(c[i],rows.length)+'</b><small>'+c[i]+'</small></div>').join('')+'</div>'}
     function surveyCard(survey){
       const rows=DATA.filter(r=>r.survei===survey),c=counts(rows);let start=0;
@@ -342,7 +360,7 @@
       if(state.status!==null)crumbs.push(['status',state.status,state.status]);
       nav.innerHTML=crumbs.map(([level,label,value],i)=>i===crumbs.length-1?'<span aria-current="page">'+esc(label)+'</span>':'<button data-level="'+level+'" data-value="'+esc(value)+'">'+esc(label)+'</button>').join('<span aria-hidden="true"> / </span>');
       const view=document.getElementById('view'),rows=selected();
-      if(state.survey===null){view.innerHTML=title('Progres pendataan','Pilih survei untuk melihat progres petugas.',DATA.length)+'<div class="grid">'+SURVEYS.map(surveyCard).join('')+'</div>';}
+      if(state.survey===null){view.innerHTML=title('Progres Pendataan Survei INPEK Berjalan','Pilih survei untuk melihat progres petugas.',DATA.length)+'<div class="grid">'+SURVEYS.map(surveyCard).join('')+'</div>';}
       else if(state.status!==null){view.innerHTML=title('Assignment · '+state.status,state.survey+' · '+state.pml+' · '+state.ppl,rows.length)+(rows.length?assignmentTable(rows):'<div class="empty">Tidak ada assignment pada status ini.</div>');}
       else if(state.ppl!==null){view.innerHTML=title(state.ppl,'Pilih status untuk melihat assignment.',rows.length)+peopleTable(rows,'ppl');}
       else if(state.pml!==null){view.innerHTML=title('Progres PPL',state.survey+' · '+state.pml,rows.length)+peopleTable(rows,'ppl')+'<p class="hint">Klik persentase status pada baris PPL untuk membuka daftar assignment.</p>';}
