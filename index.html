@@ -94,22 +94,23 @@
     .update-label {
       margin-bottom: 10px;
       color: #526987;
-      font-size: 12px;
+      font-size: 18px;
       font-weight: 700;
       letter-spacing: 0.06em;
     }
 
     .update-date {
       color: #153c78;
-      font-size: 25px;
+      font-size: 30px;
       font-weight: 800;
     }
 
     .update-time {
       margin-top: 5px;
       color: #185abd;
-      font-size: 18px;
+      font-size: 25px;
       font-weight: 700;
+      line-height: 1.3;
     }
 
     .update-note {
@@ -117,6 +118,25 @@
       color: #64748b;
       font-size: 12px;
       line-height: 1.5;
+    }
+
+    /* Ikon kalender dan jam di atas keterangan waktu. */
+    .update-icons {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+      color: #2563eb;
+    }
+
+    .update-icons svg {
+      width: 32px;
+      height: 32px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
 
     /* RESPONSIF: menyesuaikan header pada layar ponsel */
@@ -310,6 +330,19 @@
     <div class="monitoring-info">
 
       <section class="monitoring-info-card">
+        <!-- Ikon kalender dan waktu -->
+        <div class="update-icons" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <rect x="3" y="5" width="18" height="16" rx="3"></rect>
+            <path d="M7 3v4M17 3v4M3 11h18"></path>
+          </svg>
+
+          <svg viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="9"></circle>
+            <path d="M12 7v5l3 2"></path>
+          </svg>
+        </div>
+
         <div class="update-label">DATA TERAKHIR DIAMBIL</div>
         <div class="update-date" id="last-fetch-date">Belum tercatat</div>
         <div class="update-time" id="last-fetch-time"></div>
