@@ -310,6 +310,21 @@
   .survey-period strong {
     color: #153c78;
     font-weight: 700;
+
+  /* Judul dan ikon kecil tampil berdampingan. */
+  .brand-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    }
+
+  .brand-icon {
+    display: block;
+    width: 30px;
+    height: 30px;
+    object-fit: contain;
+    flex-shrink: 0;
+    }
   }
   }
 
@@ -351,7 +366,14 @@
     >
 
     <div class="header-copy">
-      <div class="brand">BOLO <span>INPEK</span></div>
+      <div class="brand-row">
+        <div class="brand">BOLO <span>INPEK</span></div>
+        <img
+          class="brand-icon"
+          src="./favicon.png"
+          alt="Logo persahabatan BOLO INPEK"
+        >
+      </div>
       <p>
         Monitoring Survei Statistik INPEK - Blora Pengelolaan Statistik INPEK
       </p>
