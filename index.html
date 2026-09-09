@@ -239,6 +239,32 @@
     .monitoring-status-list {
       grid-template-columns: 1fr;
     }
+  
+  /* Logo berbentuk lingkaran tanpa kotak putih dan padding */
+  .site-header .header-logo {
+    width: 64px;
+    height: 64px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+
+  /* Seluruh judul BOLO INPEK berwarna putih */
+  .site-header .brand,
+  .site-header .brand span {
+    color: #ffffff;
+  }
+
+  /* Ukuran logo pada ponsel */
+  @media (max-width: 600px) {
+    .site-header .header-logo {
+      width: 52px;
+      height: 52px;
+    }
+  }
+
   }
   </style>
 
