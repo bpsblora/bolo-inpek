@@ -713,6 +713,75 @@
       return '<div class="tablebox"><table><thead><tr><th>'+key.toUpperCase()+'</th><th>Total</th>'+header+'</tr></thead><tbody>'+body+'</tbody></table></div>';
     }
     function assignmentTable(rows){return '<div class="tablebox"><table><thead><tr><th>Nama assignment</th><th>Status</th><th>PPL</th><th>PML</th></tr></thead><tbody>'+rows.map(r=>{const s=STATUS.find(s=>s.code===r.status);return '<tr><td>'+esc(r.nama_assignment)+'</td><td><span class="statuslabel"><span class="dot" style="background:'+s.color+'"></span>'+s.label+'</span></td><td>'+esc(name(r,'ppl'))+'</td><td>'+esc(name(r,'pml'))+'</td></tr>'}).join('')+'</tbody></table></div>'}
+    
+    // Mengurutkan survei berdasarkan deadline paling awal.
+    // Survei tanpa tanggal yang valid ditempatkan terakhir.
+    function surveiUrutDeadline() {
+      function deadline(survey) {
+        const periode = PERIODE_SURVEI.find(
+          item => item && item.survei === survey
+        );
+
+        const teks = String(periode?.tanggal_selesai || "").trim();
+
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(teks)) {
+          return Infinity;
+        }
+
+        const waktu = Date.parse(teks + "T00:00:00Z");
+
+        if (
+          !Number.isFinite(waktu) ||
+          new Date(waktu).toISOString().slice(0, 10) !== teks
+        ) {
+          return Infinity;
+        }
+
+        return waktu;
+      }
+
+      return [...SURVEYS].sort((a, b) => {
+        const tanggalA = deadline(a);
+        const tanggalB = deadline(b);
+
+        // Jika deadline sama, dahulukan survei yang mulai lebih awal.
+        if (tanggalA === tanggalB) {
+          function tanggalMulai(survey) {
+            const periode = PERIODE_SURVEI.find(
+              item => item && item.survei === survey
+            );
+
+            const teks = String(periode?.tanggal_mulai || "").trim();
+
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(teks)) return Infinity;
+
+            const waktu = Date.parse(teks + "T00:00:00Z");
+
+            if (
+              !Number.isFinite(waktu) ||
+              new Date(waktu).toISOString().slice(0, 10) !== teks
+            ) {
+              return Infinity;
+            }
+
+            return waktu;
+          }
+
+          const mulaiA = tanggalMulai(a);
+          const mulaiB = tanggalMulai(b);
+
+          // Jika tanggal mulai juga sama, gunakan urutan daftar semula.
+          if (mulaiA === mulaiB) {
+            return SURVEYS.indexOf(a) - SURVEYS.indexOf(b);
+          }
+
+          return mulaiA < mulaiB ? -1 : 1;
+        }
+
+        return tanggalA < tanggalB ? -1 : 1;
+      });
+    }
+    
     function render(focus=true){
       const nav=document.getElementById('breadcrumbs');
       // Navigasi ditampilkan setelah salah satu survei dibuka.
@@ -733,7 +802,7 @@
             DATA.length
           ) +
           '<div class="grid">' +
-          SURVEYS.map(surveyCard).join('') +
+          surveiUrutDeadline().map(surveyCard).join('') +
           '</div>';
 
         // Cetak miring keterangan pada halaman utama saja.
