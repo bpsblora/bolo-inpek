@@ -362,6 +362,34 @@
     padding: 0;
     background: transparent;
   }
+
+  .tombol-tindak-lanjut {
+  position: relative;
+}
+
+.notifikasi-tindak-lanjut {
+  position: absolute;
+  top: -10px;
+  right: -7px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-width: 28px;
+  height: 28px;
+  padding: 0 7px;
+
+  background: #ffffff;
+  color: #b42332;
+  border: 2px solid #b42332;
+  border-radius: 999px;
+
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 2px 5px #0002;
+}
 </style>
 
 </head>
@@ -477,23 +505,90 @@
 
     const TINDAK_LANJUT_URL = "https://script.google.com/macros/s/AKfycbzdnMjJHjxmQXhnpZdMCPi1zyKvChmVJH6U15p_RMLR649wHFSmL2FrgcUzs0MxV4JX/exec";
     let PERIODE_DITUTUP = new Set();
+    let JUMLAH_PENGINGAT = new Map();
     function tombolTindakLanjut(survey) {
-      const p=PERIODE_SURVEI.find(p=>p&&p.survei===survey);
-      if(!p?.survey_period_id)return '';
-      return '<button type="button" class="tombol-tindak-lanjut" data-tindak-survei="'+esc(survey)+'">Tindak Lanjut ↗</button>';
-    }
+  const p = PERIODE_SURVEI.find(
+    p => p && p.survei === survey
+  );
+
+  if (!p?.survey_period_id) return '';
+
+  const jumlah =
+    JUMLAH_PENGINGAT.get(String(p.survey_period_id)) || 0;
+
+  const notifikasi = jumlah > 0
+    ? '<span class="notifikasi-tindak-lanjut" aria-hidden="true">' +
+        jumlah +
+      '</span>'
+    : '';
+
+  const label = 'Tindak Lanjut ' + survey +
+    (jumlah > 0
+      ? ', ' + jumlah + ' catatan perlu ditindaklanjuti'
+      : '');
+
+  return (
+    '<button type="button" class="tombol-tindak-lanjut"' +
+      ' data-tindak-survei="' + esc(survey) + '"' +
+      ' aria-label="' + esc(label) + '">' +
+      'Tindak Lanjut ↗' +
+      notifikasi +
+    '</button>'
+  );
+}
     function surveiMasihAktif(survey) {
       const p=PERIODE_SURVEI.find(p=>p&&p.survei===survey);
       return !p?.survey_period_id || !PERIODE_DITUTUP.has(p.survey_period_id);
     }
     async function ambilStatusPenutupan(signal) {
-      const u=new URL(TINDAK_LANJUT_URL);u.searchParams.set('action','closed');u.searchParams.set('t',Date.now());
-      const response=await fetch(u.href,{credentials:'omit',redirect:'follow',signal});
-      if(!response.ok)throw Error('Status penutupan survei belum dapat dibaca.');
-      const result=await response.json();
-      if(result.success!==true||!Array.isArray(result.closed))throw Error('Status penutupan survei tidak valid.');
-      PERIODE_DITUTUP=new Set(result.closed.map(s=>s.survey_period_id));
+  const u = new URL(TINDAK_LANJUT_URL);
+  u.searchParams.set('action', 'closed');
+  u.searchParams.set('t', Date.now());
+
+  const response = await fetch(u.href, {
+    credentials: 'omit',
+    redirect: 'follow',
+    signal
+  });
+
+  if (!response.ok) {
+    throw Error('Status penutupan survei belum dapat dibaca.');
+  }
+
+  const result = await response.json();
+
+  if (
+    result.success !== true ||
+    !Array.isArray(result.closed) ||
+    !Array.isArray(result.pengingat)
+  ) {
+    throw Error(
+      'Data penutupan atau pengingat belum tersedia. ' +
+      'Pastikan deployment Apps Script sudah diperbarui.'
+    );
+  }
+
+  PERIODE_DITUTUP = new Set(
+    result.closed.map(s => s.survey_period_id)
+  );
+
+  JUMLAH_PENGINGAT = new Map();
+
+  for (const r of result.pengingat) {
+    const jumlah = Number(r.jumlah);
+
+    if (
+      r.survey_period_id &&
+      Number.isSafeInteger(jumlah) &&
+      jumlah >= 0
+    ) {
+      JUMLAH_PENGINGAT.set(
+        String(r.survey_period_id),
+        jumlah
+      );
     }
+  }
+}
 
     const SURVEYS = ['MINERBA','MIGAS','STPIM','SKTH','SIBSTR II','CAPTIVE POWER'];
     const UNASSIGNED = 'Belum dialokasikan';
