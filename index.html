@@ -337,32 +337,18 @@
     .export-button:disabled {opacity:.55;cursor:wait}
     .export-feedback {margin:8px 0 0;font-size:12px;color:#526987;line-height:1.5}
     .export-feedback:empty {display:none}
-    .tombol-tindak-lanjut {
-      display: block;
-      margin-top: 18px;
-      padding: 11px 14px;
-      border: 1px solid #173858;
-      border-radius: 8px;
-      background: #173858;
-      color: #ffffff;
-      text-align: center;
-      text-decoration: none;
-      font-size: 13px;
-      font-weight: 600;
-    }
-
-    .tombol-tindak-lanjut:hover {
-      background: #102a43;
-      border-color: #102a43;
-      color: #ffffff;
-    }
-
-    .tombol-tindak-lanjut:focus-visible {
-      outline: 3px solid #2563eb;
-      outline-offset: 3px;
-    }
     
-  </style>
+  
+.tombol-tindak-lanjut{display:block;width:100%;margin-top:18px;padding:11px 14px;border:1px solid #173858;border-radius:8px;background:#173858;color:white;text-align:center;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer}
+.tombol-tindak-lanjut:hover{background:#102a43;color:white}
+#tlPopup{width:75vw;max-width:75vw;height:75vh;height:75dvh;max-height:75dvh;padding:0;border:0;border-radius:14px;background:#f3f7fc;color:#173858;overflow:hidden;box-shadow:0 20px 70px #0005}
+#tlPopup::backdrop{background:rgba(8,26,44,.38)}
+#tlPopup .tl-bar{height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;background:white;border-bottom:1px solid #d6e1ed}
+#tlPopup .tl-bar button{border:0;background:transparent;font-size:24px;color:#173858;cursor:pointer;padding:2px 10px}
+#tlPopup iframe{display:block;width:100%;height:calc(100% - 48px);border:0;background:#f3f7fc}
+#tlPopup button:focus-visible{outline:3px solid #2563eb}
+
+</style>
 
 <style>
   /* Tanggal periode pada kartu survei */
@@ -489,31 +475,24 @@
       {code:'COMPLETE', label:'Complete', color:'#166534'}
     ];
 
-    const TINDAK_LANJUT_URL =
-      "https://script.google.com/macros/s/AKfycbzdnMjJHjxmQXhnpZdMCPi1zyKvChmVJH6U15p_RMLR649wHFSmL2FrgcUzs0MxV4JX/exec";
-
+    const TINDAK_LANJUT_URL = "https://script.google.com/macros/s/AKfycbzdnMjJHjxmQXhnpZdMCPi1zyKvChmVJH6U15p_RMLR649wHFSmL2FrgcUzs0MxV4JX/exec";
+    let PERIODE_DITUTUP = new Set();
     function tombolTindakLanjut(survey) {
-      const periode = PERIODE_SURVEI.find(
-        item => item && item.survei === survey
-      );
-
-      if (!periode || !periode.survey_period_id) {
-        return "";
-      }
-
-      const url = new URL(TINDAK_LANJUT_URL);
-      url.searchParams.set("survei", survey);
-      url.searchParams.set(
-        "survey_period_id",
-        periode.survey_period_id
-      );
-
-      return (
-        '<a class="tombol-tindak-lanjut" href="' +
-        esc(url.href) +
-        '" target="_blank" rel="noopener noreferrer">' +
-        'Tindak Lanjut ↗</a>'
-      );
+      const p=PERIODE_SURVEI.find(p=>p&&p.survei===survey);
+      if(!p?.survey_period_id)return '';
+      return '<button type="button" class="tombol-tindak-lanjut" data-tindak-survei="'+esc(survey)+'">Tindak Lanjut ↗</button>';
+    }
+    function surveiMasihAktif(survey) {
+      const p=PERIODE_SURVEI.find(p=>p&&p.survei===survey);
+      return !p?.survey_period_id || !PERIODE_DITUTUP.has(p.survey_period_id);
+    }
+    async function ambilStatusPenutupan(signal) {
+      const u=new URL(TINDAK_LANJUT_URL);u.searchParams.set('action','closed');u.searchParams.set('t',Date.now());
+      const response=await fetch(u.href,{credentials:'omit',redirect:'follow',signal});
+      if(!response.ok)throw Error('Status penutupan survei belum dapat dibaca.');
+      const result=await response.json();
+      if(result.success!==true||!Array.isArray(result.closed))throw Error('Status penutupan survei tidak valid.');
+      PERIODE_DITUTUP=new Set(result.closed.map(s=>s.survey_period_id));
     }
 
     const SURVEYS = ['MINERBA','MIGAS','STPIM','SKTH','SIBSTR II','CAPTIVE POWER'];
@@ -617,6 +596,8 @@
           ? payload.periode_survei
           : [];
 
+        await ambilStatusPenutupan(controller.signal);
+        DATA=DATA.filter(r=>surveiMasihAktif(r.survei));
         tampilkanWaktuPengambilan(payload.data_terakhir_diambil);
         Object.assign(state,{survey:null,pml:null,ppl:null,status:null});
         render(false);
@@ -883,7 +864,7 @@
             DATA.length
           ) +
           '<div class="grid">' +
-          surveiUrutDeadline().map(surveyCard).join('') +
+          surveiUrutDeadline().filter(surveiMasihAktif).map(surveyCard).join('') +
           '</div>';
 
         // Cetak miring keterangan pada halaman utama saja.
@@ -907,5 +888,21 @@
     });
     loadData();
   </script>
+
+<dialog id="tlPopup" aria-labelledby="tlPopupTitle"><div class="tl-bar"><strong id="tlPopupTitle">Tindak Lanjut BOLO INPEK</strong><button type="button" id="tlClose" aria-label="Tutup tindak lanjut">×</button></div><iframe id="tlFrame" title="Login dan menu tindak lanjut" allow="clipboard-write"></iframe></dialog>
+<script>
+(()=>{
+  const modal=document.getElementById('tlPopup'), frame=document.getElementById('tlFrame');let returnFocus=null;
+  document.addEventListener('click',e=>{
+    const b=e.target.closest('[data-tindak-survei]');if(!b)return;
+    const s=b.dataset.tindakSurvei,p=PERIODE_SURVEI.find(p=>p&&p.survei===s);if(!p)return;
+    const u=new URL(TINDAK_LANJUT_URL);u.searchParams.set('survei',s);u.searchParams.set('survey_period_id',p.survey_period_id);
+    returnFocus=b;frame.src=u.href;modal.showModal();document.documentElement.style.overflow='hidden';
+  });
+  document.getElementById('tlClose').onclick=()=>modal.close();
+  modal.addEventListener('close',()=>{frame.src='about:blank';document.documentElement.style.overflow='';returnFocus?.focus();loadData();});
+})();
+</script>
+
 </body>
 </html>
