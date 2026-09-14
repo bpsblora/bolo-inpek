@@ -337,6 +337,28 @@
     .export-button:disabled {opacity:.55;cursor:wait}
     .export-feedback {margin:8px 0 0;font-size:12px;color:#526987;line-height:1.5}
     .export-feedback:empty {display:none}
+    .tombol-tindak-lanjut {
+      display: block;
+      margin-top: 18px;
+      padding: 11px 14px;
+      border: 1px solid #bdd0eb;
+      border-radius: 8px;
+      background: #edf4ff;
+      color: #173858;
+      text-align: center;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .tombol-tindak-lanjut:hover {
+      background: #dfeaff;
+    }
+
+    .tombol-tindak-lanjut:focus-visible {
+      outline: 3px solid #2563eb;
+      outline-offset: 3px;
+    }
     
   </style>
 
@@ -464,6 +486,34 @@
       {code:'APPROVE', label:'Approve', color:'#86d96b'},
       {code:'COMPLETE', label:'Complete', color:'#166534'}
     ];
+
+    const TINDAK_LANJUT_URL =
+      "https://script.google.com/macros/s/AKfycbzdnMjJHjxmQXhnpZdMCPi1zyKvChmVJH6U15p_RMLR649wHFSmL2FrgcUzs0MxV4JX/exec";
+
+    function tombolTindakLanjut(survey) {
+      const periode = PERIODE_SURVEI.find(
+        item => item && item.survei === survey
+      );
+
+      if (!periode || !periode.survey_period_id) {
+        return "";
+      }
+
+      const url = new URL(TINDAK_LANJUT_URL);
+      url.searchParams.set("survei", survey);
+      url.searchParams.set(
+        "survey_period_id",
+        periode.survey_period_id
+      );
+
+      return (
+        '<a class="tombol-tindak-lanjut" href="' +
+        esc(url.href) +
+        '" target="_blank" rel="noopener noreferrer">' +
+        'Tindak Lanjut ↗</a>'
+      );
+    }
+
     const SURVEYS = ['MINERBA','MIGAS','STPIM','SKTH','SIBSTR II','CAPTIVE POWER'];
     const UNASSIGNED = 'Belum dialokasikan';
     const state = {survey:null,pml:null,ppl:null,status:null};
@@ -663,7 +713,7 @@
     function surveyCard(survey){
       const rows=DATA.filter(r=>r.survei===survey),c=counts(rows);let start=0;
       const stops=rows.length?c.map((n,i)=>{const end=start+n/rows.length*100;const stop=STATUS[i].color+' '+start+'% '+end+'%';start=end;return stop}).join(','):'#e5e7eb 0% 100%';
-      return '<article class="card"><div class="cardhead"><h2>'+esc(survey)+'</h2>'+exportButtons(survey)+'</div>'+periodeHtml(survey)+'<p class="export-feedback" role="status" aria-live="polite"></p><button class="chartlink" data-level="survey" data-value="'+esc(survey)+'" aria-label="Lihat progres PML '+esc(survey)+'"><div class="donut" style="background:conic-gradient('+stops+')"><div class="hole"><strong>'+rows.length+'</strong><small>assignment</small></div></div><span>Lihat progres PML →</span></button>'+legend(rows)+'</article>';
+      return '<article class="card"><div class="cardhead"><h2>'+esc(survey)+'</h2>'+exportButtons(survey)+'</div>'+periodeHtml(survey)+'<p class="export-feedback" role="status" aria-live="polite"></p><button class="chartlink" data-level="survey" data-value="'+esc(survey)+'" aria-label="Lihat progres PML '+esc(survey)+'"><div class="donut" style="background:conic-gradient('+stops+')"><div class="hole"><strong>'+rows.length+'</strong><small>assignment</small></div></div><span>Lihat progres PML →</span></button>'+legend(rows)+tombolTindakLanjut(survey)+'</article>';
     }
     // EKSPOR: hanya data survei yang dipilih, sesuai data yang tampil.
     function exportButtons(survey) {
