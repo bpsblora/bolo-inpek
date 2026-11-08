@@ -93,7 +93,16 @@ test('admin preview persists surveys and employees without a cloud backend', asy
   await window.__test.persist('employees', {
     id:'staff-01', name:'Petugas Uji', email:'', phone:'', role:'PPL', active:true
   });
+  await window.__test.persist('scraper_configs', {
+    id:'survey-imk-2027', name:'IMK 2027', code:'IMK',
+    survey_id:'internal-survey-id', survey_period_id:'internal-period-id',
+    role_pencacah_id:'ppl-id', role_pengawas_id:'pml-id',
+    nama_assignment_field:'data3'
+  });
+  const registry = fired.at(-1).surveys.find(s => s.name === 'IMK 2027');
+  assert.equal(registry.survey_id, undefined, 'Internal FASIH IDs must not be broadcast');
   const saved = JSON.parse(records.get('bolo-inpek-admin-preview-v2'));
+  assert.equal(saved.scraperConfigs[0].survey_period_id, 'internal-period-id');
   assert.equal(saved.surveys.length, 1);
   assert.equal(saved.employees[0].name, 'Petugas Uji');
 });
