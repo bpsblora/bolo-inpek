@@ -122,6 +122,24 @@ def run_legacy_scraper(script: Path, log: Callable[[str], None]) -> None:
             print("[i] Isi SSO/OTP jika diminta. Program akan menunggu hingga berhasil.")
         module.login_sso_eksternal = manual_login
 
+        # Versi lama mengunci ChromeDriver ke versi tertentu.
+        # Pada PC lain, biarkan undetected-chromedriver mendeteksi versi Chrome.
+        if hasattr(module, "uc"):
+            def buka_chrome_otomatis():
+                print("[*] Membuka Chrome sesuai versi yang terpasang...")
+                options = module.uc.ChromeOptions()
+                options.add_argument("--start-maximized")
+                options.add_argument("--disable-notifications")
+                options.add_argument("--disable-popup-blocking")
+                driver = module.uc.Chrome(
+                    options=options,
+                    use_subprocess=False,
+                    version_main=None,
+                )
+                driver.set_page_load_timeout(90)
+                return driver
+            module.buka_chrome = buka_chrome_otomatis
+
         original_wait = module.tunggu_login_berhasil
         def wait_manual(driver, timeout=90):
             return original_wait(driver, timeout=max(timeout, 300))
