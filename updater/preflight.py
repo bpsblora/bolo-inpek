@@ -19,6 +19,23 @@ class PreflightError(RuntimeError):
     pass
 
 
+def read_shared_sso_setup(script_dir: Path) -> None:
+    """Hanya akun SSO bersama yang diperlukan di PC untuk mode OAuth Google."""
+    from dotenv import dotenv_values
+    env = Path(script_dir) / ".env"
+    if not env.is_file():
+        raise PreflightError(
+            "Konfigurasi SSO bersama belum tersedia di komputer operator."
+        )
+    values = dotenv_values(env)
+    if not all((values.get(k) or "").strip() for k in (
+        "FASIH_USERNAME", "FASIH_PASSWORD"
+    )):
+        raise PreflightError(
+            "Akun SSO bersama belum dikonfigurasi secara privat pada PC ini."
+        )
+
+
 def read_local_setup(script_dir: Path) -> dict[str, str]:
     from dotenv import dotenv_values
 
@@ -101,6 +118,33 @@ def preflight_google_sheets(
         raise PreflightError(
             "Akses Google Sheets gagal. Periksa koneksi, dua ID spreadsheet, "
             "dan izin berbagi kepada service account BPS."
+        ) from exc
+
+    verify_google_sheets_client(
+        client, {
+            "monitoring_id": settings["monitoring_id"],
+            "tindak_lanjut_id": settings["internal_id"]
+        }, log
+    )
+
+
+def verify_google_sheets_client(client, targets: dict, log: Callable[[str], None]) -> None:
+    """Akses baca kedua spreadsheet dengan akun Google yang login di Updater.
+
+    Tidak menyimpan token dan tidak menulis data. Scope Sheets memerlukan
+    izin editor untuk operasi scraping yang akan berlangsung setelahnya.
+    """
+    monitoring_id = targets.get("monitoring_id")
+    internal_id = targets.get("tindak_lanjut_id")
+    if not monitoring_id or not internal_id or monitoring_id == internal_id:
+        raise PreflightError("Konfigurasi dua spreadsheet belum lengkap atau identik.")
+    try:
+        monitoring = client.open_by_key(monitoring_id)
+        internal = client.open_by_key(internal_id)
+    except Exception as exc:
+        raise PreflightError(
+            "Akun Google operator tidak dapat membuka kedua spreadsheet. "
+            "Periksa izin akses dan Google Sheets API."
         ) from exc
 
     monitoring_tabs = {ws.title for ws in monitoring.worksheets()}
