@@ -1,0 +1,46 @@
+name: BOLO INPEK Updater Portable (Windows)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [dev-admin-v2]
+    paths:
+      - 'updater/**'
+      - '.github/workflows/build-updater.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  windows-portable:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install build dependencies
+        run: python -m pip install -r updater/requirements-build.txt
+      - name: Test manual SSO bridge
+        run: python -m unittest discover -s updater/tests -p "test_*.py"
+        env:
+          PYTHONPATH: updater
+      - name: Package standalone executable
+        shell: pwsh
+        run: |
+          python -m PyInstaller --clean --noconfirm --onefile --windowed `
+            --name "BOLO-INPEK-Updater" --paths updater `
+            --collect-all undetected_chromedriver `
+            --collect-all selenium `
+            --collect-all gspread `
+            --collect-all dotenv `
+            --collect-all requests `
+            --collect-all urllib3 `
+            updater/app.py
+      - name: Upload portable preview (no source credentials)
+        uses: actions/upload-artifact@v4
+        with:
+          name: BOLO-INPEK-Updater-Windows-preview
+          path: dist/BOLO-INPEK-Updater.exe
+          if-no-files-found: error
+          retention-days: 14
