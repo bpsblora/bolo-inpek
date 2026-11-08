@@ -11,6 +11,7 @@ import builtins
 import importlib.util
 import json
 import os
+from urllib.parse import urlsplit
 from pathlib import Path
 import sys
 from typing import Callable
@@ -109,13 +110,25 @@ def run_legacy_scraper(script: Path, log: Callable[[str], None]) -> None:
 
     _load_safe_environment(script.parent)
 
+    # Pesan error dari library pihak ketiga dapat tanpa sengaja memuat nilai
+    # autentikasi. Redaksi dilakukan sebelum masuk ke konsol UI.
+    from dotenv import dotenv_values
+    private_values = dotenv_values(script.parent / ".env")
+    redact = [
+        value for name in ("FASIH_USERNAME", "FASIH_PASSWORD")
+        if isinstance((value := private_values.get(name)), str) and len(value) >= 4
+    ]
+
     class LogWriter:
         encoding = "utf-8"
         def write(self, data):
             if data and data.strip():
                 for line in str(data).splitlines():
                     if line.strip():
-                        log(line.rstrip())
+                        safe = line.rstrip()
+                        for secret in redact:
+                            safe = safe.replace(secret, "[RAHASIA]")
+                        log(safe)
             return len(data)
         def flush(self):
             pass
@@ -173,6 +186,35 @@ def run_legacy_scraper(script: Path, log: Callable[[str], None]) -> None:
         def wait_manual(driver, timeout=90):
             return original_wait(driver, timeout=max(timeout, 300))
         module.tunggu_login_berhasil = wait_manual
+
+        # Script lama melewati pemeriksaan sertifikat HTTPS.
+        # Paksa sesi API berbasis cookie memakai verifikasi CA/TLS.
+        if hasattr(module, "buat_session_dari_chrome"):
+            original_session = module.buat_session_dari_chrome
+            def verified_session(driver):
+                session = original_session(driver)
+                session.verify = True
+                print("[✓] Verifikasi sertifikat HTTPS diaktifkan untuk FASIH.")
+                return session
+            module.buat_session_dari_chrome = verified_session
+
+        if hasattr(module, "cek_koneksi_fasih") and hasattr(module, "FASIH_URL"):
+            from requests import RequestException
+            import requests
+            original_url = str(module.FASIH_URL)
+            if urlsplit(original_url).hostname != "fasih-sm.bps.go.id":
+                raise RuntimeError("Domain FASIH pada script tidak sesuai domain resmi.")
+            def verified_access():
+                try:
+                    response = requests.get(
+                        original_url, timeout=15, allow_redirects=True
+                    )
+                    print("[✓] Pemeriksaan koneksi FASIH memakai HTTPS terverifikasi.")
+                    return response.status_code < 500
+                except RequestException:
+                    print("[!] Tes jaringan belum berhasil. Chrome akan memeriksa akses sebenarnya.")
+                    return False
+            module.cek_koneksi_fasih = verified_access
 
         # Script lama meminta input konsol hanya pada jalur error;
         # aplikasi tanpa terminal tidak boleh hang di situ.
