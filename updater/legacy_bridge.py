@@ -170,9 +170,19 @@ def run_legacy_scraper(
         spec.loader.exec_module(module)
 
         if authorized_client is not None:
+            # baca_pengaturan() dari script lama melakukan load_dotenv(override=True).
+            # Setelah SSO dari .env dibaca, kembalikan dua tujuan Sheets online
+            # agar spreadsheet yang tertulis selalu berasal dari Firebase.
+            original_baca_pengaturan = module.baca_pengaturan
+            def baca_pengaturan_operator():
+                username, password = original_baca_pengaturan()
+                os.environ["GOOGLE_SPREADSHEET_ID"] = spreadsheet_targets["monitoring_id"]
+                os.environ["TINDAK_LANJUT_SPREADSHEET_ID"] = spreadsheet_targets["tindak_lanjut_id"]
+                return username, password
+            module.baca_pengaturan = baca_pengaturan_operator
+
             # Ganti backend autentikasi gspread untuk seluruh fungsi scraper,
             # TANPA menyalin private key Google ke PC operator.
-            from types import SimpleNamespace
             original_gspread = module.gspread
             class OperatorGspread:
                 def service_account(self, filename=None):
