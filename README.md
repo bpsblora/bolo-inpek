@@ -80,9 +80,8 @@ Credential FASIH, service account dan token API harus disimpan di server
 
 ## Yang BELUM diintegrasikan
 
-- Worker Python/Selenium untuk FASIH **belum otomatis**. Rencana final disesuaikan menjadi pembaruan **manual dari PC mana saja** yang memiliki FortiClient dan SSO BPS dengan Updater Portable.
-  Pemindahan ke cloud memerlukan mekanisme resmi SSO/VPN/API yang diizinkan
-  oleh BPS, akun service yang sah, jadwal retry, monitoring error dan log.
+- Updater Portable menjalankan scraping **manual** pada PC operator yang telah mengaktifkan FortiClient VPN. Scraper menggunakan akun SSO bersama yang telah diberi akses survei; kredensial hanya berasal dari .env privat di PC, tidak ditanam di EXE atau GitHub.
+  Akun SSO tidak perlu berganti ketika operator berganti. Verifikasi MFA/OTP, jika diminta FASIH, tetap dilakukan manual. Belum diuji end-to-end di jaringan BPS.
 - Menambah survei dari UI membuat konfigurasi/kartu survei; **belum otomatis**
   menarik assignment survei baru. Backend sinkronisasi harus membaca daftar
   survei aktif dari database dan menggunakan adaptor data FASIH yang cocok.
