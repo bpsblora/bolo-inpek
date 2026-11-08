@@ -61,7 +61,7 @@ Admin mengelola daftar survei aktif dan tujuh ID FASIH via panel website. Fireba
 - [ ] Siapkan .env, credentials.json (private key Google Sheets), updater-oauth-desktop.json (OAuth Desktop Client dari konsol resmi). Contoh kosong tersedia dalam updater/templates.
 - [ ] Pastikan konfigurasi Firebase online aktif dan account Google operator masuk whitelist operators/admins; login Google operator terpisah dari SSO Jose Dummy.
 - [ ] Jalankan tombol Periksa Persiapan; hasilnya hanya memeriksa struktur dan akses baca tanpa login FASIH atau mengubah data.
-- [ ] Untuk UAT, satu operator mengunggah pada satu waktu. Kunci per-PC tidak mencegah pembaruan bersamaan antar-PC.
+- [ ] Untuk uji branch sebelum main live, file updater-settings.json lokal hanya dipakai jika BOLO_UPDATER_USE_LOCAL_SETTINGS=1 dicantumkan di .env; **hapus flag setelah rilis**. Untuk UAT, satu operator mengunggah pada satu waktu. Kunci per-PC tidak mencegah pembaruan bersamaan antar-PC.
 
 ## E. Tahapan UAT SESUDAH semua persiapan
 1. Uji hak akses Firebase: admin tulis; operator baca; anonim/nonaktif ditolak.
