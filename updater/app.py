@@ -18,6 +18,7 @@ from legacy_bridge import check_files, run_legacy_scraper
 from cloud_config import synchronize_online, read_public_settings, read_desktop_oauth_client
 from preflight import preflight_google_sheets, read_local_setup, PreflightError
 from run_lock import local_update_lock
+from fasih_access import verify_fasih_access
 
 DASHBOARD_URL = "https://bpsblora.github.io/bolo-inpek/"
 APP_TITLE = "BOLO INPEK Updater"
@@ -81,7 +82,7 @@ class Updater(tk.Tk):
                   style="Body.TLabel").pack(anchor="w", pady=(6, 8))
         ttk.Checkbutton(panel, text="Saya sudah mengaktifkan VPN FortiClient dan berwenang mengakses FASIH",
                         variable=self.vpn_confirmed, command=self.update_status).pack(anchor="w")
-        ttk.Label(panel, text="Centang ini adalah konfirmasi operator, bukan pemeriksaan otomatis VPN.",
+        ttk.Label(panel, text="Sebelum login SSO, Updater akan memastikan portal FASIH dapat diakses melalui jaringan.",
                   style="Body.TLabel").pack(anchor="w", pady=(3, 0))
 
         scripts = ttk.Frame(root, style="Card.TFrame", padding=17)
@@ -213,7 +214,7 @@ class Updater(tk.Tk):
             return
         self.running = True
         self.update_status()
-        self._append_log("Memulai audit persiapan tanpa scraping...")
+        self._append_log("Memulai audit persiapan tanpa scraping atau login SSO...")
         threading.Thread(
             target=self._check_preparation_worker,
             args=(script.parent, self.online_mode.get()), daemon=True
@@ -223,6 +224,12 @@ class Updater(tk.Tk):
         try:
             def report(line):
                 self.events.put(("log", str(line)))
+            if self.vpn_confirmed.get():
+                report("Memeriksa apakah portal FASIH dapat diakses setelah VPN tersambung...")
+                verify_fasih_access()
+                report("Portal FASIH dapat diakses. Belum melakukan login SSO.")
+            else:
+                report("Pemeriksaan FASIH dilewati: operator belum mengonfirmasi VPN.")
             preflight_google_sheets(script_dir, report)
             if online:
                 settings = read_public_settings(script_dir)
@@ -245,6 +252,9 @@ class Updater(tk.Tk):
             def report(line):
                 self.events.put(("log", str(line)))
             with local_update_lock(script.parent):
+                report("Memastikan portal FASIH dapat dibuka setelah VPN Connected...")
+                verify_fasih_access()
+                report("Portal FASIH terjangkau. Lanjut memeriksa persiapan.")
                 report("Pemeriksaan akses dua spreadsheet sebelum scraping...")
                 preflight_google_sheets(script.parent, report)
                 if use_online:
