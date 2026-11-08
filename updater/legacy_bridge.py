@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import builtins
 import importlib.util
+import json
 import os
 from pathlib import Path
 import sys
@@ -30,6 +31,33 @@ def check_files(script: Path) -> list[str]:
     config_file = script.parent / "config_survei.json"
     if not config_file.is_file():
         problems.append("config_survei.json belum ada di folder script.")
+    else:
+        try:
+            data = json.loads(config_file.read_text(encoding="utf-8-sig"))
+            surveys = data.get("surveys", []) if isinstance(data, dict) else []
+            if not isinstance(surveys, list) or not surveys:
+                problems.append("Daftar surveys pada config_survei.json kosong/tidak valid.")
+            else:
+                required = (
+                    "code", "name", "survey_id", "survey_period_id",
+                    "role_pencacah_id", "role_pengawas_id", "nama_assignment_field"
+                )
+                keys = set()
+                for index, survey in enumerate(surveys, start=1):
+                    if not isinstance(survey, dict) or any(
+                        not isinstance(survey.get(k), str) or not survey[k].strip()
+                        for k in required
+                    ):
+                        problems.append(
+                            f"Survei nomor {index} belum memiliki seluruh ID dan field FASIH."
+                        )
+                        continue
+                    key = survey["name"].strip().casefold()
+                    if key in keys:
+                        problems.append("Ada nama survei ganda pada config_survei.json.")
+                    keys.add(key)
+        except (ValueError, OSError, UnicodeError):
+            problems.append("config_survei.json tidak dapat dibaca sebagai JSON valid.")
     environment = script.parent / ".env"
     if not environment.is_file():
         problems.append("File .env untuk ID Google Sheets belum ada.")
