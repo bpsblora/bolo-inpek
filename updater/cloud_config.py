@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 import tempfile
 from typing import Callable
@@ -221,6 +222,48 @@ def _list_collection(settings: dict, collection: str, token: str,
     raise OnlineConfigError("Konfigurasi survei melebihi batas halaman yang aman.")
 
 
+def fetch_sheet_targets(settings: dict, token: str,
+                        request_get=requests.get) -> dict[str, str]:
+    """Baca satu dokumen privat system_config/sheets (bukan config publik)."""
+    url = (
+        "https://firestore.googleapis.com/v1/projects/"
+        + settings["firebase_project_id"]
+        + "/databases/(default)/documents/system_config/sheets"
+    )
+    try:
+        response = request_get(
+            url, headers={"Authorization": "Bearer " + token}, timeout=25
+        )
+    except requests.RequestException as exc:
+        raise OnlineConfigError("Tidak dapat membaca tujuan Google Sheets.") from exc
+    if response.status_code == 403:
+        raise OnlineConfigError(
+            "Akun operator tidak berhak membaca konfigurasi Google Sheets."
+        )
+    if response.status_code == 404:
+        raise OnlineConfigError(
+            "Konfigurasi dua Google Sheets belum disimpan oleh admin di Firebase."
+        )
+    if response.status_code != 200:
+        raise OnlineConfigError(
+            "Gagal membaca konfigurasi Google Sheets (HTTP "
+            + str(response.status_code) + ")."
+        )
+    fields = response.json().get("fields", {})
+    targets = {}
+    for key in ("monitoring_id", "tindak_lanjut_id"):
+        field = fields.get(key, {}) if isinstance(fields, dict) else {}
+        value = field.get("stringValue")
+        if not isinstance(value, str) or not re.fullmatch(r"[A-Za-z0-9_-]{20,150}", value):
+            raise OnlineConfigError(
+                "Target Google Sheets belum valid di pengaturan admin: " + key
+            )
+        targets[key] = value
+    if targets["monitoring_id"] == targets["tindak_lanjut_id"]:
+        raise OnlineConfigError("Spreadsheet monitoring dan tindak lanjut harus berbeda.")
+    return targets
+
+
 def create_active_config(surveys: list[dict],
                          configs: list[dict]) -> dict:
     """Gabungkan metadata aktif dengan tujuh ID internal, tanpa data parsial."""
@@ -289,7 +332,8 @@ def _save_atomic(script_dir: Path, config: dict) -> Path:
 def synchronize_online(script_dir: Path, log: Callable[[str], None],
                        get_credentials=_get_google_credentials,
                        request_get=requests.get,
-                       request_post=requests.post) -> int:
+                       request_post=requests.post,
+                       on_targets=None) -> int:
     """Ambil konfigurasi TERBARU di awal setiap pembaruan data.
 
     Kesalahan Firestore/Google akan membatalkan scraping; tidak menggunakan
@@ -308,6 +352,11 @@ def synchronize_online(script_dir: Path, log: Callable[[str], None],
         settings, "scraper_configs", token, request_get=request_get
     )
     current = create_active_config(surveys, internal)
+    # Target spreadsheet juga merupakan data privat; hanya diambil jika
+    # diperlukan pada tahap pembaruan, bukan dipublikasikan di GitHub Pages.
+    if on_targets is not None:
+        targets = fetch_sheet_targets(settings, token, request_get=request_get)
+        on_targets(targets)
     _save_atomic(script_dir, current)
     log("Konfigurasi online siap: " + str(len(current["surveys"])) + " survei aktif.")
     return len(current["surveys"])
