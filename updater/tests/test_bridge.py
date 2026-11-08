@@ -18,8 +18,8 @@ class PortableUpdaterTests(unittest.TestCase):
         (root / ".env").write_text(
             "GOOGLE_SPREADSHEET_ID=TEST_ONLY\n"
             "GOOGLE_CREDENTIALS_FILE=credentials.json\n"
-            "FASIH_USERNAME=should_not_be_used\n"
-            "FASIH_PASSWORD=should_not_be_used\n",
+            "FASIH_USERNAME=shared_sso_test\n"
+            "FASIH_PASSWORD=test-private-password\n",
             encoding="utf8"
         )
         (root / "config_survei.json").write_text(
@@ -46,29 +46,43 @@ class PortableUpdaterTests(unittest.TestCase):
         )
         self.assertTrue(any("ID dan field" in x for x in check_files(self.script)))
 
-    def test_manual_login_replaces_password_entry_and_extends_wait(self):
+    def test_shared_sso_credentials_required(self):
+        self.script.write_text("pass\n", encoding="utf8")
+        (self.root / ".env").write_text(
+            "GOOGLE_SPREADSHEET_ID=TEST_ONLY\n"
+            "GOOGLE_CREDENTIALS_FILE=credentials.json\n",
+            encoding="utf8"
+        )
+        issues = check_files(self.script)
+        self.assertTrue(any("Username akun SSO bersama" in x for x in issues))
+        self.assertTrue(any("Password akun SSO bersama" in x for x in issues))
+
+    def test_original_shared_sso_login_used_without_logging_password(self):
         self.script.write_text('''
+from pathlib import Path
+from dotenv import dotenv_values
 def baca_pengaturan():
-    raise AssertionError("Old SSO credential reader must not run")
+    values = dotenv_values(Path(__file__).with_name(".env"))
+    return values["FASIH_USERNAME"], values["FASIH_PASSWORD"]
 def login_sso_eksternal(driver, username, password):
-    raise AssertionError("Old auto-login must not run")
+    assert username == "shared_sso_test"
+    assert password == "test-private-password"
+    print("Shared SSO login was called")
 def tunggu_login_berhasil(driver, timeout=90):
-    assert timeout >= 300, "Manual login timeout must be longer"
-    print("manual login wait invoked")
+    assert timeout >= 300
+    print("SSO completed")
 def main():
     username, password = baca_pengaturan()
     login_sso_eksternal(None, username, password)
     tunggu_login_berhasil(None)
-    print("test scraper completed")
+    print("scraper completed")
 ''', encoding="utf8")
-        log = []
-        with patch.dict(os.environ, {"FASIH_USERNAME":"old", "FASIH_PASSWORD":"old"}):
-            run_legacy_scraper(self.script, log.append)
-            self.assertNotIn("FASIH_PASSWORD", os.environ)
-            self.assertNotIn("FASIH_USERNAME", os.environ)
-        self.assertTrue(any("manual login wait invoked" in line for line in log))
-        self.assertTrue(any("test scraper completed" in line for line in log))
-        self.assertFalse(any("should_not_be_used" in line for line in log))
+        lines = []
+        run_legacy_scraper(self.script, lines.append)
+        self.assertTrue(any("Shared SSO login was called" in line for line in lines))
+        self.assertTrue(any("scraper completed" in line for line in lines))
+        self.assertFalse(any("test-private-password" in line for line in lines))
+        self.assertFalse(any("shared_sso_test" in line for line in lines))
 
 
 if __name__ == "__main__":
