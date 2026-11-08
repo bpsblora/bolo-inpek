@@ -36,6 +36,10 @@ jobs:
             --collect-all dotenv `
             --collect-all requests `
             --collect-all urllib3 `
+            --collect-all google_auth_oauthlib `
+            --collect-all google.auth `
+            --collect-all requests_oauthlib `
+            --collect-all oauthlib `
             updater/app.py
       - name: Upload portable preview (no source credentials)
         uses: actions/upload-artifact@v4
