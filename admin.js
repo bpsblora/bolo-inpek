@@ -12,8 +12,8 @@
   const state = {
     mode: configured ? 'cloud' : 'preview',
     tab: 'surveys', user: null, authorized: false, busy: false,
-    surveys: [], employees: [], scraperConfigs: [], message: '', error: '',
-    cloud: null, unsubscribeEmployees: null, unsubscribeConfigs: null,
+    surveys: [], employees: [], scraperConfigs: [], sheetsTargets: null, message: '', error: '',
+    cloud: null, unsubscribeEmployees: null, unsubscribeConfigs: null, unsubscribeTargets: null,
     monitoring: window.BOLO_MONITORING_CONTEXT || {surveys: [], employees: []}
   };
   const esc = (value) => String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({
@@ -142,12 +142,24 @@
     const tabs = '<div class="bolo-admin-tabs" role="tablist">' +
       btn('Kelola Survei', 'tab-surveys', 'class="' + (state.tab === 'surveys' ? 'selected' : '') + '"') +
       btn('Kelola Pegawai', 'tab-employees', 'class="' + (state.tab === 'employees' ? 'selected' : '') + '"') +
+      btn('Integrasi Google Sheets', 'tab-sheets', 'class="' + (state.tab === 'sheets' ? 'selected' : '') + '"') +
       '</div>';
     const surveys = '<div class="bolo-admin-section-title"><div><h3>Kelola Survei</h3>' +
       '<p>Survei baru langsung ditampilkan dalam dashboard. Data assignment tetap mengikuti sinkronisasi resmi FASIH.</p></div>' +
       '<div class="bolo-actionbar">' + btn('Impor Config FASIH', 'import-config', 'class="bolo-minor"') +
       btn('Unduh Config Updater', 'export-config', 'class="bolo-minor"') +
       btn('+ Tambah Survei', 'new-survey', 'class="bolo-primary"') + '</div></div>' + surveyRows();
+    const sheets = '<div class="bolo-admin-section-title"><div><h3>Integrasi Google Sheets</h3>' +
+      '<p>Kedua tujuan disimpan pada database internal Firebase dan dipakai bersama oleh Updater pada semua PC.</p></div>' +
+      '<div class="bolo-actionbar">' +
+      (state.mode === 'cloud' ? btn('Atur Spreadsheet', 'edit-sheets', 'class="bolo-primary"') : '') +
+      '</div></div>' +
+      '<div class="bolo-sheet-summary"><div><strong>Spreadsheet Monitoring</strong><small>' +
+      (state.sheetsTargets?.monitoring_id ? 'Terhubung melalui konfigurasi privat' : 'Belum dikonfigurasi') +
+      '</small></div><div><strong>Spreadsheet Sumber Tindak Lanjut</strong><small>' +
+      (state.sheetsTargets?.tindak_lanjut_id ? 'Terhubung melalui konfigurasi privat' : 'Belum dikonfigurasi') +
+      '</small></div></div>' +
+      (state.mode !== 'cloud' ? '<p>Konfigurasi Google Sheets hanya disimpan dalam mode online setelah login admin.</p>' : '');
     const employees = '<div class="bolo-admin-section-title"><div><h3>Kelola Pegawai dan Petugas</h3>' +
       '<p>Direktori internal BOLO INPEK; belum mengubah akun, assignment, atau daftar WhatsApp di FASIH/Apps Script.</p></div>' +
       '<div class="bolo-actionbar">' + btn('Impor Nama Monitoring', 'import-employees', 'class="bolo-minor"') +
@@ -155,8 +167,47 @@
     body.innerHTML = (state.authorized ? renderGate() : '') +
       (state.message ? '<div class="bolo-success" role="status">' + esc(state.message) + '</div>' : '') +
       (state.error ? '<div class="bolo-error" role="alert">' + esc(state.error) + '</div>' : '') +
-      tabs + (state.tab === 'surveys' ? surveys : employees);
+      tabs + (state.tab === 'surveys' ? surveys : state.tab === 'sheets' ? sheets : employees);
     body.querySelectorAll('button').forEach(button => { button.disabled = state.busy; });
+  }
+
+  function spreadsheetIdFromInput(value) {
+    const text = String(value || '').trim();
+    const match = text.match(/^https:\/\/docs\.google\.com\/spreadsheets\/d\/([A-Za-z0-9_-]+)(?:\/|$|\?)/);
+    const id = match ? match[1] : text;
+    if (!/^[A-Za-z0-9_-]{20,150}$/.test(id)) {
+      throw new Error('Masukkan link Google Sheets yang benar atau Spreadsheet ID.');
+    }
+    return id;
+  }
+
+  function openSheetsForm() {
+    if (state.mode !== 'cloud' || !state.authorized) return;
+    $('#bolo-monitoring-url').value = state.sheetsTargets?.monitoring_id || '';
+    $('#bolo-tindak-url').value = state.sheetsTargets?.tindak_lanjut_id || '';
+    $('#bolo-sheets-error').textContent = '';
+    $('#bolo-sheets-dialog').showModal();
+  }
+
+  async function saveSheetTargets(event) {
+    event.preventDefault();
+    if (!state.authorized || !state.cloud || state.busy) return;
+    try {
+      const monitoring_id = spreadsheetIdFromInput($('#bolo-monitoring-url').value);
+      const tindak_lanjut_id = spreadsheetIdFromInput($('#bolo-tindak-url').value);
+      if (monitoring_id === tindak_lanjut_id) {
+        throw new Error('Monitoring dan sumber tindak lanjut harus menggunakan dua spreadsheet berbeda.');
+      }
+      state.busy = true;
+      await state.cloud.setDoc(
+        state.cloud.doc(state.cloud.db, 'system_config', 'sheets'),
+        {monitoring_id, tindak_lanjut_id}
+      );
+      $('#bolo-sheets-dialog').close();
+      setMessage('Dua spreadsheet berhasil disimpan ke konfigurasi online.');
+    } catch (error) {
+      $('#bolo-sheets-error').textContent = error.message || 'Konfigurasi spreadsheet gagal disimpan.';
+    } finally {state.busy = false; render();}
   }
 
   function entryForm(type, item = null) {
@@ -414,9 +465,19 @@
       '<p id="bolo-entry-error" class="bolo-error" role="alert"></p>' +
       '<div class="bolo-form-buttons"><button type="button" data-action="close-entry" class="bolo-minor">Batal</button>' +
       '<button type="submit" class="bolo-primary">Simpan</button></div></form></dialog>' +
+      '<dialog id="bolo-sheets-dialog" aria-labelledby="bolo-sheets-title">' +
+      '<form id="bolo-sheets-form"><div class="bolo-entry-head"><h3 id="bolo-sheets-title">Integrasi Google Sheets</h3>' +
+      '<button type="button" class="bolo-close" data-action="close-sheets" aria-label="Tutup pengaturan">×</button></div>' +
+      '<p class="bolo-config-note">Pengaturan ini tersimpan satu kali di Firebase untuk seluruh PC operator. Tidak perlu menyalin ID ke tiap komputer.</p>' +
+      '<label>Link Spreadsheet Monitoring<input id="bolo-monitoring-url" required type="text" placeholder="https://docs.google.com/spreadsheets/d/..."></label>' +
+      '<label>Link Spreadsheet Sumber Tindak Lanjut<input id="bolo-tindak-url" required type="text" placeholder="https://docs.google.com/spreadsheets/d/..."></label>' +
+      '<p id="bolo-sheets-error" class="bolo-error" role="alert"></p>' +
+      '<div class="bolo-form-buttons"><button type="button" data-action="close-sheets" class="bolo-minor">Batal</button>' +
+      '<button type="submit" class="bolo-primary">Simpan Integrasi</button></div></form></dialog>' +
       '<input id="bolo-import-config" type="file" accept=".json,application/json" hidden>';
     while (root.firstChild) document.body.appendChild(root.firstChild);
     $('#bolo-entry-form').addEventListener('submit', saveEntry);
+    $('#bolo-sheets-form').addEventListener('submit', saveSheetTargets);
     $('#bolo-import-config').addEventListener('change', async e => {
       const file = e.currentTarget.files?.[0];
       e.currentTarget.value = '';
@@ -434,6 +495,9 @@
       else if (action === 'close-entry') $('#bolo-entry-dialog').close();
       else if (action === 'tab-surveys') {state.tab = 'surveys'; render();}
       else if (action === 'tab-employees') {state.tab = 'employees'; render();}
+      else if (action === 'tab-sheets') {state.tab = 'sheets'; render();}
+      else if (action === 'edit-sheets') openSheetsForm();
+      else if (action === 'close-sheets') $('#bolo-sheets-dialog').close();
       else if (action === 'new-survey') entryForm('survey');
       else if (action === 'new-employee') entryForm('employee');
       else if (action === 'edit-survey') entryForm('survey', allSurveys().find(x => x.id === id));
@@ -484,14 +548,21 @@
         state.user = user; state.authorized = false;
         if (state.unsubscribeEmployees) {state.unsubscribeEmployees(); state.unsubscribeEmployees = null;}
         if (state.unsubscribeConfigs) {state.unsubscribeConfigs(); state.unsubscribeConfigs = null;}
+        if (state.unsubscribeTargets) {state.unsubscribeTargets(); state.unsubscribeTargets = null;}
         state.employees = [];
         state.scraperConfigs = [];
+        state.sheetsTargets = null;
         if (user) {
           try {
             const access = await dbModule.getDoc(dbModule.doc(db, 'admins', user.uid));
             if (auth.currentUser?.uid !== user.uid) return;
             state.authorized = access.exists() && access.data()?.active === true;
             if (state.authorized) {
+              state.unsubscribeTargets = dbModule.onSnapshot(
+                dbModule.doc(db, 'system_config', 'sheets'),
+                snapshot => { state.sheetsTargets = snapshot.exists() ? snapshot.data() : null; render(); },
+                error => setMessage('Gagal membaca tujuan Google Sheets: ' + error.message, true)
+              );
               state.unsubscribeConfigs = dbModule.onSnapshot(dbModule.collection(db, 'scraper_configs'),
                 snapshot => { state.scraperConfigs = snapshot.docs.map(d => d.data()); render(); },
                 error => setMessage('Gagal membaca ID FASIH: ' + error.message, true));
