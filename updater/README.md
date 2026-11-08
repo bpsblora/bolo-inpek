@@ -78,10 +78,12 @@ FASIH belum diuji end-to-end melalui VPN pada PC operator.
 
 1. Windows, Google Chrome, dan FortiClient VPN yang dikonfigurasi secara resmi.
 2. BOLO-INPEK-Updater.exe dari artifact workflow GitHub Actions branch dev-admin-v2.
-3. Salinan internal script lama (ambil_data_monitoring_inpek_v2.py), beserta file lokal:
-   - config_survei.json
-   - .env privat dengan FASIH_USERNAME, FASIH_PASSWORD, GOOGLE_SPREADSHEET_ID, dan GOOGLE_CREDENTIALS_FILE
-   - credentials.json atau nama file service account yang dikonfigurasi.
+3. Salinan internal script lama (ambil_data_monitoring_inpek_v2.py), beserta berkas privat pada folder yang sama:
+   - .env dengan FASIH_USERNAME, FASIH_PASSWORD, GOOGLE_SPREADSHEET_ID, TINDAK_LANJUT_SPREADSHEET_ID, dan GOOGLE_CREDENTIALS_FILE;
+   - credentials.json atau nama file service account dari .env;
+   - updater-oauth-desktop.json yang diunduh resmi dari Google Cloud Console (OAuth Desktop JSON). Contoh strukturnya ada di updater/templates/contoh-oauth-desktop.json.
+   - updater-settings.json lokal untuk simulasi di branch yang belum menjadi website live; pada produksi diambil dari GitHub Pages.
+   - config_survei.json hanya diperlukan untuk mode lokal. Mode online membuat ulang konfigurasi itu secara otomatis setelah login operator berhasil.
 
 File konfigurasi/kredensial dan script internal TIDAK boleh dimasukkan ke repository publik. Pertimbangkan akses Google Sheets per pengguna agar service-account key tidak perlu disalin ke banyak PC.
 
@@ -90,11 +92,12 @@ File konfigurasi/kredensial dan script internal TIDAK boleh dimasukkan ke reposi
 1. Aktifkan VPN FortiClient secara manual.
 2. Jalankan BOLO-INPEK-Updater.exe.
 3. Pilih file ambil_data_monitoring_inpek_v2.py pada PC.
-4. Periksa status file dan centang konfirmasi VPN.
-5. Tekan Perbarui Data FASIH, lalu konfirmasi jalankan script lokal.
-6. Saat Chrome terbuka, scraper menggunakan akun SSO bersama yang sudah dikonfigurasi. Selesaikan OTP/MFA secara manual apabila sistem memintanya.
-7. Tunggu scraping dan upload Google Sheets selesai.
-8. Periksa waktu dan isi monitoring pada dashboard.
+4. Pilih mode **Online** (untuk konfigurasi survei terbaru) atau mode **Lokal** (khusus uji) dan centang konfirmasi VPN.
+5. Klik **Periksa Persiapan** untuk memvalidasi dua Sheets dan struktur OAuth secara aman tanpa scraping.
+6. Setelah penyiapan disetujui, tekan **Perbarui Data FASIH**. Mode online akan meminta login Google operator untuk membaca konfigurasi privat.
+7. Saat Chrome FASIH terbuka, scraper menggunakan akun SSO bersama yang sudah dikonfigurasi. Selesaikan OTP/MFA secara manual apabila sistem memintanya.
+8. Tunggu scraping dan upload ke **dua spreadsheet** selesai; periksa keduanya sebelum menganggap data telah sinkron.
+9. Periksa waktu dan isi monitoring pada dashboard.
 
 Jangan kirim password, token, cookie, isi .env, atau service-account key ke GitHub/ChatGPT. Akun bersama hanya digunakan sesuai izin pengelola FASIH, dan setiap pembaruan idealnya mencatat identitas operator PC untuk audit.
 
@@ -114,7 +117,10 @@ Untuk menjalankan sumber saat debugging di PC developer:
 - Menulis ke Sheets sesuai hak akses konfigurasi lokal.
 - Build sukses belum membuktikan Selenium dapat dipakai di FASIH. Uji Chrome, SSO, VPN, dan penulisan spreadsheet wajib sebelum produksi.
 - Admin dapat mengubah daftar survei melalui website tanpa mengedit Python. Updater mengambil konfigurasi otomatis saat setiap run setelah Firebase dan OAuth Desktop diaktifkan.
-- Jangan letakkan ID FASIH, service-account JSON, ataupun data responden dalam repository publik. Koleksi Firestore scraper_configs menggunakan aturan hanya-admin dan harus diuji setelah Firebase disiapkan.
+- Jangan letakkan ID FASIH, service-account JSON, ataupun data responden dalam repository publik. Koleksi Firestore scraper_configs dapat dibaca hanya oleh admin atau operator updater yang diberi izin; hanya admin boleh mengubahnya.
+- Scraper lama melewati verifikasi sertifikat HTTPS; bridge Updater kini memaksa verifikasi sertifikat pada request FASIH dan sesi API. Jika jaringan BPS memerlukan CA internal, mintakan CA resmi dari IT (jangan menggunakan verify=False).
+- Preflight memeriksa kedua spreadsheet sebelum mengambil data dan memblokir pembaruan bila TINDAK_LANJUT_SPREADSHEET_ID tidak dikonfigurasi. Akses baca belum membuktikan akses Editor.
+- Ada kunci agar tidak ada dua proses updater dari PC yang sama. **Dua PC berbeda masih dapat berjalan bersamaan**; tetapkan satu operator pada waktu uji sampai koordinasi/lock server selesai.
 
 ## Struktur konfigurasi asli (telah diverifikasi dari ZIP)
 
