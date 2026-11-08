@@ -1,0 +1,20 @@
+# Private authentication and operational data — never commit
+.env
+.env.*
+**/.env
+**/.env.*
+credentials.json
+**/credentials.json
+config_survei.json
+**/config_survei.json
+ambil_data_monitoring_inpek*.py
+**/ambil_data_monitoring_inpek*.py
+output/
+**/output/
+*.log
+__pycache__/
+**/__pycache__/
+*.pyc
+.venv/
+dist/
+build/
