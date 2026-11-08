@@ -12,8 +12,8 @@
   const state = {
     mode: configured ? 'cloud' : 'preview',
     tab: 'surveys', user: null, authorized: false, busy: false,
-    surveys: [], employees: [], message: '', error: '',
-    cloud: null, unsubscribeEmployees: null,
+    surveys: [], employees: [], scraperConfigs: [], message: '', error: '',
+    cloud: null, unsubscribeEmployees: null, unsubscribeConfigs: null,
     monitoring: window.BOLO_MONITORING_CONTEXT || {surveys: [], employees: []}
   };
   const esc = (value) => String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({
@@ -33,14 +33,16 @@
       const parsed = JSON.parse(localStorage.getItem(LOCAL_KEY) || '{}');
       state.surveys = Array.isArray(parsed.surveys) ? parsed.surveys : [];
       state.employees = Array.isArray(parsed.employees) ? parsed.employees : [];
+      state.scraperConfigs = Array.isArray(parsed.scraperConfigs) ? parsed.scraperConfigs : [];
     } catch (error) {
-      state.surveys = []; state.employees = [];
+      state.surveys = []; state.employees = []; state.scraperConfigs = [];
       state.error = 'Penyimpanan pratinjau tidak dapat dibaca. Data uji ditampilkan kosong.';
     }
   }
   function previewWrite() {
     localStorage.setItem(LOCAL_KEY, JSON.stringify({
-      surveys: state.surveys, employees: state.employees
+      surveys: state.surveys, employees: state.employees,
+      scraperConfigs: state.scraperConfigs
     }));
   }
   function monitoringSurveyDefaults() {
@@ -102,10 +104,12 @@
       surveys.map(s => '<tr><td><strong>' + esc(s.name) + '</strong>' +
         (s.sourceCode ? '<small>Kode FASIH: ' + esc(s.sourceCode) + '</small>' : '') +
         (s.imported ? '<small>Terbaca dari monitoring; belum disimpan sebagai konfigurasi</small>' : '') +
+        (state.scraperConfigs.some(c => c.id === s.id) ? '<small>ID FASIH tersedia</small>' : '<small>ID FASIH belum diisi</small>') +
         '</td><td>' + esc(s.startDate || '—') + ' s.d. ' + esc(s.endDate || '—') +
         '</td><td><span class="bolo-state ' + (s.active === false ? 'off' : '') + '">' +
         (s.active === false ? 'Nonaktif' : 'Aktif') + '</span></td><td class="bolo-actions">' +
         btn('Edit', 'edit-survey', 'data-id="' + esc(s.id) + '"') +
+        btn('ID FASIH', 'edit-config', 'data-id="' + esc(s.id) + '"') +
         btn(s.active === false ? 'Aktifkan' : 'Nonaktifkan', 'toggle-survey',
           'data-id="' + esc(s.id) + '" class="bolo-minor"') +
         '</td></tr>').join('') + '</tbody></table></div>';
@@ -141,7 +145,8 @@
       '</div>';
     const surveys = '<div class="bolo-admin-section-title"><div><h3>Kelola Survei</h3>' +
       '<p>Survei baru langsung ditampilkan dalam dashboard. Data assignment tetap mengikuti sinkronisasi resmi FASIH.</p></div>' +
-      btn('+ Tambah Survei', 'new-survey', 'class="bolo-primary"') + '</div>' + surveyRows();
+      '<div class="bolo-actionbar">' + btn('Unduh Config Updater', 'export-config', 'class="bolo-minor"') +
+      btn('+ Tambah Survei', 'new-survey', 'class="bolo-primary"') + '</div></div>' + surveyRows();
     const employees = '<div class="bolo-admin-section-title"><div><h3>Kelola Pegawai dan Petugas</h3>' +
       '<p>Direktori internal BOLO INPEK; belum mengubah akun, assignment, atau daftar WhatsApp di FASIH/Apps Script.</p></div>' +
       '<div class="bolo-actionbar">' + btn('Impor Nama Monitoring', 'import-employees', 'class="bolo-minor"') +
@@ -157,10 +162,23 @@
     activeEdit = {type, id: item?.id || null};
     const d = $('#bolo-entry-dialog');
     $('#bolo-entry-title').textContent = (item ? 'Edit ' : 'Tambah ') +
-      (type === 'survey' ? 'Survei' : 'Pegawai');
+      (type === 'survey' ? 'Survei' : type === 'config' ? 'Konfigurasi FASIH' : 'Pegawai');
     const isSurvey = type === 'survey';
+    const isConfig = type === 'config';
     const name = esc(item?.name || '');
-    $('#bolo-entry-fields').innerHTML = isSurvey ?
+    const configItem = state.scraperConfigs.find(s => s.id === item?.id) || {};
+    const configField = (label, key, hint = '') =>
+      '<label>' + label + '<input name="' + key + '" required maxlength="140" value="' +
+      esc(configItem[key] || '') + '" placeholder="' + esc(hint) + '"></label>';
+    $('#bolo-entry-fields').innerHTML = isConfig ?
+      '<p class="bolo-config-note">ID FASIH disimpan hanya untuk admin, bukan untuk tampilan publik.</p>' +
+      '<label>Nama Survei<input name="name" value="' + esc(item?.name || '') + '" readonly></label>' +
+      configField('Kode Survei', 'code', 'Contoh: SIBSTR') +
+      configField('Survey ID', 'survey_id') +
+      configField('Survey Period ID', 'survey_period_id') +
+      configField('Role Pencacah ID', 'role_pencacah_id') +
+      configField('Role Pengawas ID', 'role_pengawas_id') +
+      configField('Field Nama Assignment', 'nama_assignment_field', 'data1 / data2 / data3') : isSurvey ?
       '<label>Nama Survei<input name="name" required maxlength="100" value="' + name +
       '" ' + (item ? 'readonly' : '') + ' placeholder="Contoh: IMK Triwulan IV 2026"></label>' +
       '<label>Kode/Identitas Survei FASIH<input name="sourceCode" maxlength="100" value="' +
@@ -179,12 +197,13 @@
       ).join('') + '</select></label>' +
       '<label>Catatan<textarea name="note" rows="2" maxlength="600">' + esc(item?.note || '') + '</textarea></label>';
     $('#bolo-entry-active').checked = item?.active !== false;
+    $('#bolo-entry-active').closest('label').hidden = isConfig;
     $('#bolo-entry-error').textContent = '';
     d.showModal();
   }
   async function persist(kind, value) {
     if (state.mode === 'preview') {
-      const name = kind === 'surveys' ? 'surveys' : 'employees';
+      const name = kind === 'surveys' ? 'surveys' : kind === 'scraper_configs' ? 'scraperConfigs' : 'employees';
       state[name] = [...state[name].filter(s => s.id !== value.id), value];
       previewWrite();
     } else {
@@ -200,8 +219,10 @@
     const form = event.currentTarget;
     if (!form.reportValidity()) return;
     const raw = Object.fromEntries(new FormData(form).entries());
-    const kind = activeEdit.type === 'survey' ? 'surveys' : 'employees';
-    const pool = kind === 'surveys' ? allSurveys() : state.employees;
+    const kind = activeEdit.type === 'survey' ? 'surveys' :
+      activeEdit.type === 'config' ? 'scraper_configs' : 'employees';
+    const pool = kind === 'surveys' ? allSurveys() :
+      kind === 'scraper_configs' ? state.scraperConfigs : state.employees;
     const old = pool.find(s => s.id === activeEdit.id);
     const name = String(raw.name || '').trim();
     if (!name) return;
@@ -219,6 +240,14 @@
       sourceCode: String(raw.sourceCode || '').trim(),
       startDate: raw.startDate || '', endDate: raw.endDate || '',
       note: String(raw.note || '').trim(), active: $('#bolo-entry-active').checked
+    } : kind === 'scraper_configs' ? {
+      id: activeEdit.id, name,
+      code: String(raw.code || '').trim(),
+      survey_id: String(raw.survey_id || '').trim(),
+      survey_period_id: String(raw.survey_period_id || '').trim(),
+      role_pencacah_id: String(raw.role_pencacah_id || '').trim(),
+      role_pengawas_id: String(raw.role_pengawas_id || '').trim(),
+      nama_assignment_field: String(raw.nama_assignment_field || '').trim()
     } : {
       id: old?.id || uid(), name, email: String(raw.email || '').trim(),
       phone: String(raw.phone || '').trim(), role: raw.role || 'PPL',
@@ -228,13 +257,43 @@
     try {
       await persist(kind, value);
       $('#bolo-entry-dialog').close();
-      setMessage((kind === 'surveys' ? 'Survei' : 'Pegawai') + ' berhasil disimpan' +
+      setMessage((kind === 'surveys' ? 'Survei' : kind === 'scraper_configs' ? 'Konfigurasi FASIH' : 'Pegawai') + ' berhasil disimpan' +
         (state.mode === 'preview' ? ' pada browser ini.' : ' di database online.'));
     } catch (error) {
       $('#bolo-entry-error').textContent = error.message || 'Penyimpanan gagal.';
     } finally {
       state.busy = false; render();
     }
+  }
+  function exportUpdaterConfig() {
+    if (state.mode !== 'preview' && !state.authorized) {
+      setMessage('Hanya admin yang bisa mengunduh konfigurasi FASIH.', true); return;
+    }
+    const active = allSurveys().filter(s => s.active !== false);
+    const required = [
+      'code', 'name', 'survey_id', 'survey_period_id',
+      'role_pencacah_id', 'role_pengawas_id', 'nama_assignment_field'
+    ];
+    const missing = active.filter(s => {
+      const config = state.scraperConfigs.find(c => c.id === s.id);
+      return !config || required.some(key => !String(config[key] || '').trim());
+    });
+    if (missing.length) {
+      setMessage('Lengkapi ID FASIH dahulu: ' + missing.map(s => s.name).join(', '), true);
+      return;
+    }
+    const surveys = active.map(s => {
+      const config = state.scraperConfigs.find(c => c.id === s.id);
+      return Object.fromEntries(required.map(k => [k, config[k]]));
+    });
+    const blob = new Blob([JSON.stringify({surveys}, null, 2)], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    try {
+      const a = document.createElement('a');
+      a.href = url; a.download = 'config_survei.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      setMessage('Konfigurasi diunduh. Simpan hanya pada komputer operator yang berwenang.');
+    } finally { setTimeout(() => URL.revokeObjectURL(url), 1000); }
   }
   async function toggleItem(kind, id) {
     const pool = kind === 'surveys' ? allSurveys() : state.employees;
@@ -307,6 +366,8 @@
       else if (action === 'new-survey') entryForm('survey');
       else if (action === 'new-employee') entryForm('employee');
       else if (action === 'edit-survey') entryForm('survey', allSurveys().find(x => x.id === id));
+      else if (action === 'edit-config') entryForm('config', allSurveys().find(x => x.id === id));
+      else if (action === 'export-config') exportUpdaterConfig();
       else if (action === 'edit-employee') entryForm('employee', state.employees.find(x => x.id === id));
       else if (action === 'toggle-survey') await toggleItem('surveys', id);
       else if (action === 'toggle-employee') await toggleItem('employees', id);
@@ -349,13 +410,18 @@
       authModule.onAuthStateChanged(auth, async user => {
         state.user = user; state.authorized = false;
         if (state.unsubscribeEmployees) {state.unsubscribeEmployees(); state.unsubscribeEmployees = null;}
+        if (state.unsubscribeConfigs) {state.unsubscribeConfigs(); state.unsubscribeConfigs = null;}
         state.employees = [];
+        state.scraperConfigs = [];
         if (user) {
           try {
             const access = await dbModule.getDoc(dbModule.doc(db, 'admins', user.uid));
             if (auth.currentUser?.uid !== user.uid) return;
             state.authorized = access.exists() && access.data()?.active === true;
             if (state.authorized) {
+              state.unsubscribeConfigs = dbModule.onSnapshot(dbModule.collection(db, 'scraper_configs'),
+                snapshot => { state.scraperConfigs = snapshot.docs.map(d => d.data()); render(); },
+                error => setMessage('Gagal membaca ID FASIH: ' + error.message, true));
               state.unsubscribeEmployees = dbModule.onSnapshot(dbModule.collection(db, 'employees'),
                 snapshot => { state.employees = snapshot.docs.map(d => d.data()); render(); },
                 error => setMessage('Gagal membaca pegawai: ' + error.message, true));
