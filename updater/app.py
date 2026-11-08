@@ -15,7 +15,7 @@ from tkinter import filedialog, messagebox, scrolledtext, ttk
 import webbrowser
 
 from legacy_bridge import check_files, run_legacy_scraper
-from cloud_config import synchronize_online
+from cloud_config import synchronize_online, read_public_settings, read_desktop_oauth_client
 from preflight import preflight_google_sheets, read_local_setup, PreflightError
 from run_lock import local_update_lock
 
@@ -113,6 +113,8 @@ class Updater(tk.Tk):
         self.run_button = ttk.Button(controls, text="▶  Perbarui Data FASIH",
                                      style="Primary.TButton", command=self.start_update)
         self.run_button.pack(side="left")
+        ttk.Button(controls, text="Periksa Persiapan", command=self.check_preparation,
+                   style="Normal.TButton").pack(side="left", padx=(8, 0))
         ttk.Button(controls, text="Buka Dashboard", command=lambda: webbrowser.open(DASHBOARD_URL),
                    style="Normal.TButton").pack(side="left", padx=9)
         ttk.Label(controls, textvariable=self.status, style="Subtitle.TLabel").pack(side="right")
@@ -200,6 +202,43 @@ class Updater(tk.Tk):
         threading.Thread(
             target=self._run, args=(script, self.online_mode.get()), daemon=True
         ).start()
+
+    def check_preparation(self):
+        """Diagnostik tanpa menjalankan scraping atau mengubah spreadsheet."""
+        if self.running:
+            return
+        script = Path(self.selected_script.get() or "")
+        if check_files(script, require_config=not self.online_mode.get()):
+            messagebox.showwarning(APP_TITLE, "Pilih file Python dan lengkapi konfigurasi dulu.")
+            return
+        self.running = True
+        self.update_status()
+        self._append_log("Memulai audit persiapan tanpa scraping...")
+        threading.Thread(
+            target=self._check_preparation_worker,
+            args=(script.parent, self.online_mode.get()), daemon=True
+        ).start()
+
+    def _check_preparation_worker(self, script_dir, online):
+        try:
+            def report(line):
+                self.events.put(("log", str(line)))
+            preflight_google_sheets(script_dir, report)
+            if online:
+                settings = read_public_settings(script_dir)
+                read_desktop_oauth_client(
+                    script_dir, settings["google_oauth_desktop_client_id"]
+                )
+                report("Konfigurasi Firebase dan OAuth Desktop telah valid secara struktur.")
+                report("Izin operator dan login SSO belum diuji; diperiksa saat uji terjadwal.")
+            self.events.put((
+                "done",
+                "Prajalankan selesai. Tidak ada scraping atau perubahan data."
+            ))
+        except BaseException as error:
+            self.events.put((
+                "failed", type(error).__name__ + ": " + str(error)
+            ))
 
     def _run(self, script, use_online):
         try:
