@@ -18,7 +18,7 @@ from legacy_bridge import check_files, run_legacy_scraper
 from cloud_config import synchronize_online, read_public_settings, read_desktop_oauth_client
 from preflight import preflight_google_sheets, read_local_setup, PreflightError
 from run_lock import local_update_lock
-from fasih_access import verify_fasih_access
+from fasih_access import verify_fasih_access, FasihAccessError, fasih_failure_notice
 
 DASHBOARD_URL = "https://bpsblora.github.io/bolo-inpek/"
 APP_TITLE = "BOLO INPEK Updater"
@@ -242,6 +242,8 @@ class Updater(tk.Tk):
                 "done",
                 "Prajalankan selesai. Tidak ada scraping atau perubahan data."
             ))
+        except FasihAccessError as error:
+            self.events.put(("fasih_unreachable", str(error)))
         except BaseException as error:
             self.events.put((
                 "failed", type(error).__name__ + ": " + str(error)
@@ -265,6 +267,8 @@ class Updater(tk.Tk):
                     report("Mode uji lokal: tidak menarik konfigurasi online.")
                 run_legacy_scraper(script, report)
             self.events.put(("done", "Proses selesai. Buka dashboard untuk memuat data terbaru."))
+        except FasihAccessError as error:
+            self.events.put(("fasih_unreachable", str(error)))
         except BaseException as error:
             self.events.put(("failed", type(error).__name__ + ": " + str(error)))
 
@@ -276,12 +280,18 @@ class Updater(tk.Tk):
                 break
             if kind == "log":
                 self._append_log(text)
-            elif kind in ("done", "failed"):
+            elif kind in ("done", "failed", "fasih_unreachable"):
                 self.running = False
-                self._append_log(("[✓] " if kind == "done" else "[X] ") + text)
-                self.update_status()
-                if kind == "failed":
-                    messagebox.showerror(APP_TITLE, "Pembaruan gagal.\n\n" + text[:1200])
+                if kind == "fasih_unreachable":
+                    notice = fasih_failure_notice(text)
+                    self._append_log("[!] " + notice.replace("\n", " "))
+                    self.update_status()
+                    messagebox.showwarning("Koneksi FASIH Belum Tersambung", notice)
+                else:
+                    self._append_log(("[✓] " if kind == "done" else "[X] ") + text)
+                    self.update_status()
+                    if kind == "failed":
+                        messagebox.showerror(APP_TITLE, "Pembaruan gagal.\n\n" + text[:1200])
         self.after(120, self.drain_events)
 
 
