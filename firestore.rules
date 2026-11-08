@@ -9,6 +9,11 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
         && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.active == true;
     }
+    function canUpdateFasih() {
+      return isAdmin() || (signedIn()
+        && exists(/databases/$(database)/documents/operators/$(request.auth.uid))
+        && get(/databases/$(database)/documents/operators/$(request.auth.uid)).data.active == true);
+    }
     function validSurvey() {
       return request.resource.data.keys().hasOnly([
         'id', 'name', 'sourceCode', 'startDate', 'endDate', 'note', 'active'
@@ -87,7 +92,7 @@ service cloud.firestore {
       && request.resource.data.nama_assignment_field.size() <= 140;
     }
     match /scraper_configs/{surveyId} {
-      allow read: if isAdmin();
+      allow read: if canUpdateFasih();
       allow create, update: if isAdmin()
         && request.resource.data.id == surveyId
         && validScraperConfig();
@@ -101,6 +106,13 @@ service cloud.firestore {
         && request.resource.data.id == employeeId
         && validEmployee();
       allow delete: if false;
+    }
+
+    // Peran operator hanya memberi izin READ konfigurasi updater.
+    // Penunjukan operator dilakukan oleh administrator melalui Firebase Console.
+    match /operators/{userId} {
+      allow get: if signedIn() && request.auth.uid == userId;
+      allow list, create, update, delete: if false;
     }
 
     // Admin ditetapkan lewat Firebase Console, tidak bisa mengangkat diri.
