@@ -57,6 +57,27 @@ class PortableUpdaterTests(unittest.TestCase):
         self.assertTrue(any("Username akun SSO bersama" in x for x in issues))
         self.assertTrue(any("Password akun SSO bersama" in x for x in issues))
 
+    def test_portal_unreachable_stops_before_shared_sso_login(self):
+        self.script.write_text('''
+FASIH_URL = "https://fasih-sm.bps.go.id/app"
+def baca_pengaturan():
+    return "shared_sso_test", "test-private-password"
+def login_sso_eksternal(driver, username, password):
+    raise AssertionError("SSO login must not start without VPN access")
+def tunggu_login_berhasil(driver, timeout=90):
+    return None
+def cek_koneksi_fasih():
+    return False
+def main():
+    cek_koneksi_fasih()
+    login_sso_eksternal(None, "shared_sso_test", "test-private-password")
+''', encoding="utf8")
+        from fasih_access import FasihAccessError
+        with patch("fasih_access.verify_fasih_access",
+                   side_effect=FasihAccessError("FortiClient disconnected")):
+            with self.assertRaisesRegex(FasihAccessError, "FortiClient"):
+                run_legacy_scraper(self.script, lambda _: None)
+
     def test_original_shared_sso_login_used_without_logging_password(self):
         self.script.write_text('''
 from pathlib import Path
