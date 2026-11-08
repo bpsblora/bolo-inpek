@@ -8,7 +8,7 @@ Program berbasis Tkinter untuk menjalankan script scraping lama milik operator d
 - Bridge mengganti login username/password otomatis pada script lama menjadi login SSO manual; tidak membaca FASIH_USERNAME dan FASIH_PASSWORD dari .env.
 - ChromeDriver mengikuti versi Chrome setempat, bukan versi yang dikunci pada PC lama.
 - Pengambilan assignment, pegawai, status, dan upload Google Sheets masih menggunakan fungsi dari script Python lama.
-- BELUM terhubung ke daftar survei online Pengaturan Admin. Sementara daftar survei scraping masih berasal dari config_survei.json lokal.
+- Panel Admin (branch dev-admin-v2) kini mendukung **Impor Config FASIH**, **ID FASIH** per survei, dan **Unduh Config Updater**. File unduhan memiliki struktur JSON 7 field persis seperti script lama, tetapi updater masih membacanya dari config_survei.json lokal. Sinkronisasi langsung antaraplikasi belum aktif.
 - BELUM diuji end-to-end dengan VPN/SSO/FASIH asli.
 
 ## Persyaratan PC operator
@@ -50,4 +50,13 @@ Untuk menjalankan sumber saat debugging di PC developer:
 - Tidak menyimpan password SSO dan tidak menyebarkan cookie antar komputer.
 - Menulis ke Sheets sesuai hak akses konfigurasi lokal.
 - Build sukses belum membuktikan Selenium dapat dipakai di FASIH. Uji Chrome, SSO, VPN, dan penulisan spreadsheet wajib sebelum produksi.
-- Pada versi sekarang config_survei.json masih lokal; integrasi langsung dengan konfigurasi survei online merupakan pengembangan tahap berikutnya.
+- Admin dapat mengubah daftar survei dan mengunduh config_survei.json tanpa mengedit Python. Namun untuk versi portable ini, operator masih perlu mengganti file config_survei.json lokal yang diperoleh dari admin. Sinkronisasi otomatis satu-klik dari database online masih tahap berikutnya.
+- Jangan letakkan ID FASIH, service-account JSON, ataupun data responden dalam repository publik. Koleksi Firestore scraper_configs menggunakan aturan hanya-admin dan harus diuji setelah Firebase disiapkan.
+
+## Struktur konfigurasi asli (telah diverifikasi dari ZIP)
+
+Setiap objek dalam daftar `surveys` harus mempunyai tujuh field string: `code`, `name`, `survey_id`, `survey_period_id`, `role_pencacah_id`, `role_pengawas_id`, dan `nama_assignment_field`. Untuk enam survei lama, field nama assignment menggunakan `data1`, `data2`, atau `data3` tergantung surveinya.
+
+**Impor konfigurasi dari UI:** buka Pengaturan Admin → Kelola Survei → Impor Config FASIH, pilih file `config_survei.json` dari paket uji privat. Setelah itu, klik **Unduh Config Updater** untuk menghasilkan konfigurasi terbaru (hanya survei aktif) dan pindahkan ke folder script pada PC operator. Pada mode pratinjau data hanya tersimpan di browser; database bersama membutuhkan autentikasi Firebase dan Security Rules yang sudah diterapkan.
+
+**Peringatan:** ZIP asli mengandung file .env dengan kredensial SSO dan credentials.json dengan private key Google. Jangan gunakan ZIP lengkap sebagai paket distribusi. Gunakan paket uji yang sudah dibersihkan dan dapatkan kredensial Sheets melalui prosedur kantor yang aman.
