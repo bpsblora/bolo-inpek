@@ -110,14 +110,14 @@ FASIH belum diuji end-to-end melalui VPN pada PC operator.
 
 1. Windows, Google Chrome, dan FortiClient VPN yang dikonfigurasi secara resmi.
 2. BOLO-INPEK-Updater.exe dari artifact workflow GitHub Actions branch dev-admin-v2.
-3. Salinan internal script lama (ambil_data_monitoring_inpek_v2.py), beserta berkas privat pada folder yang sama:
-   - .env dengan FASIH_USERNAME, FASIH_PASSWORD, GOOGLE_SPREADSHEET_ID, TINDAK_LANJUT_SPREADSHEET_ID, dan GOOGLE_CREDENTIALS_FILE;
-   - credentials.json atau nama file service account dari .env;
-   - updater-oauth-desktop.json yang diunduh resmi dari Google Cloud Console (OAuth Desktop JSON). Contoh strukturnya ada di updater/templates/contoh-oauth-desktop.json.
-   - updater-settings.json lokal HANYA untuk pengembangan dengan BOLO_UPDATER_USE_LOCAL_SETTINGS=1 pada .env. Tanpa flag, updater selalu memakai URL GitHub Pages resmi.
-   - config_survei.json hanya diperlukan untuk mode lokal. Mode online membuat ulang konfigurasi itu secara otomatis setelah login operator berhasil.
+3. Salinan internal script lama (ambil_data_monitoring_inpek_v2.py). Untuk **mode Online (direkomendasikan)**, berkas privat yang diperlukan pada PC:
+   - .env yang hanya berisi FASIH_USERNAME dan FASIH_PASSWORD akun SSO bersama, plus flag khusus pengembangan bila diperlukan;
+   - updater-oauth-desktop.json yang diunduh resmi dari Google Cloud Console. Contoh format: updater/templates/contoh-oauth-desktop.json;
+   - updater-settings.json lokal hanya untuk pengembangan dengan BOLO_UPDATER_USE_LOCAL_SETTINGS=1. Produksi mengambil settings dari GitHub Pages resmi secara online.
+4. Mode Online membaca ID dua spreadsheet dan daftar survei dari **Firestore**, sehingga **tidak memerlukan credentials.json service account atau ID Google Sheets lokal**.
+5. Mode Lokal lama (khusus debugging) tetap memerlukan GOOGLE_SPREADSHEET_ID, TINDAK_LANJUT_SPREADSHEET_ID dan GOOGLE_CREDENTIALS_FILE pada .env, credentials.json, serta config_survei.json.
 
-File konfigurasi/kredensial dan script internal TIDAK boleh dimasukkan ke repository publik. Pertimbangkan akses Google Sheets per pengguna agar service-account key tidak perlu disalin ke banyak PC.
+File konfigurasi/kredensial dan script internal TIDAK boleh dimasukkan ke repository publik. Izin Google Sheets untuk operator diperiksa melalui login OAuth, tanpa membagikan private key ke tiap PC.
 
 ## Cara menggunakan
 
@@ -125,7 +125,7 @@ File konfigurasi/kredensial dan script internal TIDAK boleh dimasukkan ke reposi
 2. Jalankan BOLO-INPEK-Updater.exe.
 3. Pilih file ambil_data_monitoring_inpek_v2.py pada PC.
 4. Pilih mode **Online** (untuk konfigurasi survei terbaru) atau mode **Lokal** (khusus uji) dan centang konfirmasi VPN.
-5. Klik **Periksa Persiapan** untuk memvalidasi dua Sheets dan struktur OAuth secara aman tanpa scraping.
+5. Klik **Periksa Persiapan** untuk memvalidasi struktur OAuth dan akses FASIH (jika VPN telah diaktifkan). Mode Lokal juga memeriksa akses baca kedua Sheets; mode Online memeriksa izin Sheets saat login operator sebelum scraping.
 6. Setelah penyiapan disetujui, tekan **Perbarui Data FASIH**. Mode online akan meminta login Google operator untuk membaca konfigurasi privat.
 7. Saat Chrome FASIH terbuka, scraper menggunakan akun SSO bersama yang sudah dikonfigurasi. Selesaikan OTP/MFA secara manual apabila sistem memintanya.
 8. Tunggu scraping dan upload ke **dua spreadsheet** selesai; periksa keduanya sebelum menganggap data telah sinkron.
