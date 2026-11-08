@@ -145,7 +145,8 @@
       '</div>';
     const surveys = '<div class="bolo-admin-section-title"><div><h3>Kelola Survei</h3>' +
       '<p>Survei baru langsung ditampilkan dalam dashboard. Data assignment tetap mengikuti sinkronisasi resmi FASIH.</p></div>' +
-      '<div class="bolo-actionbar">' + btn('Unduh Config Updater', 'export-config', 'class="bolo-minor"') +
+      '<div class="bolo-actionbar">' + btn('Impor Config FASIH', 'import-config', 'class="bolo-minor"') +
+      btn('Unduh Config Updater', 'export-config', 'class="bolo-minor"') +
       btn('+ Tambah Survei', 'new-survey', 'class="bolo-primary"') + '</div></div>' + surveyRows();
     const employees = '<div class="bolo-admin-section-title"><div><h3>Kelola Pegawai dan Petugas</h3>' +
       '<p>Direktori internal BOLO INPEK; belum mengubah akun, assignment, atau daftar WhatsApp di FASIH/Apps Script.</p></div>' +
@@ -265,6 +266,66 @@
       state.busy = false; render();
     }
   }
+  async function importUpdaterConfig(file) {
+    if (state.mode !== 'preview' && !state.authorized) {
+      throw new Error('Hanya administrator yang boleh mengimpor konfigurasi FASIH.');
+    }
+    if (!file || file.size > 1024 * 1024) {
+      throw new Error('Pilih file config_survei.json berukuran maksimal 1 MB.');
+    }
+    let parsed;
+    try { parsed = JSON.parse(await file.text()); }
+    catch { throw new Error('File bukan JSON yang valid.'); }
+    const rows = parsed?.surveys;
+    if (!Array.isArray(rows) || rows.length === 0 || rows.length > 100) {
+      throw new Error('Daftar surveys tidak valid atau jumlahnya terlalu banyak.');
+    }
+    const keys = [
+      'code', 'name', 'survey_id', 'survey_period_id',
+      'role_pencacah_id', 'role_pengawas_id', 'nama_assignment_field'
+    ];
+    const oldNames = new Map(allSurveys().map(row => [keyFor(row.name), row]));
+    const names = new Set(), incomingSurveys = [], incomingConfigs = [];
+    for (const row of rows) {
+      if (!row || typeof row !== 'object' ||
+          keys.some(k => typeof row[k] !== 'string' || !row[k].trim() || row[k].length > 140) ||
+          row.name.length > 100) {
+        throw new Error('Ada survei dengan ID FASIH belum lengkap atau terlalu panjang.');
+      }
+      const name = row.name.trim(), normalized = keyFor(name);
+      if (names.has(normalized)) throw new Error('Nama survei ganda dalam file impor.');
+      names.add(normalized);
+      const prior = oldNames.get(normalized);
+      const id = prior?.id || 'survey-' + slug(name);
+      const {imported, ...clean} = prior || {};
+      incomingSurveys.push({
+        ...clean, id, name,
+        sourceCode: clean.sourceCode || row.code,
+        startDate: clean.startDate || '', endDate: clean.endDate || '',
+        note: clean.note || '', active: clean.active !== false
+      });
+      incomingConfigs.push({
+        id, ...Object.fromEntries(keys.map(k => [k, row[k].trim()]))
+      });
+    }
+    if (state.mode === 'preview') {
+      const replace = (old, updates) => [
+        ...old.filter(x => !updates.some(u => u.id === x.id)), ...updates
+      ];
+      state.surveys = replace(state.surveys, incomingSurveys);
+      state.scraperConfigs = replace(state.scraperConfigs, incomingConfigs);
+      previewWrite(); publishSurveys();
+    } else {
+      const batch = state.cloud.writeBatch(state.cloud.db);
+      incomingSurveys.forEach((survey, i) => {
+        batch.set(state.cloud.doc(state.cloud.db, 'surveys', survey.id), survey);
+        batch.set(state.cloud.doc(state.cloud.db, 'scraper_configs', survey.id), incomingConfigs[i]);
+      });
+      await batch.commit();
+    }
+    setMessage(incomingConfigs.length + ' konfigurasi FASIH berhasil diimpor.' +
+      (state.mode === 'preview' ? ' Tersimpan hanya di browser ini.' : ' Tersimpan untuk administrator.'));
+  }
   function exportUpdaterConfig() {
     if (state.mode !== 'preview' && !state.authorized) {
       setMessage('Hanya admin yang bisa mengunduh konfigurasi FASIH.', true); return;
@@ -352,9 +413,19 @@
       '<label class="bolo-check"><input type="checkbox" id="bolo-entry-active" checked> Aktif</label>' +
       '<p id="bolo-entry-error" class="bolo-error" role="alert"></p>' +
       '<div class="bolo-form-buttons"><button type="button" data-action="close-entry" class="bolo-minor">Batal</button>' +
-      '<button type="submit" class="bolo-primary">Simpan</button></div></form></dialog>';
+      '<button type="submit" class="bolo-primary">Simpan</button></div></form></dialog>' +
+      '<input id="bolo-import-config" type="file" accept=".json,application/json" hidden>';
     while (root.firstChild) document.body.appendChild(root.firstChild);
     $('#bolo-entry-form').addEventListener('submit', saveEntry);
+    $('#bolo-import-config').addEventListener('change', async e => {
+      const file = e.currentTarget.files?.[0];
+      e.currentTarget.value = '';
+      if (!file || state.busy) return;
+      state.busy = true; render();
+      try { await importUpdaterConfig(file); }
+      catch (error) { setMessage(error.message || 'Impor konfigurasi gagal.', true); }
+      finally { state.busy = false; render(); }
+    });
     document.body.addEventListener('click', async event => {
       const button = event.target.closest('button[data-action]');
       if (!button) return;
@@ -368,6 +439,7 @@
       else if (action === 'edit-survey') entryForm('survey', allSurveys().find(x => x.id === id));
       else if (action === 'edit-config') entryForm('config', allSurveys().find(x => x.id === id));
       else if (action === 'export-config') exportUpdaterConfig();
+      else if (action === 'import-config') $('#bolo-import-config').click();
       else if (action === 'edit-employee') entryForm('employee', state.employees.find(x => x.id === id));
       else if (action === 'toggle-survey') await toggleItem('surveys', id);
       else if (action === 'toggle-employee') await toggleItem('employees', id);
@@ -401,6 +473,7 @@
       const db = dbModule.getFirestore(app);
       const auth = authModule.getAuth(app);
       state.cloud = {db, auth, doc: dbModule.doc, setDoc: dbModule.setDoc,
+        writeBatch: dbModule.writeBatch,
         signOut: authModule.signOut, signInWithPopup: authModule.signInWithPopup,
         GoogleAuthProvider: authModule.GoogleAuthProvider};
       dbModule.onSnapshot(dbModule.collection(db, 'surveys'), snapshot => {
