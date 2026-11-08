@@ -39,7 +39,7 @@ service cloud.firestore {
       && request.resource.data.email.size() <= 200
       && request.resource.data.phone is string
       && request.resource.data.phone.size() <= 24
-      && request.resource.data.role in ['PPL', 'PML', 'PPL/PML', 'Pegawai', 'Admin']
+      && request.resource.data.role in ['PPL', 'PML', 'PPL/PML', 'Pegawai']
       && request.resource.data.note is string
       && request.resource.data.note.size() <= 600
       && request.resource.data.active is bool;
