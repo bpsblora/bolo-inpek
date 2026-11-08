@@ -75,7 +75,7 @@ test('admin preview persists surveys and employees without a cloud backend', asy
     constructor(name, opts) { this.type = name; this.detail = opts.detail; }
   };
   const inject = admin.replace('  function start() {',
-    '  window.__test = {state, allSurveys, persist};\n  function start() {');
+    '  window.__test = {state, allSurveys, persist, importUpdaterConfig};\n  function start() {');
   assert.notEqual(inject, admin, 'Preview test hook not installed');
   new Function('window','document','localStorage','CustomEvent', inject)(
     window, document, localStorage, CustomEvent
@@ -103,6 +103,16 @@ test('admin preview persists surveys and employees without a cloud backend', asy
   assert.equal(registry.survey_id, undefined, 'Internal FASIH IDs must not be broadcast');
   const saved = JSON.parse(records.get('bolo-inpek-admin-preview-v2'));
   assert.equal(saved.scraperConfigs[0].survey_period_id, 'internal-period-id');
+  await window.__test.importUpdaterConfig({
+    size: 1200,
+    text: async () => JSON.stringify({surveys: [{
+      code:'TEST', name:'TEST NEW SURVEY', survey_id:'q123', survey_period_id:'period',
+      role_pencacah_id:'r1', role_pengawas_id:'r2', nama_assignment_field:'data3'
+    }]})
+  });
+  const reloaded = JSON.parse(records.get('bolo-inpek-admin-preview-v2'));
+  assert.equal(reloaded.scraperConfigs.find(c => c.name === 'TEST NEW SURVEY').survey_id, 'q123');
+  assert.equal(reloaded.surveys.find(c => c.name === 'TEST NEW SURVEY').survey_id, undefined);
   assert.equal(saved.surveys.length, 1);
   assert.equal(saved.employees[0].name, 'Petugas Uji');
 });
