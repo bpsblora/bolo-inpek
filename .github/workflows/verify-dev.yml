@@ -1,0 +1,22 @@
+name: BOLO INPEK Development Checks
+
+on:
+  push:
+    branches: [dev-admin-v2]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  syntax-and-regression:
+    name: Frontend syntax & registry regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run tests
+        run: node --test tests/*.test.mjs
