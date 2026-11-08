@@ -16,7 +16,8 @@ import webbrowser
 
 from legacy_bridge import check_files, run_legacy_scraper
 from cloud_config import synchronize_online, read_public_settings, read_desktop_oauth_client
-from preflight import preflight_google_sheets, read_local_setup, PreflightError
+from preflight import preflight_google_sheets, verify_google_sheets_client, read_shared_sso_setup, read_local_setup, PreflightError
+from operator_google import login_operator
 from run_lock import local_update_lock
 from fasih_access import verify_fasih_access, FasihAccessError, fasih_failure_notice
 
@@ -88,7 +89,7 @@ class Updater(tk.Tk):
         scripts = ttk.Frame(root, style="Card.TFrame", padding=17)
         scripts.pack(fill="x", pady=(12, 0))
         ttk.Label(scripts, text="2. Script Scraping Lokal", style="Section.TLabel").pack(anchor="w")
-        ttk.Label(scripts, text="Script lama dan akun SSO bersama tetap di PC; daftar survei dibaca dari pengaturan online.",
+        ttk.Label(scripts, text="Script dan akun SSO bersama tetap privat; survei dan tujuan Sheets dibaca dari Firebase.",
                   style="Body.TLabel").pack(anchor="w", pady=(5, 10))
         entry_row = ttk.Frame(scripts, style="Card.TFrame")
         entry_row.pack(fill="x")
@@ -132,7 +133,7 @@ class Updater(tk.Tk):
         self.log_window.pack(fill="both", expand=True)
         self._append_log("Siap memeriksa file. Scraper memakai akun SSO bersama dari .env lokal.")
         ttk.Label(root,
-                  text="Mode pengembangan • Rahasiakan file .env dan credentials.json; jangan bagikan ke GitHub.",
+                  text="Mode online: login Google untuk Sheets tanpa service-account key. SSO FASIH tetap privat.",
                   style="Subtitle.TLabel").pack(anchor="w", pady=(11, 0))
 
     def pick_script(self):
@@ -146,10 +147,17 @@ class Updater(tk.Tk):
 
     def update_status(self):
         script = Path(self.selected_script.get() or "")
-        problems = check_files(script, require_config=not self.online_mode.get())
+        problems = check_files(
+            script,
+            require_config=not self.online_mode.get(),
+            require_google_credentials=not self.online_mode.get(),
+        )
         if not problems:
             try:
-                read_local_setup(script.parent)
+                if self.online_mode.get():
+                    read_shared_sso_setup(script.parent)
+                else:
+                    read_local_setup(script.parent)
             except PreflightError as exc:
                 problems.append(str(exc))
         if problems:
@@ -177,12 +185,17 @@ class Updater(tk.Tk):
             return
         script = Path(self.selected_script.get())
         if not self.vpn_confirmed.get() or check_files(
-            script, require_config=not self.online_mode.get()
+            script,
+            require_config=not self.online_mode.get(),
+            require_google_credentials=not self.online_mode.get(),
         ):
             messagebox.showwarning(APP_TITLE, "Periksa VPN dan berkas pendukung terlebih dahulu.")
             return
         try:
-            read_local_setup(script.parent)
+            if self.online_mode.get():
+                read_shared_sso_setup(script.parent)
+            else:
+                read_local_setup(script.parent)
         except PreflightError as exc:
             messagebox.showwarning(APP_TITLE, str(exc))
             return
@@ -209,7 +222,11 @@ class Updater(tk.Tk):
         if self.running:
             return
         script = Path(self.selected_script.get() or "")
-        if check_files(script, require_config=not self.online_mode.get()):
+        if check_files(
+            script,
+            require_config=not self.online_mode.get(),
+            require_google_credentials=not self.online_mode.get(),
+        ):
             messagebox.showwarning(APP_TITLE, "Pilih file Python dan lengkapi konfigurasi dulu.")
             return
         self.running = True
@@ -230,14 +247,16 @@ class Updater(tk.Tk):
                 report("Portal FASIH dapat diakses. Belum melakukan login SSO.")
             else:
                 report("Pemeriksaan FASIH dilewati: operator belum mengonfirmasi VPN.")
-            preflight_google_sheets(script_dir, report)
             if online:
+                read_shared_sso_setup(script_dir)
                 settings = read_public_settings(script_dir)
                 read_desktop_oauth_client(
                     script_dir, settings["google_oauth_desktop_client_id"]
                 )
                 report("Konfigurasi Firebase dan OAuth Desktop telah valid secara struktur.")
-                report("Izin operator dan login SSO belum diuji; diperiksa saat uji terjadwal.")
+                report("Izin Google Sheets diperiksa saat operator login sebelum scraping.")
+            else:
+                preflight_google_sheets(script_dir, report)
             self.events.put((
                 "done",
                 "Prajalankan selesai. Tidak ada scraping atau perubahan data."
@@ -257,15 +276,32 @@ class Updater(tk.Tk):
                 report("Memastikan portal FASIH dapat dibuka setelah VPN Connected...")
                 verify_fasih_access()
                 report("Portal FASIH terjangkau. Lanjut memeriksa persiapan.")
-                report("Pemeriksaan akses dua spreadsheet sebelum scraping...")
-                preflight_google_sheets(script.parent, report)
                 if use_online:
-                    report("Mengambil daftar survei aktif dari BOLO INPEK online...")
-                    count = synchronize_online(script.parent, report)
+                    settings = read_public_settings(script.parent)
+                    desktop_config = read_desktop_oauth_client(
+                        script.parent, settings["google_oauth_desktop_client_id"]
+                    )
+                    report("Login Google operator untuk akses Firebase dan dua Sheets...")
+                    session = login_operator(desktop_config)
+                    targets = {}
+                    report("Mengambil daftar survei dan dua spreadsheet dari Firebase...")
+                    count = synchronize_online(
+                        script.parent, report,
+                        get_credentials=lambda _config: session.google_id_token,
+                        on_targets=lambda value: targets.update(value),
+                    )
                     report(str(count) + " survei siap diperbarui.")
+                    report("Memeriksa izin akun Google operator ke kedua spreadsheet...")
+                    verify_google_sheets_client(session.spreadsheet_client, targets, report)
+                    run_legacy_scraper(
+                        script, report,
+                        authorized_client=session.spreadsheet_client,
+                        spreadsheet_targets=targets,
+                    )
                 else:
                     report("Mode uji lokal: tidak menarik konfigurasi online.")
-                run_legacy_scraper(script, report)
+                    preflight_google_sheets(script.parent, report)
+                    run_legacy_scraper(script, report)
             self.events.put(("done", "Proses selesai. Buka dashboard untuk memuat data terbaru."))
         except FasihAccessError as error:
             self.events.put(("fasih_unreachable", str(error)))
