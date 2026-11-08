@@ -93,3 +93,15 @@
   #bolo-entry-fields{padding:15px}
 }
 @media(prefers-reduced-motion:reduce){#bolo-admin-launch{transition:none}}
+
+/* Konfigurasi dua sumber Google Sheets — hanya untuk admin yang login */
+.bolo-sheet-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:12px}
+.bolo-sheet-summary>div{padding:15px 16px;border:1px solid #dae7f5;background:#f3f8ff;border-radius:14px;display:grid;gap:6px}
+.bolo-sheet-summary strong{color:#174a7d;font-size:14px}
+.bolo-sheet-summary small{color:#4b6888;font-size:12px}
+#bolo-sheets-dialog{border:0;border-radius:18px;padding:0;max-width:540px;width:min(92vw,540px);box-shadow:0 22px 75px #09274545}
+#bolo-sheets-dialog::backdrop{background:#062f59a8;backdrop-filter:blur(3px)}
+#bolo-sheets-form{padding:20px;display:grid;gap:14px}
+#bolo-sheets-form label{display:grid;gap:7px;font-weight:600;color:#20486e}
+#bolo-sheets-form input{width:100%;box-sizing:border-box;border:1px solid #cbd9eb;border-radius:10px;padding:10px 12px;font-size:14px;background:#fff;color:#152e48}
+#bolo-sheets-form input:focus{outline:2px solid #6ba9ed;outline-offset:1px}
