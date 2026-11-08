@@ -72,6 +72,13 @@ class CloudConfigTests(unittest.TestCase):
     def test_online_sync_reads_and_replaces_only_when_valid(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            (root / "updater-oauth-desktop.json").write_text(json.dumps({
+                "installed": {
+                    "client_id": "oauth-test-id", "client_secret": "test-only-public-client",
+                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                    "token_uri": "https://oauth2.googleapis.com/token"
+                }
+            }), encoding="utf8")
             (root / "updater-settings.json").write_text(json.dumps({
                 "enabled": True, "firebase_project_id": "bolo-test",
                 "firebase_api_key": "firebase-test-key",
@@ -128,6 +135,13 @@ class CloudConfigTests(unittest.TestCase):
     def test_denied_operator_does_not_use_cached_file(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            (root / "updater-oauth-desktop.json").write_text(json.dumps({
+                "installed": {
+                    "client_id": "oauth-test-id", "client_secret": "test-only-public-client",
+                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                    "token_uri": "https://oauth2.googleapis.com/token"
+                }
+            }), encoding="utf8")
             (root / "updater-settings.json").write_text(json.dumps({
                 "enabled": True, "firebase_project_id": "bolo-test",
                 "firebase_api_key": "firebase-test-key",
