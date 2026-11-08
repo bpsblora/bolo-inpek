@@ -199,22 +199,19 @@ def run_legacy_scraper(script: Path, log: Callable[[str], None]) -> None:
             module.buat_session_dari_chrome = verified_session
 
         if hasattr(module, "cek_koneksi_fasih") and hasattr(module, "FASIH_URL"):
-            from requests import RequestException
-            import requests
+            # Jangan mengizinkan fallback lama ketika cek VPN gagal.
+            # Gagal menjangkau FASIH -> batal sebelum Chrome/login SSO.
+            from fasih_access import verify_fasih_access, FASIH_HOST
             original_url = str(module.FASIH_URL)
-            if urlsplit(original_url).hostname != "fasih-sm.bps.go.id":
+            parsed_url = urlsplit(original_url)
+            if parsed_url.scheme != "https" or parsed_url.hostname != FASIH_HOST:
                 raise RuntimeError("Domain FASIH pada script tidak sesuai domain resmi.")
-            def verified_access():
-                try:
-                    response = requests.get(
-                        original_url, timeout=15, allow_redirects=True
-                    )
-                    print("[✓] Pemeriksaan koneksi FASIH memakai HTTPS terverifikasi.")
-                    return response.status_code < 500
-                except RequestException:
-                    print("[!] Tes jaringan belum berhasil. Chrome akan memeriksa akses sebenarnya.")
-                    return False
-            module.cek_koneksi_fasih = verified_access
+            def strict_fasih_check():
+                print("[*] Pemeriksaan ulang portal FASIH sebelum login SSO...")
+                verify_fasih_access(url=original_url)
+                print("[✓] Portal FASIH terjangkau melalui koneksi saat ini.")
+                return True
+            module.cek_koneksi_fasih = strict_fasih_check
 
         # Script lama meminta input konsol hanya pada jalur error;
         # aplikasi tanpa terminal tidak boleh hang di situ.
