@@ -72,6 +72,9 @@ class CloudConfigTests(unittest.TestCase):
     def test_online_sync_reads_and_replaces_only_when_valid(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            (root / ".env").write_text(
+                "BOLO_UPDATER_USE_LOCAL_SETTINGS=1\n", encoding="utf8"
+            )
             (root / "updater-oauth-desktop.json").write_text(json.dumps({
                 "installed": {
                     "client_id": "oauth-test-id", "client_secret": "test-only-public-client",
@@ -135,6 +138,9 @@ class CloudConfigTests(unittest.TestCase):
     def test_denied_operator_does_not_use_cached_file(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            (root / ".env").write_text(
+                "BOLO_UPDATER_USE_LOCAL_SETTINGS=1\n", encoding="utf8"
+            )
             (root / "updater-oauth-desktop.json").write_text(json.dumps({
                 "installed": {
                     "client_id": "oauth-test-id", "client_secret": "test-only-public-client",
