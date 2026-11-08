@@ -22,7 +22,7 @@ ALLOWED_ENV_KEYS = (
 )
 
 
-def check_files(script: Path) -> list[str]:
+def check_files(script: Path, *, require_config: bool = True) -> list[str]:
     problems: list[str] = []
     script = Path(script).expanduser().resolve()
     if script.suffix.lower() != ".py" or not script.is_file():
@@ -30,9 +30,9 @@ def check_files(script: Path) -> list[str]:
     if not script.name.startswith("ambil_data_monitoring_inpek"):
         problems.append("Nama scraper bukan ambil_data_monitoring_inpek*.py.")
     config_file = script.parent / "config_survei.json"
-    if not config_file.is_file():
+    if require_config and not config_file.is_file():
         problems.append("config_survei.json belum ada di folder script.")
-    else:
+    elif require_config:
         try:
             data = json.loads(config_file.read_text(encoding="utf-8-sig"))
             surveys = data.get("surveys", []) if isinstance(data, dict) else []
