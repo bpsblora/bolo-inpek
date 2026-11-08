@@ -46,6 +46,49 @@ class PortableUpdaterTests(unittest.TestCase):
         )
         self.assertTrue(any("ID dan field" in x for x in check_files(self.script)))
 
+    def test_online_oauth_overrides_stale_sheet_ids_from_legacy_env(self):
+        self.script.write_text('''
+import os
+from types import SimpleNamespace
+gspread = SimpleNamespace(service_account=lambda filename=None: None)
+def baca_pengaturan():
+    os.environ["GOOGLE_SPREADSHEET_ID"] = "STALE_FROM_LEGACY_ENV"
+    os.environ["TINDAK_LANJUT_SPREADSHEET_ID"] = "STALE_INTERNAL"
+    return "shared_sso_test", "test-private-password"
+def login_sso_eksternal(driver, username, password):
+    assert username == "shared_sso_test"
+def tunggu_login_berhasil(driver, timeout=90):
+    return None
+def main():
+    baca_pengaturan()
+    assert os.getenv("GOOGLE_SPREADSHEET_ID") == "MONITORING_FROM_CLOUD"
+    assert os.getenv("TINDAK_LANJUT_SPREADSHEET_ID") == "INTERNAL_FROM_CLOUD"
+    assert gspread.service_account() is not None
+    assert len(baca_database_nama_petugas()) == 1
+''', encoding="utf8")
+        class FakeSheet:
+            def get_all_records(self):
+                return [{"email": "staff@example.invalid", "nama": "Test Staff"}]
+        class FakeWorkbook:
+            def worksheet(self, name):
+                self_last = name
+                assert self_last == "db_petugas"
+                return FakeSheet()
+        class FakeGspread:
+            def open_by_key(self, key):
+                assert key == "MONITORING_FROM_CLOUD"
+                return FakeWorkbook()
+        log = []
+        run_legacy_scraper(
+            self.script, log.append,
+            authorized_client=FakeGspread(),
+            spreadsheet_targets={
+                "monitoring_id": "MONITORING_FROM_CLOUD",
+                "tindak_lanjut_id": "INTERNAL_FROM_CLOUD"
+            }
+        )
+        self.assertTrue(any("selesai" in item.lower() for item in log))
+
     def test_shared_sso_credentials_required(self):
         self.script.write_text("pass\n", encoding="utf8")
         (self.root / ".env").write_text(
