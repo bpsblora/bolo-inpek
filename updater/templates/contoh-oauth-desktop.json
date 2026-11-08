@@ -1,0 +1,10 @@
+{
+  "installed": {
+    "client_id": "ISI_OAUTH_DESKTOP_CLIENT_ID.apps.googleusercontent.com",
+    "client_secret": "ISI_DESKTOP_CLIENT_SECRET_DARI_GOOGLE_CLOUD",
+    "project_id": "ISI_GOOGLE_CLOUD_PROJECT_ID",
+    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+    "token_uri": "https://oauth2.googleapis.com/token",
+    "redirect_uris": ["http://localhost"]
+  }
+}
