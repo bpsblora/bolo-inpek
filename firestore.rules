@@ -16,7 +16,7 @@ service cloud.firestore {
     }
     function validSurvey() {
       return request.resource.data.keys().hasOnly([
-        'id', 'name', 'sourceCode', 'startDate', 'endDate', 'note', 'active'
+        'id', 'name', 'sourceCode', 'startDate', 'endDate', 'active'
       ])
       && request.resource.data.id is string
       && request.resource.data.id.size() <= 100
@@ -27,8 +27,6 @@ service cloud.firestore {
       && request.resource.data.sourceCode.size() <= 100
       && request.resource.data.startDate is string
       && request.resource.data.endDate is string
-      && request.resource.data.note is string
-      && request.resource.data.note.size() <= 600
       && request.resource.data.active is bool;
     }
     function validEmployee() {
