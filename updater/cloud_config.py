@@ -71,25 +71,47 @@ def read_public_settings(script_dir: Path, request_get=requests.get) -> dict:
     return settings
 
 
-def _get_google_credentials(client_id: str):
-    """Login interaktif Google BPS untuk otorisasi membaca konfigurasi.
+def read_desktop_oauth_client(script_dir: Path, expected_client_id: str) -> dict:
+    """Muat OAuth Desktop client JSON resmi dari PC (bukan dari repo publik)."""
+    path = Path(script_dir) / "updater-oauth-desktop.json"
+    if not path.is_file():
+        raise OnlineConfigError(
+            "File updater-oauth-desktop.json belum disiapkan di PC. "
+            "Unduh OAuth Client tipe Desktop dari Google Cloud Console BPS."
+        )
+    try:
+        data = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError, UnicodeError) as exc:
+        raise OnlineConfigError("Konfigurasi OAuth Desktop tidak valid.") from exc
+    installed = data.get("installed") if isinstance(data, dict) else None
+    if not isinstance(installed, dict):
+        raise OnlineConfigError("OAuth JSON harus bertipe Desktop (installed).")
+    if (installed.get("client_id") != expected_client_id
+        or not installed.get("client_secret")
+        or installed.get("auth_uri") != "https://accounts.google.com/o/oauth2/auth"
+        and installed.get("auth_uri") != "https://accounts.google.com/o/oauth2/v2/auth"
+        or installed.get("token_uri") != "https://oauth2.googleapis.com/token"):
+        raise OnlineConfigError(
+            "OAuth Desktop client tidak cocok dengan project/config BOLO INPEK."
+        )
+    return data
 
-    Ini login admin/operator Updater, terpisah dari akun bersama SSO FASIH.
-    Refresh token tidak disimpan. Pengguna login sekali tiap sesi Updater.
+
+def _get_google_credentials(client_config: dict):
+    """Login interaktif operator Google BPS untuk hak baca registry.
+
+    Google OAuth Desktop menggunakan PKCE. OAuth client ID/secret desktop
+    adalah identitas aplikasi publik, bukan password SSO Jose Dummy.
+    Token tidak ditulis ke file, log, maupun repo.
     """
     try:
         from google_auth_oauthlib.flow import InstalledAppFlow
     except ImportError as exc:
         raise OnlineConfigError("Library OAuth Google belum tersedia pada updater.") from exc
     flow = InstalledAppFlow.from_client_config(
-        {"installed": {
-            "client_id": client_id,
-            "client_secret": "",
-            "auth_uri": "https://accounts.google.com/o/oauth2/v2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-            "redirect_uris": ["http://localhost"]
-        }},
+        client_config,
         scopes=["openid", "email", "profile"],
+        autogenerate_code_verifier=True,
     )
     try:
         credentials = flow.run_local_server(
@@ -105,9 +127,12 @@ def _get_google_credentials(client_id: str):
         raise OnlineConfigError(
             "Login Google gagal atau dibatalkan. Periksa izin OAuth aplikasi BPS."
         ) from exc
-    if not credentials.id_token:
+    google_id_token = getattr(credentials, "id_token", None)
+    if not google_id_token:
+        google_id_token = flow.oauth2session.token.get("id_token")
+    if not google_id_token:
         raise OnlineConfigError("Login Google tidak menghasilkan ID token.")
-    return credentials.id_token
+    return google_id_token
 
 
 def _firebase_id_token(settings: dict, google_id_token: str,
@@ -267,7 +292,10 @@ def synchronize_online(script_dir: Path, log: Callable[[str], None],
     """
     settings = read_public_settings(script_dir, request_get=request_get)
     log("Menghubungkan Google untuk memeriksa izin operator updater...")
-    google_token = get_credentials(settings["google_oauth_desktop_client_id"])
+    desktop_config = read_desktop_oauth_client(
+        script_dir, settings["google_oauth_desktop_client_id"]
+    )
+    google_token = get_credentials(desktop_config)
     token = _firebase_id_token(settings, google_token, request_post=request_post)
     log("Membaca daftar survei aktif dan identitas FASIH terbaru...")
     surveys = _list_collection(settings, "surveys", token, request_get=request_get)
