@@ -78,13 +78,20 @@ untuk web bukan kunci akses database; perlindungan utamanya Security Rules.
 Credential FASIH, service account dan token API harus disimpan di server
 (secrets manager), **bukan** di HTML/JavaScript/GitHub Pages.
 
+## Perubahan terbaru — sinkronisasi survei online ke Updater
+
+- **Kelola Survei** di website menyimpan metadata aktif dan ID survei FASIH pada koleksi `surveys` serta `scraper_configs`. Nama survei dan tujuh identitas harus cocok.
+- **Updater** (mode Online) membuka login Google operator, memperoleh Firebase Auth ID token, membaca kedua koleksi dengan izin admin/operator, dan menulis konfigurasi survei lengkap ke PC **sebelum** Python berjalan.
+- SSO FASIH tetap satu akun bersama yang sudah diberi akses ke semua survei dari .env privat, sementara koneksi FortiClient dan tombol Perbarui tetap manual.
+- Bila pengambilan konfigurasi online gagal, akun operator tidak berhak, atau ada survei aktif tanpa ID, pembaruan **dibatalkan** agar tidak diam-diam memakai konfigurasi lama.
+- Petunjuk persiapan `updater-settings.json`, OAuth Desktop, Firebase Auth, Firestore Rules dan daftar operator tersedia pada [updater/README.md](updater/README.md).
+- **Saat ini mode online belum dapat dipakai pada website aktif**, karena Firebase project dan OAuth Desktop belum dikonfigurasi serta branch masih pengembangan. File `updater-settings.json` sengaja memiliki `enabled: false`. Jangan ubah menjadi true sebelum layanan dan pengujian siap.
+
 ## Yang BELUM diintegrasikan
 
 - Updater Portable menjalankan scraping **manual** pada PC operator yang telah mengaktifkan FortiClient VPN. Scraper menggunakan akun SSO bersama yang telah diberi akses survei; kredensial hanya berasal dari .env privat di PC, tidak ditanam di EXE atau GitHub.
   Akun SSO tidak perlu berganti ketika operator berganti. Verifikasi MFA/OTP, jika diminta FASIH, tetap dilakukan manual. Belum diuji end-to-end di jaringan BPS.
-- Menambah survei dari UI membuat konfigurasi/kartu survei; **belum otomatis**
-  menarik assignment survei baru. Backend sinkronisasi harus membaca daftar
-  survei aktif dari database dan menggunakan adaptor data FASIH yang cocok.
+- Penambahan survei dari UI akan ikut terbaca oleh Updater pada pembaruan berikutnya setelah Firebase/OAuth diaktifkan; data assignment baru tetap bergantung pada hak SSO bersama di FASIH dan kesesuaian adaptor Python.
 - Direktori pegawai baru belum menjadi sumber nomor WhatsApp untuk iframe
   tindak lanjut Apps Script lama. Migrasi kedua sumber data harus dibuat
   dengan pengujian dan persetujuan, agar riwayat tindak lanjut tidak hilang.
