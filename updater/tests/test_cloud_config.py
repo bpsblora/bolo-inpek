@@ -71,8 +71,8 @@ class CloudConfigTests(unittest.TestCase):
 
     def test_private_spreadsheet_targets_from_firestore(self):
         sheet_targets = {
-            "monitoring_id": "1bgCF8RSkltsd3jpL-naTEgWEIMw5y2rw8EzYRagCGNo",
-            "tindak_lanjut_id": "1wEK8KmN6cKIEg1UNd22UuzFzCjvBYkSAXRdrUhXRTyU"
+            "monitoring_id": "MONITORING_EXAMPLE_SPREADSHEET_ID_00000000001",
+            "tindak_lanjut_id": "INTERNAL_EXAMPLE_SPREADSHEET_ID_0000000000001"
         }
         urls = []
         def get(url, **kwargs):
