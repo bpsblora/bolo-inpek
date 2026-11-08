@@ -2,7 +2,7 @@
 import unittest
 
 import requests
-from fasih_access import FasihAccessError, verify_fasih_access
+from fasih_access import FasihAccessError, verify_fasih_access, fasih_failure_notice
 
 
 class FakeResponse:
@@ -53,6 +53,16 @@ class FasihVPNTests(unittest.TestCase):
                     302, "http://example.invalid/"
                 )
             )
+
+    def test_failed_fasih_notice_mentions_vpn_and_computer_internet(self):
+        notice = fasih_failure_notice("Portal FASIH belum dapat dijangkau")
+        self.assertIn("VPN FortiClient", notice)
+        self.assertIn("koneksi internet komputer yang digunakan", notice)
+        self.assertIn("ulangi pemeriksaan", notice)
+
+    def test_ssl_failure_notice_keeps_certificate_guidance(self):
+        notice = fasih_failure_notice("sertifikat HTTPS gagal")
+        self.assertIn("pengelola jaringan BPS", notice)
 
     def test_reject_fake_fasih_url(self):
         with self.assertRaisesRegex(FasihAccessError, "resmi"):
