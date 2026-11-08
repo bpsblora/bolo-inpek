@@ -174,7 +174,7 @@
       '<label>Nomor WhatsApp<input name="phone" maxlength="24" inputmode="tel" value="' +
       esc(item?.phone || '') + '" placeholder="Contoh: 62812..."></label>' +
       '<label>Peran<select name="role">' +
-      ['PPL','PML','PPL/PML','Pegawai','Admin'].map(r =>
+      ['PPL','PML','PPL/PML','Pegawai'].map(r =>
         '<option value="' + r + '"' + ((item?.role || 'PPL') === r ? ' selected' : '') + '>' + r + '</option>'
       ).join('') + '</select></label>' +
       '<label>Catatan<textarea name="note" rows="2" maxlength="600">' + esc(item?.note || '') + '</textarea></label>';
