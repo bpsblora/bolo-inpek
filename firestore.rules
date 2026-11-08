@@ -55,6 +55,45 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ID survei, periode dan peran FASIH hanya untuk admin; jangan dibaca publik.
+    function validScraperConfig() {
+      return request.resource.data.keys().hasOnly([
+        'id', 'name', 'code', 'survey_id', 'survey_period_id',
+        'role_pencacah_id', 'role_pengawas_id', 'nama_assignment_field'
+      ])
+      && request.resource.data.id is string
+      && request.resource.data.id.size() > 0
+      && request.resource.data.id.size() <= 100
+      && request.resource.data.name is string
+      && request.resource.data.name.size() > 0
+      && request.resource.data.name.size() <= 100
+      && request.resource.data.code is string
+      && request.resource.data.code.size() > 0
+      && request.resource.data.code.size() <= 140
+      && request.resource.data.survey_id is string
+      && request.resource.data.survey_id.size() > 0
+      && request.resource.data.survey_id.size() <= 140
+      && request.resource.data.survey_period_id is string
+      && request.resource.data.survey_period_id.size() > 0
+      && request.resource.data.survey_period_id.size() <= 140
+      && request.resource.data.role_pencacah_id is string
+      && request.resource.data.role_pencacah_id.size() > 0
+      && request.resource.data.role_pencacah_id.size() <= 140
+      && request.resource.data.role_pengawas_id is string
+      && request.resource.data.role_pengawas_id.size() > 0
+      && request.resource.data.role_pengawas_id.size() <= 140
+      && request.resource.data.nama_assignment_field is string
+      && request.resource.data.nama_assignment_field.size() > 0
+      && request.resource.data.nama_assignment_field.size() <= 140;
+    }
+    match /scraper_configs/{surveyId} {
+      allow read: if isAdmin();
+      allow create, update: if isAdmin()
+        && request.resource.data.id == surveyId
+        && validScraperConfig();
+      allow delete: if false;
+    }
+
     // Identitas dan nomor kontak petugas hanya bisa dilihat/diedit admin.
     match /employees/{employeeId} {
       allow read: if isAdmin();
