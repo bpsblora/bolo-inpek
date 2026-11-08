@@ -112,12 +112,9 @@ def preflight_google_sheets(
         client = gspread_module.service_account(
             filename=settings["credentials_path"]
         )
-        monitoring = client.open_by_key(settings["monitoring_id"])
-        internal = client.open_by_key(settings["internal_id"])
     except Exception as exc:
         raise PreflightError(
-            "Akses Google Sheets gagal. Periksa koneksi, dua ID spreadsheet, "
-            "dan izin berbagi kepada service account BPS."
+            "Kredensial service account tidak dapat digunakan untuk Google Sheets."
         ) from exc
 
     verify_google_sheets_client(
@@ -163,6 +160,6 @@ def verify_google_sheets_client(client, targets: dict, log: Callable[[str], None
             + ". Script lama akan membuatnya saat pertama kali upload jika memiliki izin Editor."
         )
     log(
-        "Kedua spreadsheet dapat dibuka. Pastikan service account memiliki izin "
-        "Editor; pemeriksaan ini tidak melakukan perubahan data."
+        "Kedua spreadsheet dapat dibuka. Pastikan akun Google/operator mempunyai "
+        "izin Editor; pemeriksaan ini tidak melakukan perubahan data."
     )
