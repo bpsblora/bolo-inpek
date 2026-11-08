@@ -242,7 +242,8 @@
     if (!current || state.busy) return;
     state.busy = true;
     try {
-      await persist(kind, {...current, imported: false, active: current.active === false});
+      const {imported, ...saved} = current;
+      await persist(kind, {...saved, active: current.active === false});
       setMessage('Status berhasil diperbarui.');
     } catch (error) { setMessage(error.message || 'Gagal mengubah status.', true); }
     finally { state.busy = false; render(); }
