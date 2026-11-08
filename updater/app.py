@@ -1,8 +1,8 @@
 """BOLO INPEK Updater — aplikasi portable Windows, tanpa server scraping.
 
 Workflow: pengguna mengaktifkan FortiClient VPN secara manual, memilih script
-scraper lokal, login SSO lewat Chrome secara manual, dan memperbarui Sheets.
-Tidak ada password VPN/SSO, cookie, atau token yang diunggah oleh aplikasi.
+scraper lokal, menggunakan satu akun SSO bersama dari .env privat, serta memperbarui Sheets.
+Kredensial tidak ditanam ke EXE, diunggah, atau ditampilkan oleh aplikasi.
 """
 from __future__ import annotations
 
@@ -67,7 +67,7 @@ class Updater(tk.Tk):
         root = ttk.Frame(self, style="Page.TFrame", padding=22)
         root.pack(fill="both", expand=True)
         ttk.Label(root, text="BOLO INPEK Updater", style="Heading.TLabel").pack(anchor="w")
-        ttk.Label(root, text="Pembaruan data FASIH-SM • VPN dan SSO tetap manual",
+        ttk.Label(root, text="Pembaruan FASIH-SM • VPN manual, akun SSO bersama",
                   style="Subtitle.TLabel").pack(anchor="w", pady=(3, 16))
 
         panel = ttk.Frame(root, style="Card.TFrame", padding=17)
@@ -113,9 +113,9 @@ class Updater(tk.Tk):
             padx=10, pady=10, state="disabled"
         )
         self.log_window.pack(fill="both", expand=True)
-        self._append_log("Siap memeriksa file. Login SSO akan dilakukan secara manual di Chrome.")
+        self._append_log("Siap memeriksa file. Scraper memakai akun SSO bersama dari .env lokal.")
         ttk.Label(root,
-                  text="Mode pengembangan • Jangan menyimpan atau membagikan password dan kredensial kantor.",
+                  text="Mode pengembangan • Rahasiakan file .env dan credentials.json; jangan bagikan ke GitHub.",
                   style="Subtitle.TLabel").pack(anchor="w", pady=(11, 0))
 
     def pick_script(self):
@@ -132,7 +132,7 @@ class Updater(tk.Tk):
         if problems:
             self.file_status.configure(text="Persiapan: " + " | ".join(problems))
         else:
-            self.file_status.configure(text="Berkas dasar ditemukan. SSO tetap harus login manual.")
+            self.file_status.configure(text="Konfigurasi dan akun SSO bersama ditemukan. VPN tetap diaktifkan manual.")
         ready = not problems and self.vpn_confirmed.get() and not self.running
         self.run_button.configure(state=("normal" if ready else "disabled"))
         self.status.set("Sedang memperbarui" if self.running else
@@ -154,7 +154,7 @@ class Updater(tk.Tk):
         confirmed = messagebox.askyesno(
             APP_TITLE,
             "Jalankan scraper dari file lokal yang dipilih?\n\n"
-            "Chrome akan terbuka untuk login SSO manual. "
+            "Chrome akan memakai akun SSO bersama dari konfigurasi privat. "
             "Hasilnya akan ditulis ke spreadsheet sesuai konfigurasi lokal."
         )
         if not confirmed:
