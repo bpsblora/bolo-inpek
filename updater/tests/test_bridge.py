@@ -71,10 +71,16 @@ def login_sso_eksternal(driver, username, password):
 def tunggu_login_berhasil(driver, timeout=90):
     assert timeout >= 300
     print("SSO completed")
+def buat_session_dari_chrome(driver):
+    class MockSession:
+        verify = False
+    return MockSession()
 def main():
     username, password = baca_pengaturan()
     login_sso_eksternal(None, username, password)
     tunggu_login_berhasil(None)
+    session = buat_session_dari_chrome(None)
+    assert session.verify is True, "FASIH session must verify HTTPS certificates"
     print("scraper completed")
 ''', encoding="utf8")
         lines = []
