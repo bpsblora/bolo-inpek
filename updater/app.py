@@ -15,6 +15,7 @@ from tkinter import filedialog, messagebox, scrolledtext, ttk
 import webbrowser
 
 from legacy_bridge import check_files, run_legacy_scraper
+from cloud_config import synchronize_online
 
 DASHBOARD_URL = "https://bpsblora.github.io/bolo-inpek/"
 APP_TITLE = "BOLO INPEK Updater"
@@ -37,6 +38,7 @@ class Updater(tk.Tk):
         self.running = False
         self.selected_script = tk.StringVar()
         self.vpn_confirmed = tk.BooleanVar(value=False)
+        self.online_mode = tk.BooleanVar(value=True)
         self.status = tk.StringVar(value="Belum siap")
         self._style()
         self._layout()
@@ -83,7 +85,7 @@ class Updater(tk.Tk):
         scripts = ttk.Frame(root, style="Card.TFrame", padding=17)
         scripts.pack(fill="x", pady=(12, 0))
         ttk.Label(scripts, text="2. Script Scraping Lokal", style="Section.TLabel").pack(anchor="w")
-        ttk.Label(scripts, text="Script lama dan konfigurasi tetap berada di PC; tidak diunggah ke GitHub.",
+        ttk.Label(scripts, text="Script lama dan akun SSO bersama tetap di PC; daftar survei dibaca dari pengaturan online.",
                   style="Body.TLabel").pack(anchor="w", pady=(5, 10))
         entry_row = ttk.Frame(scripts, style="Card.TFrame")
         entry_row.pack(fill="x")
@@ -93,6 +95,16 @@ class Updater(tk.Tk):
         self.file_status = ttk.Label(scripts, text="", style="Body.TLabel",
                                      wraplength=760, justify="left")
         self.file_status.pack(anchor="w", pady=(9, 0))
+        modes = ttk.Frame(scripts, style="Card.TFrame")
+        modes.pack(fill="x", pady=(10, 0))
+        ttk.Radiobutton(
+            modes, text="Online • ambil daftar survei terbaru dari BOLO INPEK",
+            variable=self.online_mode, value=True, command=self.update_status
+        ).pack(anchor="w")
+        ttk.Radiobutton(
+            modes, text="Lokal • hanya untuk pengujian dengan config_survei.json di PC",
+            variable=self.online_mode, value=False, command=self.update_status
+        ).pack(anchor="w", pady=(4, 0))
 
         controls = ttk.Frame(root, style="Page.TFrame")
         controls.pack(fill="x", pady=(16, 13))
@@ -128,11 +140,19 @@ class Updater(tk.Tk):
         self.update_status()
 
     def update_status(self):
-        problems = check_files(Path(self.selected_script.get() or ""))
+        problems = check_files(
+            Path(self.selected_script.get() or ""),
+            require_config=not self.online_mode.get()
+        )
         if problems:
             self.file_status.configure(text="Persiapan: " + " | ".join(problems))
         else:
-            self.file_status.configure(text="Konfigurasi dan akun SSO bersama ditemukan. VPN tetap diaktifkan manual.")
+            self.file_status.configure(text=(
+                "Mode online: daftar survei diperiksa saat pembaruan. "
+                "Google meminta izin operator sekali per sesi."
+                if self.online_mode.get() else
+                "Mode uji lokal: scraper memakai config_survei.json pada PC."
+            ))
         ready = not problems and self.vpn_confirmed.get() and not self.running
         self.run_button.configure(state=("normal" if ready else "disabled"))
         self.status.set("Sedang memperbarui" if self.running else
@@ -148,25 +168,41 @@ class Updater(tk.Tk):
         if self.running:
             return
         script = Path(self.selected_script.get())
-        if not self.vpn_confirmed.get() or check_files(script):
+        if not self.vpn_confirmed.get() or check_files(
+            script, require_config=not self.online_mode.get()
+        ):
             messagebox.showwarning(APP_TITLE, "Periksa VPN dan berkas pendukung terlebih dahulu.")
             return
         confirmed = messagebox.askyesno(
             APP_TITLE,
             "Jalankan scraper dari file lokal yang dipilih?\n\n"
-            "Chrome akan memakai akun SSO bersama dari konfigurasi privat. "
-            "Hasilnya akan ditulis ke spreadsheet sesuai konfigurasi lokal."
+            ("Updater akan mengambil daftar survei TERBARU dari BOLO INPEK online. "
+             "Akun Google yang diberi izin perlu login untuk membaca ID FASIH. "
+             if self.online_mode.get() else "Updater menggunakan konfigurasi uji lokal. ")
+            + "Chrome FASIH menggunakan akun SSO bersama dari konfigurasi privat. "
+            + "Hasilnya akan ditulis ke Google Sheets."
         )
         if not confirmed:
             return
         self.running = True
         self.update_status()
         self._append_log("Mulai pembaruan manual dari " + script.name)
-        threading.Thread(target=self._run, args=(script,), daemon=True).start()
+        threading.Thread(
+            target=self._run, args=(script, self.online_mode.get()), daemon=True
+        ).start()
 
-    def _run(self, script):
+    def _run(self, script, use_online):
         try:
-            run_legacy_scraper(script, lambda text: self.events.put(("log", str(text))))
+            if use_online:
+                self.events.put(("log", "Mengambil daftar survei aktif dari BOLO INPEK online..."))
+                count = synchronize_online(
+                    script.parent,
+                    lambda line: self.events.put(("log", str(line))),
+                )
+                self.events.put(("log", str(count) + " survei siap diperbarui."))
+            else:
+                self.events.put(("log", "Mode uji lokal: tidak menarik konfigurasi online."))
+            run_legacy_scraper(script, lambda line: self.events.put(("log", str(line))))
             self.events.put(("done", "Proses selesai. Buka dashboard untuk memuat data terbaru."))
         except BaseException as error:
             self.events.put(("failed", type(error).__name__ + ": " + str(error)))
