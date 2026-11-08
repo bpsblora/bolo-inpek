@@ -57,7 +57,7 @@
       if (k && !unique.has(k)) unique.set(k, {
         id: 'survey-' + slug(s.name), name: String(s.name).trim(),
         sourceCode: '', startDate: s.startDate || '',
-        endDate: s.endDate || '', note: '', active: true, imported: true
+        endDate: s.endDate || '', active: true, imported: true
       });
     });
     return [...unique.values()];
@@ -187,7 +187,7 @@
       '<div class="bolo-form-grid"><label>Tanggal Mulai<input type="date" name="startDate" value="' +
       esc(item?.startDate || '') + '"></label><label>Tanggal Selesai<input type="date" name="endDate" value="' +
       esc(item?.endDate || '') + '"></label></div>' +
-      '<label>Catatan<textarea name="note" rows="2" maxlength="600">' + esc(item?.note || '') + '</textarea></label>' :
+      '<p class="bolo-config-note">Nama survei, tanggal, dan status ditampilkan pada dashboard publik.</p>' :
       '<label>Nama Lengkap<input name="name" required maxlength="120" value="' + name + '"></label>' +
       '<label>Email<input type="email" name="email" maxlength="200" value="' + esc(item?.email || '') + '"></label>' +
       '<label>Nomor WhatsApp<input name="phone" maxlength="24" inputmode="tel" value="' +
@@ -240,7 +240,7 @@
       id: old?.id || 'survey-' + slug(name), name,
       sourceCode: String(raw.sourceCode || '').trim(),
       startDate: raw.startDate || '', endDate: raw.endDate || '',
-      note: String(raw.note || '').trim(), active: $('#bolo-entry-active').checked
+      active: $('#bolo-entry-active').checked
     } : kind === 'scraper_configs' ? {
       id: activeEdit.id, name,
       code: String(raw.code || '').trim(),
@@ -297,12 +297,12 @@
       names.add(normalized);
       const prior = oldNames.get(normalized);
       const id = prior?.id || 'survey-' + slug(name);
-      const {imported, ...clean} = prior || {};
+      const clean = prior || {};
       incomingSurveys.push({
-        ...clean, id, name,
+        id, name,
         sourceCode: clean.sourceCode || row.code,
         startDate: clean.startDate || '', endDate: clean.endDate || '',
-        note: clean.note || '', active: clean.active !== false
+        active: clean.active !== false
       });
       incomingConfigs.push({
         id, ...Object.fromEntries(keys.map(k => [k, row[k].trim()]))
@@ -362,7 +362,7 @@
     if (!current || state.busy) return;
     state.busy = true;
     try {
-      const {imported, ...saved} = current;
+      const {imported, note, ...saved} = current;
       await persist(kind, {...saved, active: current.active === false});
       setMessage('Status berhasil diperbarui.');
     } catch (error) { setMessage(error.message || 'Gagal mengubah status.', true); }
