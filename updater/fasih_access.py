@@ -19,6 +19,23 @@ class FasihAccessError(RuntimeError):
     """VPN/portal FASIH belum siap; hentikan proses sebelum SSO."""
 
 
+def fasih_failure_notice(reason: str = "") -> str:
+    """Pesan untuk ditampilkan setelah cek portal FASIH gagal."""
+    main = (
+        "FASIH belum dapat dijangkau.\n\n"
+        "Periksa sambungan VPN FortiClient dan koneksi internet "
+        "komputer yang digunakan.\n\n"
+        "Setelah koneksi normal, silakan ulangi pemeriksaan atau "
+        "pembaruan data."
+    )
+    if "sertifikat" in reason.lower():
+        main += (
+            "\n\nJika VPN sudah terhubung tetapi masalah sertifikat "
+            "tetap muncul, hubungi pengelola jaringan BPS."
+        )
+    return main
+
+
 def verify_fasih_access(*, get=requests.get, url=FASIH_URL) -> None:
     """Periksa portal melalui HTTPS terverifikasi tanpa follow redirect.
 
