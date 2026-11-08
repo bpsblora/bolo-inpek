@@ -8,3 +8,6 @@ TINDAK_LANJUT_SPREADSHEET_ID=ISI_ID_SPREADSHEET_TINDAK_LANJUT
 GOOGLE_CREDENTIALS_FILE=credentials.json
 # Bila jaringan instansi menggunakan CA internal yang sah, mintakan PEM dari IT.
 # REQUESTS_CA_BUNDLE=C:\\path\\to\\bps-ca-bundle.pem
+
+# HANYA UNTUK PENGEMBANGAN (branch belum live): aktifkan file updater-settings.json lokal
+# BOLO_UPDATER_USE_LOCAL_SETTINGS=1
