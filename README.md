@@ -10,6 +10,7 @@ grafik, ekspor Excel/PNG, dan iframe tindak lanjut yang sudah ada tetap digunaka
 ### Perubahan di branch ini
 - Tambah tombol **Pengaturan Admin** pada header, dengan modal responsif.
 - **Kelola Survei:** tambah/edit/nonaktifkan/aktifkan, periode dan kode sumber FASIH.
+- **Konfigurasi FASIH admin:** impor `config_survei.json` tujuh-field dari scraper lama; ID disimpan di koleksi `scraper_configs` admin-only, terpisah dari metadata publik. Konfigurasi dapat diunduh lagi untuk BOLO INPEK Updater.
 - **Kelola Pegawai:** tambah/edit/nonaktifkan/aktifkan, email, nomor WhatsApp, peran,
   dan tombol impor nama PPL/PML yang ditemukan pada data monitoring.
 - Daftar survei dashboard bersifat **dinamis**: berasal dari data API monitoring,
@@ -79,7 +80,7 @@ Credential FASIH, service account dan token API harus disimpan di server
 
 ## Yang BELUM diintegrasikan
 
-- Worker Python/Selenium untuk FASIH **masih berjalan melalui proses lama**.
+- Worker Python/Selenium untuk FASIH **belum otomatis**. Rencana final disesuaikan menjadi pembaruan **manual dari PC mana saja** yang memiliki FortiClient dan SSO BPS dengan Updater Portable.
   Pemindahan ke cloud memerlukan mekanisme resmi SSO/VPN/API yang diizinkan
   oleh BPS, akun service yang sah, jadwal retry, monitoring error dan log.
 - Menambah survei dari UI membuat konfigurasi/kartu survei; **belum otomatis**
