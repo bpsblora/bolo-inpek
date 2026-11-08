@@ -45,7 +45,9 @@ Ada **dua identitas yang berbeda**:
 5. Dari Pengaturan Admin, impor konfigurasi enam survei atau tambah secara
    manual, lalu simpan ID FASIH lengkap bagi setiap survei aktif.
 6. Untuk pengujian pada branch yang belum dipublikasi, letakkan salinan
-   `updater-settings.json` di folder script scraper pada PC.
+   `updater-settings.json` di folder script scraper pada PC dan set
+   `BOLO_UPDATER_USE_LOCAL_SETTINGS=1` pada .env **khusus pengembangan**.
+   Hapus/disable flag ini saat produksi.
    Saat produksi, updater membaca file dari
    https://bpsblora.github.io/bolo-inpek/updater-settings.json .
 7. Di updater pilih **Online**, aktifkan VPN, tekan Perbarui, login Google
@@ -82,7 +84,7 @@ FASIH belum diuji end-to-end melalui VPN pada PC operator.
    - .env dengan FASIH_USERNAME, FASIH_PASSWORD, GOOGLE_SPREADSHEET_ID, TINDAK_LANJUT_SPREADSHEET_ID, dan GOOGLE_CREDENTIALS_FILE;
    - credentials.json atau nama file service account dari .env;
    - updater-oauth-desktop.json yang diunduh resmi dari Google Cloud Console (OAuth Desktop JSON). Contoh strukturnya ada di updater/templates/contoh-oauth-desktop.json.
-   - updater-settings.json lokal untuk simulasi di branch yang belum menjadi website live; pada produksi diambil dari GitHub Pages.
+   - updater-settings.json lokal HANYA untuk pengembangan dengan BOLO_UPDATER_USE_LOCAL_SETTINGS=1 pada .env. Tanpa flag, updater selalu memakai URL GitHub Pages resmi.
    - config_survei.json hanya diperlukan untuk mode lokal. Mode online membuat ulang konfigurasi itu secara otomatis setelah login operator berhasil.
 
 File konfigurasi/kredensial dan script internal TIDAK boleh dimasukkan ke repository publik. Pertimbangkan akses Google Sheets per pengguna agar service-account key tidak perlu disalin ke banyak PC.
