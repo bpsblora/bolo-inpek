@@ -609,15 +609,17 @@
     // ========================================================
     const API_URL = 'https://script.google.com/macros/s/AKfycbzW6DV2EcCoaFwHsXcyfBWMqDJ7aqPgNsUrnepn-UsD6EI7Xf9k1ecirrBZt8Gx9Nzu1A/exec';
     let DATA = [];
+    let RAW_DATA = [];
     let PERIODE_SURVEI = [];
     let lastFetched = null;
     let loading = false;
+    let monitoringReady = false;
 
     // Sumber survei yang tampil mengikuti API monitoring + konfigurasi admin.
     // Daftar hard-coded di atas hanya cadangan sampai API pertama berhasil dimuat.
     function hitungDaftarSurvei() {
       const observed = [
-        ...DATA.map(r => r.survei),
+        ...RAW_DATA.map(r => r.survei),
         ...PERIODE_SURVEI.map(p => p?.survei),
         ...(adminRegistry || []).map(p => p?.name)
       ].filter(Boolean);
@@ -640,7 +642,7 @@
     }
     function kirimDataKeAdmin() {
       const byName = new Map();
-      for (const r of DATA) {
+      for (const r of RAW_DATA) {
         for (const role of ['ppl','pml']) {
           const person = (r[role] || '').trim();
           if (!person || person === UNASSIGNED) continue;
@@ -650,7 +652,7 @@
           else if (!existing) byName.set(key, {name:person, role:role.toUpperCase()});
         }
       }
-      const surveys = [...new Set([...DATA.map(r => r.survei), ...PERIODE_SURVEI.map(p => p?.survei)].filter(Boolean))].map(name => {
+      const surveys = [...new Set([...RAW_DATA.map(r => r.survei), ...PERIODE_SURVEI.map(p => p?.survei)].filter(Boolean))].map(name => {
         const p = PERIODE_SURVEI.find(x => x && x.survei === name);
         return {name, startDate: p?.tanggal_mulai || '', endDate: p?.tanggal_selesai || ''};
       });
@@ -662,7 +664,10 @@
     window.addEventListener('bolo:survey-registry', event => {
       adminRegistry = Array.isArray(event.detail?.surveys) ? event.detail.surveys : null;
       hitungDaftarSurvei();
-      if (!loading) render(false);
+      if (monitoringReady && !loading) {
+        DATA = RAW_DATA.filter(r => surveiMasihAktif(r.survei));
+        render(false);
+      }
     });
 
     function validatePayload(payload){
@@ -744,7 +749,8 @@
         if(!response.ok)throw new Error('Server merespons HTTP '+response.status+'.');
         let payload;
         try{payload=await response.json()}catch{throw new Error('Respons bukan JSON. Pastikan akses web app adalah Siapa saja dan URL /exec benar.');}
-        DATA=validatePayload(payload);
+        RAW_DATA=validatePayload(payload);
+        DATA=RAW_DATA;
         PERIODE_SURVEI = Array.isArray(payload.periode_survei)
           ? payload.periode_survei
           : [];
@@ -752,14 +758,17 @@
         hitungDaftarSurvei();
 
         await ambilStatusPenutupan(controller.signal);
-        DATA=DATA.filter(r=>surveiMasihAktif(r.survei));
+        DATA=RAW_DATA.filter(r=>surveiMasihAktif(r.survei));
         tampilkanWaktuPengambilan(payload.data_terakhir_diambil);
         Object.assign(state,{survey:null,pml:null,ppl:null,status:null});
+        monitoringReady = true;
         render(false);
         // Sembunyikan banner setelah data berhasil dimuat.
         connection.hidden = true;
       }catch(error){
         DATA=[];
+        RAW_DATA=[];
+        monitoringReady = false;
         tampilkanWaktuPengambilan(null);
         connection.hidden = false;
         connection.textContent = "Data belum berhasil dimuat. Silakan coba lagi.";
