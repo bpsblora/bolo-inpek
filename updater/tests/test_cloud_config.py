@@ -10,7 +10,7 @@ import tempfile
 import unittest
 
 from cloud_config import (
-    OnlineConfigError, create_active_config, synchronize_online
+    OnlineConfigError, create_active_config, synchronize_online, fetch_sheet_targets
 )
 
 
@@ -67,6 +67,34 @@ class CloudConfigTests(unittest.TestCase):
             create_active_config(
                 [survey(1), {"id": "survey-x", "name": "SURVEI 1", "active": True}],
                 [config(1), {**config(2), "id": "survey-x", "name": "SURVEI 1"}]
+            )
+
+    def test_private_spreadsheet_targets_from_firestore(self):
+        sheet_targets = {
+            "monitoring_id": "1bgCF8RSkltsd3jpL-naTEgWEIMw5y2rw8EzYRagCGNo",
+            "tindak_lanjut_id": "1wEK8KmN6cKIEg1UNd22UuzFzCjvBYkSAXRdrUhXRTyU"
+        }
+        urls = []
+        def get(url, **kwargs):
+            urls.append(url)
+            self.assertIn("Authorization", kwargs["headers"])
+            return FakeResponse({
+                "fields": {k: {"stringValue": v} for k,v in sheet_targets.items()}
+            })
+        found = fetch_sheet_targets(
+            {"firebase_project_id": "bolo-test"}, "firebase-test-token",
+            request_get=get
+        )
+        self.assertEqual(found, sheet_targets)
+        self.assertTrue(urls[0].endswith("/system_config/sheets"))
+
+    def test_private_spreadsheet_targets_not_publicly_readable(self):
+        def denied(url, **kwargs):
+            return FakeResponse({}, code=403)
+        with self.assertRaisesRegex(OnlineConfigError, "tidak berhak"):
+            fetch_sheet_targets(
+                {"firebase_project_id": "bolo-test"}, "denied",
+                request_get=denied
             )
 
     def test_online_sync_reads_and_replaces_only_when_valid(self):
