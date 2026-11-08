@@ -23,7 +23,7 @@ ALLOWED_ENV_KEYS = (
 )
 
 
-def check_files(script: Path, *, require_config: bool = True) -> list[str]:
+def check_files(script: Path, *, require_config: bool = True, require_google_credentials: bool = True) -> list[str]:
     problems: list[str] = []
     script = Path(script).expanduser().resolve()
     if script.suffix.lower() != ".py" or not script.is_file():
@@ -67,15 +67,16 @@ def check_files(script: Path, *, require_config: bool = True) -> list[str]:
         try:
             from dotenv import dotenv_values
             values = dotenv_values(environment)
-            if not values.get("GOOGLE_SPREADSHEET_ID"):
+            if require_google_credentials and not values.get("GOOGLE_SPREADSHEET_ID"):
                 problems.append("GOOGLE_SPREADSHEET_ID belum dikonfigurasi.")
             if not (values.get("FASIH_USERNAME") or "").strip():
                 problems.append("Username akun SSO bersama belum diisi di .env lokal.")
             if not (values.get("FASIH_PASSWORD") or "").strip():
                 problems.append("Password akun SSO bersama belum diisi di .env lokal.")
-            creds = values.get("GOOGLE_CREDENTIALS_FILE", "credentials.json")
-            if not (script.parent / creds).is_file():
-                problems.append("File kredensial Google Sheets lokal belum ditemukan.")
+            if require_google_credentials:
+                creds = values.get("GOOGLE_CREDENTIALS_FILE", "credentials.json")
+                if not (script.parent / creds).is_file():
+                    problems.append("File kredensial Google Sheets lokal belum ditemukan.")
         except Exception:
             problems.append("Berkas konfigurasi tidak dapat diperiksa.")
     return problems
@@ -95,7 +96,10 @@ def _load_safe_environment(script_dir: Path) -> None:
     # Jangan menyalin nilai tersebut ke log, database, ataupun kode GitHub.
 
 
-def run_legacy_scraper(script: Path, log: Callable[[str], None]) -> None:
+def run_legacy_scraper(
+    script: Path, log: Callable[[str], None], *,
+    authorized_client=None, spreadsheet_targets: dict | None = None
+) -> None:
     """Menjalankan fungsi main() dari scraper asli dengan akun SSO bersama.
 
     VPN manual tetap diperlukan. Kredensial SSO dari .env lokal dipakai oleh
@@ -104,11 +108,26 @@ def run_legacy_scraper(script: Path, log: Callable[[str], None]) -> None:
     Tidak ada cookie atau password yang dikirim antar komputer.
     """
     script = Path(script).expanduser().resolve()
-    errors = check_files(script)
+    errors = check_files(
+        script, require_google_credentials=(authorized_client is None)
+    )
     if errors:
         raise RuntimeError("Persiapan belum lengkap:\n" + "\n".join(errors))
 
     _load_safe_environment(script.parent)
+    previous_ids = {
+        key: os.environ.get(key) for key in (
+            "GOOGLE_SPREADSHEET_ID", "TINDAK_LANJUT_SPREADSHEET_ID",
+            "GOOGLE_CREDENTIALS_FILE"
+        )
+    }
+    if authorized_client is not None:
+        if not spreadsheet_targets:
+            raise RuntimeError("Tujuan Google Sheets dari Firebase belum tersedia.")
+        os.environ["GOOGLE_SPREADSHEET_ID"] = spreadsheet_targets["monitoring_id"]
+        os.environ["TINDAK_LANJUT_SPREADSHEET_ID"] = spreadsheet_targets["tindak_lanjut_id"]
+        # Nama ini hanya indikator untuk API lama; tidak berisi kunci.
+        os.environ["GOOGLE_CREDENTIALS_FILE"] = "google-operator-oauth.txt"
 
     # Pesan error dari library pihak ketiga dapat tanpa sengaja memuat nilai
     # autentikasi. Redaksi dilakukan sebelum masuk ke konsol UI.
@@ -149,6 +168,33 @@ def run_legacy_scraper(script: Path, log: Callable[[str], None]) -> None:
         sys.path.insert(0, str(script.parent))
         sys.stdout = sys.stderr = LogWriter()
         spec.loader.exec_module(module)
+
+        if authorized_client is not None:
+            # Ganti backend autentikasi gspread untuk seluruh fungsi scraper,
+            # TANPA menyalin private key Google ke PC operator.
+            from types import SimpleNamespace
+            original_gspread = module.gspread
+            class OperatorGspread:
+                def service_account(self, filename=None):
+                    return authorized_client
+                def __getattr__(self, key):
+                    return getattr(original_gspread, key)
+            module.gspread = OperatorGspread()
+            # Script lama memeriksa keberadaan credentials.json saat membaca
+            # db_petugas. Pengganti ini memakai client OAuth dalam memori.
+            def baca_nama_operator_oauth():
+                log("Membaca direktori petugas melalui login Google operator...")
+                worksheet = authorized_client.open_by_key(
+                    spreadsheet_targets["monitoring_id"]
+                ).worksheet("db_petugas")
+                database_nama = {}
+                for baris in worksheet.get_all_records():
+                    email = str(baris.get("email") or "").strip().lower()
+                    nama = str(baris.get("nama") or "").strip()
+                    if email and nama:
+                        database_nama[email] = nama
+                return database_nama
+            module.baca_database_nama_petugas = baca_nama_operator_oauth
 
         if not all(hasattr(module, name) for name in (
             "main", "baca_pengaturan", "login_sso_eksternal",
@@ -229,3 +275,8 @@ def run_legacy_scraper(script: Path, log: Callable[[str], None]) -> None:
         sys.stderr = old_stderr
         sys.path[:] = previous_path
         sys.modules.pop(spec.name, None)
+        for key, value in previous_ids.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
