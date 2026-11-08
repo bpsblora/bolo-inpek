@@ -16,6 +16,8 @@ import webbrowser
 
 from legacy_bridge import check_files, run_legacy_scraper
 from cloud_config import synchronize_online
+from preflight import preflight_google_sheets, read_local_setup, PreflightError
+from run_lock import local_update_lock
 
 DASHBOARD_URL = "https://bpsblora.github.io/bolo-inpek/"
 APP_TITLE = "BOLO INPEK Updater"
@@ -140,10 +142,13 @@ class Updater(tk.Tk):
         self.update_status()
 
     def update_status(self):
-        problems = check_files(
-            Path(self.selected_script.get() or ""),
-            require_config=not self.online_mode.get()
-        )
+        script = Path(self.selected_script.get() or "")
+        problems = check_files(script, require_config=not self.online_mode.get())
+        if not problems:
+            try:
+                read_local_setup(script.parent)
+            except PreflightError as exc:
+                problems.append(str(exc))
         if problems:
             self.file_status.configure(text="Persiapan: " + " | ".join(problems))
         else:
@@ -173,6 +178,11 @@ class Updater(tk.Tk):
         ):
             messagebox.showwarning(APP_TITLE, "Periksa VPN dan berkas pendukung terlebih dahulu.")
             return
+        try:
+            read_local_setup(script.parent)
+        except PreflightError as exc:
+            messagebox.showwarning(APP_TITLE, str(exc))
+            return
         confirmed = messagebox.askyesno(
             APP_TITLE,
             "Jalankan scraper dari file lokal yang dipilih?\n\n"
@@ -193,16 +203,18 @@ class Updater(tk.Tk):
 
     def _run(self, script, use_online):
         try:
-            if use_online:
-                self.events.put(("log", "Mengambil daftar survei aktif dari BOLO INPEK online..."))
-                count = synchronize_online(
-                    script.parent,
-                    lambda line: self.events.put(("log", str(line))),
-                )
-                self.events.put(("log", str(count) + " survei siap diperbarui."))
-            else:
-                self.events.put(("log", "Mode uji lokal: tidak menarik konfigurasi online."))
-            run_legacy_scraper(script, lambda line: self.events.put(("log", str(line))))
+            def report(line):
+                self.events.put(("log", str(line)))
+            with local_update_lock(script.parent):
+                report("Pemeriksaan akses dua spreadsheet sebelum scraping...")
+                preflight_google_sheets(script.parent, report)
+                if use_online:
+                    report("Mengambil daftar survei aktif dari BOLO INPEK online...")
+                    count = synchronize_online(script.parent, report)
+                    report(str(count) + " survei siap diperbarui.")
+                else:
+                    report("Mode uji lokal: tidak menarik konfigurasi online.")
+                run_legacy_scraper(script, report)
             self.events.put(("done", "Proses selesai. Buka dashboard untuk memuat data terbaru."))
         except BaseException as error:
             self.events.put(("failed", type(error).__name__ + ": " + str(error)))
