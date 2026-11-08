@@ -106,6 +106,65 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ID dua spreadsheet hanya tersedia untuk admin/operator yang berwenang.
+    // Jangan simpan password, private key, token OAuth, atau isi data survei.
+    function validSheetTargets() {
+      return request.resource.data.keys().hasOnly([
+        'monitoring_id', 'tindak_lanjut_id'
+      ])
+      && request.resource.data.keys().hasAll([
+        'monitoring_id', 'tindak_lanjut_id'
+      ])
+      && request.resource.data.monitoring_id is string
+      && request.resource.data.tindak_lanjut_id is string
+      && request.resource.data.monitoring_id.matches('^[A-Za-z0-9_-]{20,150}
+    // Penunjukan operator dilakukan oleh administrator melalui Firebase Console.
+    match /operators/{userId} {
+      allow get: if signedIn() && request.auth.uid == userId;
+      allow list, create, update, delete: if false;
+    }
+
+    // Admin ditetapkan lewat Firebase Console, tidak bisa mengangkat diri.
+    match /admins/{userId} {
+      allow get: if signedIn() && request.auth.uid == userId;
+      allow list, create, update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+)
+      && request.resource.data.tindak_lanjut_id.matches('^[A-Za-z0-9_-]{20,150}
+    // Penunjukan operator dilakukan oleh administrator melalui Firebase Console.
+    match /operators/{userId} {
+      allow get: if signedIn() && request.auth.uid == userId;
+      allow list, create, update, delete: if false;
+    }
+
+    // Admin ditetapkan lewat Firebase Console, tidak bisa mengangkat diri.
+    match /admins/{userId} {
+      allow get: if signedIn() && request.auth.uid == userId;
+      allow list, create, update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+)
+      && request.resource.data.monitoring_id != request.resource.data.tindak_lanjut_id;
+    }
+    match /system_config/{configId} {
+      allow get: if configId == 'sheets' && canUpdateFasih();
+      allow list: if false;
+      allow create, update: if configId == 'sheets'
+        && isAdmin() && validSheetTargets();
+      allow delete: if false;
+    }
+
     // Peran operator hanya memberi izin READ konfigurasi updater.
     // Penunjukan operator dilakukan oleh administrator melalui Firebase Console.
     match /operators/{userId} {
