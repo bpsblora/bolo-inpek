@@ -3,6 +3,25 @@
 Program berbasis Tkinter untuk menjalankan script scraping lama milik operator dari Windows tanpa membuka VS Code. VPN FortiClient tetap diaktifkan manual. Scraper menggunakan satu akun SSO bersama (misalnya akun dummy instansi yang telah diberi hak survei) dari `.env` privat pada PC. Pengguna tidak perlu mengganti akun SSO setiap kali operator berganti.
 
 
+## Integrasi dua Google Sheets secara terpusat (MODE ONLINE)
+
+Kedua target spreadsheet yang sudah diverifikasi memiliki tab:
+- **Monitoring Progres BOLO INPEK**: `monitoring`, `periode_survei`, `info_update`, `db_petugas`.
+- **Database Tindak Lanjut BOLO INPEK**: `operator`, `petugas`, `survei`, `kontak`, `tindak_lanjut`, `arsip`, `sumber_assignment`, `sumber_petugas`, `sumber_survei`.
+
+ID dokumen Google Sheets **tidak perlu dimasukkan ke kode publik atau ke file konfigurasi tiap PC**. Admin BOLO INPEK menyimpan keduanya **sekali saja** di Firestore, dokumen privat `system_config/sheets`, melalui tab **Integrasi Google Sheets** (saat UI pengembangan sudah diuji/deploy), atau melalui Firebase Console:
+
+- Collection: `system_config`.
+- Document ID: `sheets`.
+- Field string: `monitoring_id` dan `tindak_lanjut_id`. Nilainya adalah ID dua spreadsheet yang diberikan pengelola.
+- Firestore Rules: admin boleh menulis, admin/operator yang terdaftar boleh membaca, pengunjung anonim ditolak.
+
+Saat mode **Online**, operator masuk **Google sekali** melalui OAuth Desktop. Dengan izin `https://www.googleapis.com/auth/spreadsheets`, akses Google tersebut dipakai untuk membuka dan memperbarui kedua spreadsheet menggunakan `gspread.authorize(credentials)`. Dengan demikian **tidak perlu mendistribusikan `credentials.json` service account Google Sheets ke PC pengguna** untuk mode online. Kode autentikasi Google ini masih harus diuji dengan consent screen/izin Google Sheets API yang disetujui pengelola BPS. Pemberian izin OAuth tidak boleh dipakai untuk melewati persetujuan akses instansi.
+
+Mode **Lokal** tetap memakai service account dan kedua ID dari `.env` untuk menjaga kompatibilitas dengan alat lama; bukan model distribusi final. Login SSO Jose Dummy tetap memakai `.env` privat sampai solusi manajemen identitas SSO disetujui. VPN tetap diaktifkan manual sebelum portal FASIH diperiksa.
+
+**Penting:** status share dari kedua spreadsheet saat audit tampak memberi hak Editor kepada siapa pun yang mempunyai link. Pemilik menyatakan pengaturan ini memang diperuntukkan bagi internal. Integrasi tidak mengubah izin yang ada; keamanan tetap bergantung pada kontrol distribusi tautan, serta perlu dikaji jika kebijakan akses kantor berubah.
+
 ## Urutan VPN → FASIH → SSO (WAJIB)
 
 1. **Operator menyambungkan VPN FortiClient secara manual** sesuai prosedur TI BPS. Aplikasi tidak menghubungkan, mengubah, atau melewati VPN.
