@@ -3,6 +3,17 @@
 Program berbasis Tkinter untuk menjalankan script scraping lama milik operator dari Windows tanpa membuka VS Code. VPN FortiClient tetap diaktifkan manual. Scraper menggunakan satu akun SSO bersama (misalnya akun dummy instansi yang telah diberi hak survei) dari `.env` privat pada PC. Pengguna tidak perlu mengganti akun SSO setiap kali operator berganti.
 
 
+## Urutan VPN → FASIH → SSO (WAJIB)
+
+1. **Operator menyambungkan VPN FortiClient secara manual** sesuai prosedur TI BPS. Aplikasi tidak menghubungkan, mengubah, atau melewati VPN.
+2. **Updater memeriksa akses jaringan ke** `https://fasih-sm.bps.go.id/app` melalui HTTPS terverifikasi. Redirect ke halaman SSO dapat dianggap portal sudah terjangkau, tetapi bukan bukti login berhasil.
+3. **Jika FASIH tidak terjangkau**, updater berhenti dengan pesan periksa VPN. Tidak membuka Chrome, tidak mengisi akun SSO Jose Dummy, dan tidak mengambil data.
+4. Setelah akses portal lolos, updater memeriksa dua Google Sheets dan (mode online) mengambil konfigurasi survei terbaru dengan akun Google operator.
+5. **Baru setelah itu Python membuka Chrome dan login SSO dengan akun bersama 3316 Jose Dummy** dari konfigurasi privat, kemudian mengambil assignment dan menulis hasil ke Sheets.
+6. Sebelum Python asli memulai login SSO, pemeriksaan FASIH dijalankan **ulang secara wajib**. Mekanisme lama yang melanjutkan proses walaupun pemeriksaan koneksi gagal telah dinonaktifkan.
+
+Pemeriksaan portal menilai keterjangkauan jaringan, **bukan** status aplikasi FortiClient secara langsung. Jika portal tiba-tiba tidak bisa diakses saat VPN terputus, scraping dibatalkan sebelum SSO; jika VPN terputus saat scraping berlangsung, proses bisa gagal dan memerlukan pemeriksaan ulang.
+
 ## ALUR BARU — Daftar survei langsung dari website (mode online)
 
 Tujuan: Admin menambahkan survei + tujuh identitas FASIH di **Pengaturan Admin
