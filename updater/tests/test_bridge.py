@@ -23,7 +23,10 @@ class PortableUpdaterTests(unittest.TestCase):
             encoding="utf8"
         )
         (root / "config_survei.json").write_text(
-            '{"surveys":[{"code":"TEST","name":"TEST"}]}', encoding="utf8"
+            '{"surveys":[{"code":"TEST","name":"TEST",'
+            + '"survey_id":"survey-demo","survey_period_id":"period-demo",'
+            + '"role_pencacah_id":"ppl-demo","role_pengawas_id":"pml-demo",'
+            + '"nama_assignment_field":"data3"}]}', encoding="utf8"
         )
         (root / "credentials.json").write_text('{"test":"dummy"}', encoding="utf8")
 
@@ -34,6 +37,14 @@ class PortableUpdaterTests(unittest.TestCase):
     def test_no_external_dependencies_required_for_status_checks(self):
         self.script.write_text("pass\n", encoding="utf8")
         self.assertEqual(check_files(self.script), [])
+
+    def test_rejects_incomplete_survey_configuration(self):
+        self.script.write_text("pass\\n", encoding="utf8")
+        (self.root / "config_survei.json").write_text(
+            '{"surveys":[{"code":"TEST","name":"TEST"}]}',
+            encoding="utf8"
+        )
+        self.assertTrue(any("ID dan field" in x for x in check_files(self.script)))
 
     def test_manual_login_replaces_password_entry_and_extends_wait(self):
         self.script.write_text('''
