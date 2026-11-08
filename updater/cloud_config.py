@@ -42,7 +42,12 @@ def read_public_settings(script_dir: Path, request_get=requests.get) -> dict:
     alamat server bebas atau URL HTTP.
     """
     local = script_dir / "updater-settings.json"
+    use_local = False
     if local.exists():
+        from dotenv import dotenv_values
+        options = dotenv_values(script_dir / ".env")
+        use_local = options.get("BOLO_UPDATER_USE_LOCAL_SETTINGS", "") == "1"
+    if use_local:
         try:
             settings = json.loads(local.read_text(encoding="utf-8-sig"))
         except (OSError, ValueError) as exc:
