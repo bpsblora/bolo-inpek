@@ -1,8 +1,9 @@
 """BOLO INPEK Updater — bridge untuk script Python lama yang tersimpan LOKAL.
 
-Tidak mengakses atau menyimpan kredensial VPN/SSO. Browser SSO tetap diisi
-secara manual oleh operator. Script asli / .env / credentials.json tidak
-boleh diunggah ke repository publik.
+Koneksi VPN tetap manual. Script scraper menggunakan satu akun SSO bersama
+yang telah diberi akses oleh pengelola survei. Kredensial akun bersama dibaca
+dari .env LOKAL di PC operator seperti pada scraper asli, bukan dimasukkan ke
+kode sumber / EXE / GitHub publik. OTP atau verifikasi tambahan tetap manual.
 """
 from __future__ import annotations
 
@@ -67,6 +68,10 @@ def check_files(script: Path) -> list[str]:
             values = dotenv_values(environment)
             if not values.get("GOOGLE_SPREADSHEET_ID"):
                 problems.append("GOOGLE_SPREADSHEET_ID belum dikonfigurasi.")
+            if not (values.get("FASIH_USERNAME") or "").strip():
+                problems.append("Username akun SSO bersama belum diisi di .env lokal.")
+            if not (values.get("FASIH_PASSWORD") or "").strip():
+                problems.append("Password akun SSO bersama belum diisi di .env lokal.")
             creds = values.get("GOOGLE_CREDENTIALS_FILE", "credentials.json")
             if not (script.parent / creds).is_file():
                 problems.append("File kredensial Google Sheets lokal belum ditemukan.")
@@ -84,18 +89,18 @@ def _load_safe_environment(script_dir: Path) -> None:
         if val is not None:
             os.environ[key] = val
 
-    # Variabel login lama tidak perlu diisi, sebab SSO selalu manual.
-    # Jangan membaca password SSO dari file lokal.
-    os.environ.pop("FASIH_USERNAME", None)
-    os.environ.pop("FASIH_PASSWORD", None)
+    # Username/password SSO tetap dibaca oleh fungsi baca_pengaturan()
+    # pada scraper asli, langsung dari .env lokal.
+    # Jangan menyalin nilai tersebut ke log, database, ataupun kode GitHub.
 
 
 def run_legacy_scraper(script: Path, log: Callable[[str], None]) -> None:
-    """Menjalankan fungsi main() dari script lama dengan SSO manual.
+    """Menjalankan fungsi main() dari scraper asli dengan akun SSO bersama.
 
-    Digunakan hanya untuk script milik operator yang berada pada PC itu
-    sendiri. Tidak mengambil file Python dari internet dan tidak membaca
-    atau menyimpan cookie untuk dipakai di komputer lain.
+    VPN manual tetap diperlukan. Kredensial SSO dari .env lokal dipakai oleh
+    alur login bawaan scraper setelah operator menekan tombol Perbarui.
+    Verifikasi tambahan jika ada tetap dilakukan oleh manusia di Chrome.
+    Tidak ada cookie atau password yang dikirim antar komputer.
     """
     script = Path(script).expanduser().resolve()
     errors = check_files(script)
@@ -115,8 +120,8 @@ def run_legacy_scraper(script: Path, log: Callable[[str], None]) -> None:
         def flush(self):
             pass
 
-    # Dibuat sebagai modul lokal agar blok if __name__ == "__main__"
-    # pada scraper asli tidak dijalankan sebelum patch manual login.
+    # Muat modul lokal tanpa mengeksekusi blok __main__. Login tetap
+    # memakai fungsi asli, bukan akun operator yang berganti-ganti.
     spec = importlib.util.spec_from_file_location("bolo_operator_scraper", str(script))
     if spec is None or spec.loader is None:
         raise RuntimeError("File Python scraper tidak dapat dibuka.")
@@ -141,14 +146,10 @@ def run_legacy_scraper(script: Path, log: Callable[[str], None]) -> None:
                 "sebelum menjalankan update."
             )
 
-        # Mengganti login otomatis pada script lama menjadi login browser manual.
-        # Fungsi klik_sso_eksternal dan pemeriksaan sukses milik script lama
-        # tetap berjalan seperti sebelumnya.
-        module.baca_pengaturan = lambda: ("", "")
-        def manual_login(driver, _username, _password):
-            print("[i] Login SSO dilakukan manual pada Chrome yang terbuka.")
-            print("[i] Isi SSO/OTP jika diminta. Program akan menunggu hingga berhasil.")
-        module.login_sso_eksternal = manual_login
+        # Pertahankan baca_pengaturan() dan login_sso_eksternal() asli:
+        # keduanya memakai akun SSO bersama dari .env lokal secara konsisten.
+        # Pengguna tetap menghubungkan VPN sendiri, dan dapat menyelesaikan
+        # MFA/OTP jika sistem SSO memintanya.
 
         # Versi lama mengunci ChromeDriver ke versi tertentu.
         # Pada PC lain, biarkan undetected-chromedriver mendeteksi versi Chrome.
@@ -177,7 +178,7 @@ def run_legacy_scraper(script: Path, log: Callable[[str], None]) -> None:
         # aplikasi tanpa terminal tidak boleh hang di situ.
         builtins.input = lambda _prompt="": ""
 
-        log("Menjalankan scraping menggunakan sesi SSO manual...")
+        log("Menjalankan scraping menggunakan akun SSO bersama yang dikonfigurasi di PC ini...")
         module.main()
         log("Scraping selesai. Periksa status Google Sheets di dashboard.")
     except SystemExit as exc:
