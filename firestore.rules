@@ -1,0 +1,77 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+        && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.active == true;
+    }
+    function validSurvey() {
+      return request.resource.data.keys().hasOnly([
+        'id', 'name', 'sourceCode', 'startDate', 'endDate', 'note', 'active'
+      ])
+      && request.resource.data.id is string
+      && request.resource.data.id.size() <= 100
+      && request.resource.data.name is string
+      && request.resource.data.name.size() > 0
+      && request.resource.data.name.size() <= 100
+      && request.resource.data.sourceCode is string
+      && request.resource.data.sourceCode.size() <= 100
+      && request.resource.data.startDate is string
+      && request.resource.data.endDate is string
+      && request.resource.data.note is string
+      && request.resource.data.note.size() <= 600
+      && request.resource.data.active is bool;
+    }
+    function validEmployee() {
+      return request.resource.data.keys().hasOnly([
+        'id', 'name', 'email', 'phone', 'role', 'note', 'active'
+      ])
+      && request.resource.data.id is string
+      && request.resource.data.id.size() <= 100
+      && request.resource.data.name is string
+      && request.resource.data.name.size() > 0
+      && request.resource.data.name.size() <= 120
+      && request.resource.data.email is string
+      && request.resource.data.email.size() <= 200
+      && request.resource.data.phone is string
+      && request.resource.data.phone.size() <= 24
+      && request.resource.data.role in ['PPL', 'PML', 'PPL/PML', 'Pegawai', 'Admin']
+      && request.resource.data.note is string
+      && request.resource.data.note.size() <= 600
+      && request.resource.data.active is bool;
+    }
+
+    // Metadata survei boleh dibaca agar dashboard publik bisa menampilkannya.
+    // Tidak boleh berisi nomor telepon, kredensial, atau catatan pribadi.
+    match /surveys/{surveyId} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && request.resource.data.id == surveyId
+        && validSurvey();
+      allow delete: if false;
+    }
+
+    // Identitas dan nomor kontak petugas hanya bisa dilihat/diedit admin.
+    match /employees/{employeeId} {
+      allow read: if isAdmin();
+      allow create, update: if isAdmin()
+        && request.resource.data.id == employeeId
+        && validEmployee();
+      allow delete: if false;
+    }
+
+    // Admin ditetapkan lewat Firebase Console, tidak bisa mengangkat diri.
+    match /admins/{userId} {
+      allow get: if signedIn() && request.auth.uid == userId;
+      allow list, create, update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
