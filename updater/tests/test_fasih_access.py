@@ -33,7 +33,7 @@ class FasihVPNTests(unittest.TestCase):
     def test_vpn_disconnected_blocks(self):
         def disconnected(url, **kwargs):
             raise requests.exceptions.ConnectTimeout("offline")
-        with self.assertRaisesRegex(FasihAccessError, "FortiClient"):
+        with self.assertRaisesRegex(FasihAccessError, "VPN BPS"):
             verify_fasih_access(get=disconnected)
 
     def test_untrusted_https_certificate_blocks(self):
@@ -56,7 +56,7 @@ class FasihVPNTests(unittest.TestCase):
 
     def test_failed_fasih_notice_mentions_vpn_and_computer_internet(self):
         notice = fasih_failure_notice("Portal FASIH belum dapat dijangkau")
-        self.assertIn("VPN FortiClient", notice)
+        self.assertIn("VPN BPS", notice)
         self.assertIn("koneksi internet komputer yang digunakan", notice)
         self.assertIn("ulangi pemeriksaan", notice)
 
