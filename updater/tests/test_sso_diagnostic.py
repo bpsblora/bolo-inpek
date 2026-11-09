@@ -61,7 +61,7 @@ def main():
 
     def test_wrong_credential_rejected_without_logging(self):
         fake = FakeDriver()
-        with self.assertRaisesRegex(SSOTestError, "Uji login SSO belum berhasil"):
+        with self.assertRaisesRegex(SSOTestError, "Formulir SSO Eksternal"):
             test_sso_login(
                 self.script, "Mozilla Firefox",
                 "user@example.invalid", "WRONG",
@@ -79,6 +79,19 @@ def main():
                 lambda _: None, browser_factory=lambda _: fake,
             )
         self.assertTrue(fake.closed)
+
+    def test_stepwise_diagnostics_do_not_echo_password(self):
+        logs = []
+        fake = FakeDriver()
+        test_sso_login(
+            self.script, "Mozilla Firefox",
+            "test@example.invalid", "SECRET_TEST_VALUE",
+            logs.append, browser_factory=lambda browser: fake,
+        )
+        for index in (1, 2, 3, 4):
+            self.assertTrue(any("[SSO " + str(index) + "/4]" in line for line in logs))
+        self.assertFalse(any("SECRET_TEST_VALUE" in line for line in logs))
+        self.assertFalse(any("test@example.invalid" in line for line in logs))
 
     def test_requires_private_script_and_credentials(self):
         with self.assertRaises(SSOTestError):
