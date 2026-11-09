@@ -11,6 +11,7 @@ from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 from typing import Callable
 from urllib.parse import urlsplit
+from time import monotonic, sleep
 import io
 import sys
 
@@ -30,6 +31,31 @@ class _PrivateStdout(io.TextIOBase):
 
     def flush(self):
         pass
+
+
+SSO_LOGIN_HOSTS = frozenset(("sso.bps.go.id", "sso-eksternal.bps.go.id"))
+
+
+def _wait_for_official_sso_redirect(driver, *, timeout_seconds: float = 45.0) -> None:
+    """Never send credentials to an unapproved or non-HTTPS login page."""
+    deadline = monotonic() + timeout_seconds
+    while monotonic() < deadline:
+        location = urlsplit(str(driver.current_url or ""))
+        host = (location.hostname or "").lower()
+        if location.scheme == "https" and host in SSO_LOGIN_HOSTS:
+            return
+        if location.scheme and location.scheme != "https":
+            raise SSOTestError("SSO tidak menggunakan HTTPS. Login dihentikan.")
+        if host and host != FASIH_HOST and host not in SSO_LOGIN_HOSTS:
+            raise SSOTestError(
+                "Browser keluar dari domain login SSO resmi BPS. "
+                "Akun tidak dikirim ke halaman tersebut."
+            )
+        sleep(0.25)
+    raise SSOTestError(
+        "Redirect ke SSO resmi BPS belum terdeteksi. "
+        "Pastikan tombol SSO Eksternal benar-benar membuka halaman login."
+    )
 
 
 def test_sso_login(
@@ -88,6 +114,8 @@ def test_sso_login(
         driver.set_page_load_timeout(50)
         with redirect_stdout(output), redirect_stderr(output):
             mod.klik_sso_eksternal(driver)
+            report("Memastikan pengalihan ke domain HTTPS SSO resmi BPS...")
+            _wait_for_official_sso_redirect(driver)
             report("Mengisi login SSO Eksternal pada halaman resmi BPS...")
             mod.login_sso_eksternal(driver, username, password)
             report("Memeriksa apakah SSO mengembalikan sesi ke FASIH...")
