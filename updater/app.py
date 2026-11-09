@@ -20,6 +20,9 @@ from preflight import preflight_google_sheets, verify_google_sheets_client, read
 from operator_google import login_operator
 from google_diagnostic import run_read_only_google_test, load_diagnostic_settings
 from sso_diagnostic import test_sso_login, SSOTestError
+from assignment_diagnostic import (
+    AssignmentReadError, list_test_surveys, test_assignment_readonly,
+)
 from run_lock import local_update_lock
 from fasih_access import FasihAccessError, fasih_failure_notice
 from browser_driver import CHROME_BROWSER, FasihBrowserError, verify_fasih_in_browser
@@ -49,15 +52,19 @@ class Updater(tk.Tk):
         self.vpn_confirmed = tk.BooleanVar(value=False)
         self.sso_username = tk.StringVar()
         self.sso_password = tk.StringVar()
+        self.survey_test_choice = tk.StringVar()
+        self._survey_test_labels = {}
         self.online_mode = tk.BooleanVar(value=True)
         self.status = tk.StringVar(value="Belum siap")
         self._style()
         self._layout()
+        self.selected_script.trace_add("write", lambda *_: self._refresh_survey_choices())
         guessed = application_directory() / "ambil_data_monitoring_inpek_v2.py"
         if guessed.is_file():
             self.selected_script.set(str(guessed))
         else:
             self._missing_local_script = True
+        self._refresh_survey_choices()
         self.after(150, self.update_status)
         self.after(120, self.drain_events)
 
@@ -156,6 +163,27 @@ class Updater(tk.Tk):
                    style="Normal.TButton").pack(side="left", padx=9)
         ttk.Label(controls, textvariable=self.status, style="Subtitle.TLabel").pack(side="right")
 
+        assignment_row = ttk.Frame(root, style="Page.TFrame")
+        assignment_row.pack(fill="x", pady=(0, 11))
+        ttk.Label(
+            assignment_row, text="Survei untuk Uji Baca:",
+            style="Subtitle.TLabel",
+        ).pack(side="left")
+        self.survey_test_select = ttk.Combobox(
+            assignment_row, textvariable=self.survey_test_choice,
+            state="readonly", width=31,
+        )
+        self.survey_test_select.pack(side="left", padx=(8, 9))
+        ttk.Button(
+            assignment_row, text="Uji Pengambilan Data (Baca Saja)",
+            command=self.start_assignment_diagnostic,
+            style="Normal.TButton",
+        ).pack(side="left")
+        ttk.Label(
+            assignment_row, text="Maks. 20 Assignment • Tanpa Tulis Sheets",
+            style="Subtitle.TLabel",
+        ).pack(side="left", padx=(12, 0))
+
         console = ttk.Frame(root, style="Card.TFrame", padding=14)
         console.pack(fill="both", expand=True)
         ttk.Label(console, text="4. Riwayat Proses (di PC Ini)",
@@ -174,6 +202,120 @@ class Updater(tk.Tk):
     def _chosen_browser(self) -> str:
         """FASIH selalu Chrome UC; tidak mengikuti browser default Windows."""
         return CHROME_BROWSER
+
+    def _refresh_survey_choices(self):
+        """Read test choices from local bundled JSON only."""
+        try:
+            script = Path(self.selected_script.get() or "")
+            surveys = list_test_surveys(script.parent)
+        except (AssignmentReadError, ValueError, OSError):
+            surveys = []
+        values = [
+            item["code"] + " — " + item["name"] for item in surveys
+        ]
+        self._survey_test_labels = {
+            item["code"] + " — " + item["name"]: item["code"]
+            for item in surveys
+        }
+        self.survey_test_select.configure(values=values)
+        previous = self.survey_test_choice.get()
+        if previous not in self._survey_test_labels:
+            recommended = next(
+                (label for label in values if label.startswith("STPIM —")), None
+            )
+            self.survey_test_choice.set(recommended or (values[0] if values else ""))
+
+    def start_assignment_diagnostic(self):
+        """Fetch one authorized FASIH datatable page; never write sheets."""
+        if self.running:
+            return
+        if not self.vpn_confirmed.get():
+            messagebox.showwarning(
+                "Uji Pengambilan Data", "Sambungkan dan centang VPN BPS terlebih dahulu."
+            )
+            return
+        script = Path(self.selected_script.get() or "")
+        if check_files(
+            script, require_config=True,
+            require_google_credentials=False, require_sso_env=False,
+        ):
+            messagebox.showwarning(
+                "Uji Pengambilan Data",
+                "Script dan config_survei.json internal harus tersedia dalam satu folder."
+            )
+            return
+        survey_code = self._survey_test_labels.get(self.survey_test_choice.get())
+        if not survey_code:
+            messagebox.showwarning(
+                "Uji Pengambilan Data", "Pilih satu survei dari daftar."
+            )
+            return
+        username = self.sso_username.get().strip()
+        password = self.sso_password.get()
+        if not username or not password:
+            messagebox.showwarning(
+                "Uji Pengambilan Data",
+                "Isi email/username dan password SSO Eksternal FASIH."
+            )
+            return
+        confirm = messagebox.askyesno(
+            "Uji Pengambilan Data FASIH — Baca Saja",
+            "Ambil maksimal 20 assignment dari survei " + survey_code + "?\n\n"
+            "Login melalui Google Chrome + UC, baca satu halaman API "
+            "pencarian assignment, tampilkan jumlah dan status.\n"
+            "TIDAK memanggil scraper utama, mengubah assignment, "
+            "atau menulis Google Sheets.\n\n"
+            "Sesi Chrome pengujian ditutup setelah selesai."
+        )
+        if not confirm:
+            return
+        credentials = (username, password)
+        self.sso_password.set("")
+        self.running = True
+        self.current_operation = "assignment_test"
+        self.update_status()
+        self.status.set("Uji Baca Data")
+        self._append_log(
+            "Memulai uji baca " + survey_code
+            + " via Google Chrome + UC tanpa menulis Google Sheets."
+        )
+        threading.Thread(
+            target=self._assignment_diagnostic_worker,
+            args=(script, credentials, survey_code), daemon=True,
+        ).start()
+
+    def _assignment_diagnostic_worker(
+        self, script: Path, credentials: tuple[str, str], survey_code: str
+    ):
+        try:
+            result = test_assignment_readonly(
+                script, credentials[0], credentials[1], survey_code,
+                lambda line: self.events.put(("log", str(line))),
+            )
+            total = result["total_reported"]
+            total_text = (
+                "Total menurut API: " + str(total) + ". "
+                if total is not None else
+                "Total keseluruhan belum tersedia dari API. "
+            )
+            self.events.put((
+                "assignment_test_done",
+                "Uji baca assignment " + result["survey"]
+                + " berhasil. Sampel terbaca: " + str(result["sample_count"])
+                + " assignment. " + total_text
+                + "Rincian status ada di Riwayat Proses. "
+                "Tidak ada data Google Sheets yang diubah."
+            ))
+        except Exception as error:
+            # Never emit password, username or untrusted API response content.
+            message = (
+                str(error) if isinstance(error, (AssignmentReadError, SSOTestError))
+                else "Uji baca FASIH gagal (" + type(error).__name__ + ")."
+            )
+            for secret in credentials:
+                if len(secret) >= 3:
+                    message = message.replace(secret, "[RAHASIA]")
+            self.events.put(("failed", message))
 
     def pick_script(self):
         path = filedialog.askopenfilename(
@@ -500,7 +642,7 @@ class Updater(tk.Tk):
                 break
             if kind == "log":
                 self._append_log(text)
-            elif kind in ("done", "failed", "fasih_unreachable", "google_test_done", "sso_test_done"):
+            elif kind in ("done", "failed", "fasih_unreachable", "google_test_done", "sso_test_done", "assignment_test_done"):
                 self.running = False
                 operation = self.current_operation
                 self.current_operation = None
@@ -512,6 +654,10 @@ class Updater(tk.Tk):
                     self._append_log("[✓] " + text)
                     self.update_status()
                     messagebox.showinfo("Uji Login SSO Berhasil", text)
+                elif kind == "assignment_test_done":
+                    self._append_log("[✓] " + text)
+                    self.update_status()
+                    messagebox.showinfo("Uji Pengambilan Data Berhasil", text)
                 elif kind == "fasih_unreachable":
                     notice = fasih_failure_notice(text)
                     self._append_log("[!] " + notice.replace("\n", " "))
@@ -523,6 +669,7 @@ class Updater(tk.Tk):
                     if kind == "failed":
                         title = ("Uji Login Google Belum Berhasil" if operation == "google_test"
                                  else "Uji Login SSO Belum Berhasil" if operation == "sso_test"
+                                 else "Uji Pengambilan Data Belum Berhasil" if operation == "assignment_test"
                                  else "Pemeriksaan Persiapan Belum Berhasil" if operation == "preflight"
                                  else "Pembaruan Data Belum Berhasil")
                         messagebox.showerror(title, text[:1200])
