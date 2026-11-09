@@ -50,7 +50,7 @@ footer{text-align:center;padding:0 15px 30px;color:#54708b;font-size:13px}
 <div class="step"><div><strong>Tinjau hasil pada dashboard.</strong><p>Setelah proses berhasil, periksa waktu pembaruan serta kecocokan kedua spreadsheet sebelum menyatakan monitoring sinkron.</p></div></div>
 </div></section>
 <section class="card"><h2>4. Jika proses tidak berjalan</h2>
-<div class="table"><strong>FASIH tidak terjangkau</strong><span>Jika Edge/Firefox bisa membuka FASIH tetapi Chrome atau pemeriksaan Python gagal, pilih browser yang berfungsi pada Updater. Pengujian browser Selenium berbeda dari pengujian API; kendala driver/proxy/sertifikat masih dapat memerlukan bantuan TI BPS.</span></div>
+<div class="table"><strong>FASIH / Browser Tidak Terjangkau</strong><span>Gunakan browser yang benar-benar dapat membuka FASIH pada PC ini. Chrome memakai UC ChromeDriver dengan deteksi versi otomatis, sedangkan Firefox dan Edge menggunakan Selenium GeckoDriver/EdgeDriver. Jika Chrome tidak membuka jendela, lihat Riwayat Proses untuk pesan driver UC, coba Chrome secara manual, atau pilih Firefox. Berhasil membuka portal belum membuktikan API FASIH dapat diakses melalui Python.</span></div>
 <div class="table"><strong>OAuth tidak dapat login</strong><span>Periksa file OAuth Desktop resmi, status verifikasi/izin Google, dan hak akses Firebase akun operator.</span></div>
 <div class="table"><strong>Google Sheets gagal dibuka</strong><span>Periksa apakah akun login mempunyai izin ke kedua spreadsheet, dan Google Sheets API aktif.</span></div>
 <div class="table"><strong>Mode online tidak aktif</strong><span>Pengelola belum mengaktifkan sinkronisasi produksi. Ini sengaja untuk menghindari perubahan data sebelum pengujian tuntas.</span></div>
