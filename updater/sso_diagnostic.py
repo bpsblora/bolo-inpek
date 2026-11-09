@@ -22,19 +22,10 @@ class SSOTestError(RuntimeError):
     """Login diagnostik belum selesai atau tidak berhasil."""
 
 
-class _SafeLog(io.TextIOBase):
-    def __init__(self, report: Callable[[str], None], secrets: tuple[str, ...]):
-        self.report = report
-        self.secrets = tuple(v for v in secrets if len(v) > 2)
+class _PrivateStdout(io.TextIOBase):
+    """Discard scraper stdout (including any redirected URL/token or secrets)."""
 
     def write(self, data: str) -> int:
-        if data:
-            for line in str(data).splitlines():
-                if line.strip():
-                    safe = line.strip()
-                    for secret in self.secrets:
-                        safe = safe.replace(secret, "[RAHASIA]")
-                    self.report(safe)
         return len(data)
 
     def flush(self):
@@ -45,7 +36,7 @@ def test_sso_login(
     script: Path, browser: str, username: str, password: str,
     report: Callable[[str], None],
     *,
-    browser_factory: Callable[[str], object] = open_fasih_browser,
+    browser_factory: Callable[[str], object] | None = None,
 ) -> None:
     """Login once to authorized SSO, confirm FASIH, close ephemeral browser.
 
@@ -73,7 +64,7 @@ def test_sso_login(
     mod = module_from_spec(spec)
     driver = None
     original_path = list(sys.path)
-    output = _SafeLog(report, (username, password))
+    output = _PrivateStdout()
     try:
         sys.path.insert(0, str(script.parent))
         # Importing the internal module does not execute its __main__ block.
@@ -90,7 +81,10 @@ def test_sso_login(
                 raise SSOTestError("Versi script belum mendukung uji SSO terpisah.")
 
         report("Membuka " + browser + " untuk uji SSO FASIH (tanpa scraping)...")
-        driver = browser_factory(browser)
+        driver = (
+            browser_factory(browser) if browser_factory is not None
+            else open_fasih_browser(browser, diagnostic=True)
+        )
         driver.set_page_load_timeout(50)
         with redirect_stdout(output), redirect_stderr(output):
             mod.klik_sso_eksternal(driver)
