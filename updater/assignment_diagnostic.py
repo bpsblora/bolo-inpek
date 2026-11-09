@@ -154,9 +154,9 @@ def query_assignment_sample(session, survey: dict[str, str], report: Callable[[s
     )
     report("API FASIH dapat dibaca: " + str(len(records))
            + " assignment sampel untuk " + survey["code"] + ".")
+    unknown_statuses = 0
     for name, count in sorted(statuses.items()):
-        # The server's original status label may be untrusted text; display
-        # only known fixed statuses, otherwise aggregate without echoing it.
+        # Never render untrusted server-supplied labels in the local GUI.
         cleaned = name.upper().strip()
         known = (
             "OPEN", "SUBMITTED", "APPROVED", "REJECTED", "COMPLETED",
@@ -166,6 +166,10 @@ def query_assignment_sample(session, survey: dict[str, str], report: Callable[[s
         )
         if cleaned in known:
             report("Status " + cleaned + ": " + str(count))
+        else:
+            unknown_statuses += count
+    if unknown_statuses:
+        report("Status lain/belum dikenali: " + str(unknown_statuses))
     report("Assignment sampel dengan ID dan Status tersedia: "
            + str(required_field_count) + "/" + str(len(records)) + ".")
     if total is not None:
