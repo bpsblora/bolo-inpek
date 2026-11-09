@@ -7,6 +7,8 @@ Python HTTP request. It never bypasses TLS checks or VPN requirements.
 from __future__ import annotations
 
 from urllib.parse import urlsplit
+from time import monotonic, sleep
+from typing import Callable
 
 FASIH_URL = "https://fasih-sm.bps.go.id/app"
 FASIH_HOST = "fasih-sm.bps.go.id"
@@ -82,31 +84,33 @@ def resolve_browser(browser: str) -> str:
     return resolved
 
 
-def open_fasih_browser(browser: str):
+def open_fasih_browser(browser: str, *, diagnostic: bool = False):
     """Start an isolated browser session using the installed browser.
 
     Edge and Firefox use official Selenium WebDriver + Selenium Manager; a
     compatible driver may be downloaded on first use depending on the PC.
+    For diagnostic checks, do not block on third-party page assets: return
+    from navigation immediately and check actual page readiness separately.
     """
     browser = resolve_browser(browser)
     try:
         if browser == "Microsoft Edge":
             from selenium import webdriver
             options = webdriver.EdgeOptions()
-            options.page_load_strategy = "eager"
+            options.page_load_strategy = "none" if diagnostic else "eager"
             options.add_argument("--start-maximized")
             options.add_argument("--disable-notifications")
             driver = webdriver.Edge(options=options)
         elif browser == "Mozilla Firefox":
             from selenium import webdriver
             options = webdriver.FirefoxOptions()
-            options.page_load_strategy = "eager"
+            options.page_load_strategy = "none" if diagnostic else "eager"
             driver = webdriver.Firefox(options=options)
             driver.maximize_window()
         else:
             import undetected_chromedriver as uc
             options = uc.ChromeOptions()
-            options.page_load_strategy = "eager"
+            options.page_load_strategy = "none" if diagnostic else "eager"
             options.add_argument("--start-maximized")
             options.add_argument("--disable-notifications")
             driver = uc.Chrome(options=options, use_subprocess=False, version_main=None)
@@ -121,50 +125,101 @@ def open_fasih_browser(browser: str):
     return driver
 
 
-def verify_fasih_in_browser(browser: str, *, driver_factory=None) -> str:
-    """Verify HTTPS FASIH page with the browser, without SSO or credentials.
+def verify_fasih_in_browser(
+    browser: str,
+    *,
+    driver_factory=None,
+    on_progress: Callable[[str], None] | None = None,
+    timeout_seconds: float = 25,
+) -> str:
+    """Verify that an actual BPS HTTPS login page became interactive.
 
-    A browser tab reaching a validated BPS HTTPS host is a readiness signal,
-    not proof of SSO authorization or API access. Failed navigation is not
-    counted as success. Driver always closes after this diagnostic.
+    Use a diagnostic-only nonblocking page navigation because OAuth login
+    resources can keep Firefox in a 'loading' state indefinitely even while
+    the page is already interactive. Do NOT count an open browser window
+    alone as success. Never click SSO, read credentials, or bypass TLS.
     """
     browser = resolve_browser(browser)
     driver = None
+    report = on_progress or (lambda _message: None)
     try:
-        driver = (driver_factory or open_fasih_browser)(browser)
+        report("Menjalankan " + browser + " melalui Selenium...")
+        driver = (
+            driver_factory(browser) if driver_factory is not None
+            else open_fasih_browser(browser, diagnostic=True)
+        )
+        try:
+            driver.set_script_timeout(8)
+        except AttributeError:
+            pass
+        report("Browser terbuka; memeriksa halaman login FASIH...")
         driver.get(FASIH_URL)
-        final_url = str(driver.current_url or "")
-        address = urlsplit(final_url)
-        host = (address.hostname or "").lower()
-        if address.scheme != "https" or not (
-            host == FASIH_HOST
-            or host in ("sso.bps.go.id", "sso-eksternal.bps.go.id")
-        ):
-            raise FasihBrowserError(
-                "Browser terbuka, tetapi tidak mencapai portal FASIH/SSO "
-                "resmi BPS melalui HTTPS. Periksa alamat yang terbuka."
+        deadline = monotonic() + timeout_seconds
+        last_host = ""
+        while monotonic() < deadline:
+            current = str(driver.current_url or "")
+            address = urlsplit(current)
+            host = (address.hostname or "").lower()
+            approved = (
+                address.scheme == "https"
+                and host in (
+                    FASIH_HOST, "sso.bps.go.id", "sso-eksternal.bps.go.id"
+                )
             )
-        # Browser navigation finished without an SSL/network error. No login
-        # or privileged API call was made.
-        return browser
+            if approved:
+                last_host = host
+                try:
+                    state = driver.execute_script("return document.readyState")
+                    page_text = driver.execute_script(
+                        "return (document.body && document.body.innerText || '').slice(0, 2500)"
+                    )
+                    if state in ("interactive", "complete") and isinstance(page_text, str):
+                        lowered = page_text.lower()
+                        if any(needle in lowered for needle in (
+                            "login sso", "badan pusat statistik",
+                            "masuk", "sign in", "username", "password",
+                        )):
+                            report("Halaman login resmi BPS berhasil dimuat melalui " + browser + ".")
+                            return browser
+                except Exception:
+                    # The page may be transitioning between FASIH and BPS SSO.
+                    # Do not declare success until the DOM is verified.
+                    pass
+            elif address.scheme in ("http", "https") and host not in ("", FASIH_HOST):
+                raise FasihBrowserError(
+                    "Browser diarahkan ke domain di luar FASIH/SSO resmi BPS. "
+                    "Pemeriksaan dibatalkan."
+                )
+            sleep(0.5)
+        if last_host:
+            raise FasihBrowserError(
+                browser + " membuka host BPS, tetapi halaman login belum dapat "
+                "dikonfirmasi siap dalam " + str(int(timeout_seconds)) + " detik. "
+                "Periksa Riwayat Proses dan kondisi Firefox/Selenium."
+            )
+        raise FasihBrowserError(
+            browser + " terbuka, tetapi tidak mencapai halaman HTTPS FASIH/SSO "
+            "resmi dalam " + str(int(timeout_seconds)) + " detik."
+        )
     except FasihBrowserError:
         raise
     except Exception as exc:
         from selenium.common.exceptions import TimeoutException
         if isinstance(exc, TimeoutException):
             message = (
-                browser + " tidak selesai memuat halaman FASIH tepat waktu. "
-                "Buka FASIH di browser biasa untuk membandingkan."
+                browser + " gagal menyelesaikan navigasi FASIH tepat waktu "
+                "meskipun browser mungkin terlihat terbuka."
             )
         else:
             message = (
-                browser + " gagal membuka FASIH melalui otomasi Selenium ("
+                browser + " gagal memeriksa FASIH melalui Selenium ("
                 + type(exc).__name__ + "). Periksa driver browser, VPN BPS, "
-                "proxy, dan sertifikat HTTPS."
+                "proxy dan sertifikat HTTPS."
             )
         raise FasihBrowserError(message) from exc
     finally:
         if driver is not None:
+            report("Menutup sesi browser khusus pemeriksaan FASIH...")
             try:
                 driver.quit()
             except Exception:
