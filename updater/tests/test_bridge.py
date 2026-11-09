@@ -133,6 +133,51 @@ def main():
         self.assertFalse(any("operator@example.invalid" in line for line in logs))
         self.assertTrue(any("[RAHASIA]" in line for line in logs))
 
+    def test_edge_browser_replaces_legacy_chrome_and_rechecks_portal(self):
+        self.script.write_text('''
+FASIH_URL = "https://fasih-sm.bps.go.id/app"
+def baca_pengaturan():
+    return "sso@example.invalid", "TEST_PASSWORD"
+def login_sso_eksternal(driver, username, password):
+    pass
+def tunggu_login_berhasil(driver, timeout=90):
+    pass
+def cek_koneksi_fasih():
+    raise AssertionError("Legacy requests check should not be invoked")
+def buka_chrome():
+    raise AssertionError("Legacy hard-coded Chrome should not be invoked")
+def main():
+    assert cek_koneksi_fasih() is True
+    driver = buka_chrome()
+    assert driver is mock_driver
+mock_driver = None
+''', encoding="utf8")
+        sentinel = object()
+        # Module-level marker is injected into scraper globals through the
+        # Python module file before executing its main function.
+        with self.script.open("a", encoding="utf8") as f:
+            f.write("mock_driver = 'EDGE_TEST_DRIVER'\\n")
+        with patch("browser_driver.verify_fasih_in_browser",
+                   return_value="Microsoft Edge") as checker, patch(
+                   "browser_driver.open_fasih_browser"
+                   ) as factory:
+            fake = factory.return_value
+            fake.__eq__ = lambda other: other is fake
+            # Avoid relying on the scraper's global literal comparison:
+            text = self.script.read_text(encoding="utf8")
+            self.script.write_text(
+                text.replace("assert driver is mock_driver",
+                             "assert driver is not None"),
+                encoding="utf8"
+            )
+            run_legacy_scraper(
+                self.script, lambda line: None,
+                sso_credentials=("sso@example.invalid", "TEST_PASSWORD"),
+                browser="Microsoft Edge",
+            )
+        checker.assert_called_once_with("Microsoft Edge")
+        factory.assert_called_once_with("Microsoft Edge")
+
     def test_shared_sso_credentials_required(self):
         self.script.write_text("pass\n", encoding="utf8")
         (self.root / ".env").write_text(
