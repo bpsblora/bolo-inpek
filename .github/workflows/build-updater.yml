@@ -6,6 +6,7 @@ on:
     branches: [dev-admin-v2]
     paths:
       - 'updater/**'
+      - 'updater-settings.json'
       - '.github/workflows/build-updater.yml'
 
 permissions:
