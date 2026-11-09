@@ -56,7 +56,7 @@ def main():
         fake = FakeDriver()
         logs = []
         test_sso_login(
-            self.script, "Mozilla Firefox",
+            self.script, "Google Chrome",
             "test@example.invalid", "SECRET_TEST_VALUE",
             logs.append, browser_factory=lambda name: fake,
         )
@@ -65,8 +65,8 @@ def main():
         self.assertFalse(any("SECRET_TEST_VALUE" in x for x in logs))
         self.assertFalse(any("test@example.invalid" in x for x in logs))
 
-    def test_firefox_and_edge_cookie_session_is_verified_without_api_calls(self):
-        for browser in ("Mozilla Firefox", "Microsoft Edge", "Google Chrome"):
+    def test_chrome_cookie_session_is_verified_without_api_calls(self):
+        for browser in ("Google Chrome",):
             fake = FakeDriver()
             logs = []
             test_sso_login(
@@ -89,7 +89,7 @@ def main():
         fake = FakeDriver()
         with self.assertRaisesRegex(SSOTestError, "cookie sesi FASIH"):
             test_sso_login(
-                self.script, "Mozilla Firefox",
+                self.script, "Google Chrome",
                 "test@example.invalid", "SECRET_TEST_VALUE",
                 lambda _: None, browser_factory=lambda _: fake,
             )
@@ -99,7 +99,7 @@ def main():
         fake = FakeDriver()
         with self.assertRaisesRegex(SSOTestError, "Formulir SSO Eksternal"):
             test_sso_login(
-                self.script, "Mozilla Firefox",
+                self.script, "Google Chrome",
                 "user@example.invalid", "WRONG",
                 lambda _: None, browser_factory=lambda _: fake,
             )
@@ -110,7 +110,7 @@ def main():
         fake.current_url = "https://untrusted.example.invalid/submit"
         with self.assertRaisesRegex(SSOTestError, "domain login SSO resmi"):
             test_sso_login(
-                self.script, "Mozilla Firefox",
+                self.script, "Google Chrome",
                 "test@example.invalid", "SECRET_TEST_VALUE",
                 lambda _: None, browser_factory=lambda _: fake,
             )
@@ -120,7 +120,7 @@ def main():
         logs = []
         fake = FakeDriver()
         test_sso_login(
-            self.script, "Mozilla Firefox",
+            self.script, "Google Chrome",
             "test@example.invalid", "SECRET_TEST_VALUE",
             logs.append, browser_factory=lambda browser: fake,
         )
@@ -129,7 +129,7 @@ def main():
         self.assertFalse(any("SECRET_TEST_VALUE" in line for line in logs))
         self.assertFalse(any("test@example.invalid" in line for line in logs))
 
-    def test_new_tab_with_official_sso_is_supported(self):
+    def test_chrome_new_tab_with_official_sso_is_supported(self):
         class TabDriver(FakeDriver):
             def __init__(self):
                 super().__init__()
@@ -141,7 +141,7 @@ def main():
                     self.current_url = "https://sso.bps.go.id/realms/bps"
         fake = TabDriver()
         test_sso_login(
-            self.script, "Mozilla Firefox",
+            self.script, "Google Chrome",
             "test@example.invalid", "SECRET_TEST_VALUE",
             lambda line: None, browser_factory=lambda _: fake,
         )
@@ -152,7 +152,7 @@ def main():
         fake.current_url = "https://unexpected-login.bps.go.id/form"
         with self.assertRaisesRegex(SSOTestError, "belum dikenali"):
             test_sso_login(
-                self.script, "Mozilla Firefox",
+                self.script, "Google Chrome",
                 "test@example.invalid", "SECRET_TEST_VALUE",
                 lambda _: None, browser_factory=lambda _: fake,
             )
@@ -162,14 +162,26 @@ def main():
         with self.assertRaises(SSOTestError):
             test_sso_login(
                 self.script.with_name("other.py"),
-                "Mozilla Firefox", "user@example.invalid", "pw",
+                "Google Chrome", "user@example.invalid", "pw",
                 lambda _: None, browser_factory=lambda _: FakeDriver(),
             )
         with self.assertRaises(SSOTestError):
             test_sso_login(
-                self.script, "Mozilla Firefox", "", "",
+                self.script, "Google Chrome", "", "",
                 lambda _: None, browser_factory=lambda _: FakeDriver(),
             )
+
+    def test_sso_diagnostic_refuses_firefox_or_edge_without_starting_browser(self):
+        attempts = []
+        for browser in ("Mozilla Firefox", "Microsoft Edge"):
+            with self.assertRaises(SSOTestError):
+                test_sso_login(
+                    self.script, browser,
+                    "test@example.invalid", "SECRET_TEST_VALUE",
+                    lambda _: None,
+                    browser_factory=lambda name: attempts.append(name),
+                )
+        self.assertEqual(attempts, [])
 
     def test_unsafe_fasih_domain_stops_before_browser_is_opened(self):
         source = self.script.read_text(encoding="utf-8")
@@ -183,7 +195,7 @@ def main():
         opened = []
         with self.assertRaisesRegex(SSOTestError, "HTTPS FASIH resmi"):
             test_sso_login(
-                self.script, "Mozilla Firefox",
+                self.script, "Google Chrome",
                 "test@example.invalid", "SECRET_TEST_VALUE",
                 lambda _: None,
                 browser_factory=lambda browser: opened.append(browser),
