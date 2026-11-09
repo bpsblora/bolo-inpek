@@ -109,6 +109,44 @@ class FASIHBrowserReadinessTests(unittest.TestCase):
             )
         self.assertTrue(driver.closed)
 
+    def test_real_fasih_oauth_landing_page_works_when_firefox_dom_stalls(self):
+        browser = FakeBrowser("https://fasih-sm.bps.go.id/oauth_login.html")
+        browser.title = "FASIH | Badan Pusat Statistik"
+        # This reproduces the user-visible Firefox screen with WebDriver JS
+        # returning no content; the valid URL/title pair is sufficient.
+        browser.execute_script = lambda _script: (_ for _ in ()).throw(
+            RuntimeError("Firefox document still loading")
+        )
+        progress = []
+        result = verify_fasih_in_browser(
+            "Mozilla Firefox", driver_factory=lambda _: browser,
+            on_progress=progress.append, timeout_seconds=0.1,
+        )
+        self.assertEqual(result, "Mozilla Firefox")
+        self.assertTrue(browser.closed)
+        self.assertTrue(any("OAuth FASIH resmi terverifikasi" in line for line in progress))
+
+    def test_fasih_oauth_path_without_official_title_does_not_pass(self):
+        browser = FakeBrowser("https://fasih-sm.bps.go.id/oauth_login.html")
+        browser.title = "Loading..."
+        browser.execute_script = lambda _script: ""
+        with self.assertRaisesRegex(FasihBrowserError, "belum dapat dikonfirmasi"):
+            verify_fasih_in_browser(
+                "Mozilla Firefox", driver_factory=lambda _: browser,
+                timeout_seconds=0.01,
+            )
+        self.assertTrue(browser.closed)
+
+    def test_oauth_landing_url_must_stay_https(self):
+        browser = FakeBrowser("http://fasih-sm.bps.go.id/oauth_login.html")
+        browser.title = "FASIH | Badan Pusat Statistik"
+        with self.assertRaisesRegex(FasihBrowserError, "non-HTTPS"):
+            verify_fasih_in_browser(
+                "Mozilla Firefox", driver_factory=lambda _: browser,
+                timeout_seconds=0.1,
+            )
+        self.assertTrue(browser.closed)
+
     def test_loading_page_with_no_login_content_is_not_accepted(self):
         browser = FakeBrowser()
         def blank(_script):
