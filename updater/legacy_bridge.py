@@ -253,10 +253,14 @@ def run_legacy_scraper(
         # dapat memakai Edge atau Firefox tanpa mengubah script internal.
         # Default browser dipilih pada EXE. Mode bridge lama tetap kompatibel.
         if browser is not None:
-            from browser_driver import open_fasih_browser
+            from browser_driver import open_fasih_browser, resolve_browser
+            selected_browser = resolve_browser(browser)
             def buka_browser_operator():
-                print("[*] Membuka " + browser + " untuk login FASIH...")
-                driver = open_fasih_browser(browser)
+                log("Menyiapkan browser scraping " + selected_browser + "...")
+                driver = open_fasih_browser(
+                    selected_browser,
+                    on_progress=lambda text: log(str(text)),
+                )
                 driver.set_page_load_timeout(90)
                 return driver
             module.buka_chrome = buka_browser_operator
@@ -287,7 +291,32 @@ def run_legacy_scraper(
             original_session = module.buat_session_dari_chrome
             def verified_session(driver):
                 session = original_session(driver)
+                # Generic WebDriver APIs (navigator.userAgent/get_cookies)
+                # work with Chrome UC, Firefox GeckoDriver, and EdgeDriver.
+                # Cookies stay in process memory; never expose their values.
                 session.verify = True
+                if browser is not None:
+                    cookie_jar = getattr(session, "cookies", None)
+                    if cookie_jar is not None:
+                        try:
+                            count = len(cookie_jar)
+                        except TypeError:
+                            count = None
+                        if count == 0:
+                            try:
+                                session.close()
+                            except Exception:
+                                pass
+                            raise RuntimeError(
+                                "Sesi FASIH belum menghasilkan cookie autentikasi "
+                                "untuk API. Login mungkin belum selesai. "
+                                "Pengambilan data dibatalkan."
+                            )
+                        if count is not None:
+                            print(
+                                "[✓] Cookie sesi API berhasil diambil dari "
+                                + browser + " (" + str(count) + " cookie)."
+                            )
                 print("[✓] Verifikasi sertifikat HTTPS diaktifkan untuk FASIH.")
                 return session
             module.buat_session_dari_chrome = verified_session
