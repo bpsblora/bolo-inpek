@@ -1,10 +1,10 @@
-"""Offline tests for Edge/Firefox readiness without real browser/network."""
+"""Offline Chrome-only UC regression and FASIH portal checks."""
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from browser_driver import (
-    AUTO_BROWSER, BROWSER_CHOICES, FasihBrowserError, resolve_browser,
-    _browser_from_progid, _default_https_progid, verify_fasih_in_browser,
+    CHROME_BROWSER, SUPPORTED_BROWSERS, BROWSER_CHOICES,
+    FasihBrowserError, resolve_browser, verify_fasih_in_browser,
     open_fasih_browser,
 )
 
@@ -14,6 +14,7 @@ class FakeBrowser:
         self.current_url = url
         self.urls = []
         self.closed = False
+        self.title = ""
 
     def get(self, url):
         self.urls.append(url)
@@ -32,189 +33,91 @@ class FakeBrowser:
         self.closed = True
 
 
-class FASIHBrowserReadinessTests(unittest.TestCase):
-    def test_auto_is_default_option_and_manual_browsers_supported(self):
-        self.assertEqual(BROWSER_CHOICES[0], AUTO_BROWSER)
-        self.assertIn("Microsoft Edge", BROWSER_CHOICES)
-        self.assertIn("Mozilla Firefox", BROWSER_CHOICES)
-        self.assertIn("Google Chrome", BROWSER_CHOICES)
+class ChromeOnlyBrowserTests(unittest.TestCase):
+    def test_only_chrome_is_supported(self):
+        self.assertEqual(CHROME_BROWSER, "Google Chrome")
+        self.assertEqual(SUPPORTED_BROWSERS, ("Google Chrome",))
+        self.assertEqual(BROWSER_CHOICES, ("Google Chrome",))
+        self.assertEqual(resolve_browser("Google Chrome"), "Google Chrome")
+        for other in ("Mozilla Firefox", "Microsoft Edge",
+                      "Otomatis (Default Windows)", "", "chromium"):
+            with self.subTest(browser=other):
+                with self.assertRaisesRegex(FasihBrowserError, "hanya mendukung Google Chrome"):
+                    resolve_browser(other)
+                with self.assertRaises(FasihBrowserError):
+                    open_fasih_browser(other)
+                with self.assertRaises(FasihBrowserError):
+                    verify_fasih_in_browser(other, driver_factory=lambda _: FakeBrowser())
 
-    def test_windows_progid_matches_major_browsers(self):
-        self.assertEqual(_browser_from_progid("MSEdgeHTM"), "Microsoft Edge")
-        self.assertEqual(_browser_from_progid("MSEdgeBHTML"), "Microsoft Edge")
-        self.assertEqual(_browser_from_progid("FirefoxURL-308046B0AF4A39CB"), "Mozilla Firefox")
-        self.assertEqual(_browser_from_progid("FirefoxHTML"), "Mozilla Firefox")
-        self.assertEqual(_browser_from_progid("ChromeHTML"), "Google Chrome")
-        self.assertIsNone(_browser_from_progid("BraveHTML"))
+    def test_uc_subprocess_auto_version(self):
+        with patch("undetected_chromedriver.Chrome") as constructor:
+            messages = []
+            driver = open_fasih_browser(CHROME_BROWSER, on_progress=messages.append)
+            self.assertIs(driver, constructor.return_value)
+            self.assertTrue(constructor.call_args.kwargs["use_subprocess"])
+            self.assertIsNone(constructor.call_args.kwargs["version_main"])
+            self.assertTrue(any("UC" in line for line in messages))
 
-    def test_automatic_selection_uses_https_default(self):
-        with patch("browser_driver._default_https_progid", return_value="FirefoxURL-123"):
-            self.assertEqual(resolve_browser(AUTO_BROWSER), "Mozilla Firefox")
-            driver = FakeBrowser()
-            result = verify_fasih_in_browser(
-                AUTO_BROWSER, driver_factory=lambda browser: driver
-            )
-            self.assertEqual(result, "Mozilla Firefox")
-            self.assertTrue(driver.closed)
-
-    def test_userchoice_latest_is_preferred_to_stale_legacy_choice(self):
-        import sys
-        fake_winreg = MagicMock()
-        fake_winreg.HKEY_CURRENT_USER = object()
-        fake_winreg.OpenKey.return_value.__enter__.return_value = object()
-        fake_winreg.QueryValueEx.return_value = ("FirefoxURL-123", 1)
-        with patch.dict(sys.modules, {"winreg": fake_winreg}):
-            self.assertEqual(_default_https_progid(), "FirefoxURL-123")
-        self.assertIn("UserChoiceLatest", fake_winreg.OpenKey.call_args.args[1])
-        self.assertEqual(fake_winreg.OpenKey.call_count, 1)
-
-    def test_unknown_default_requires_manual_choice(self):
-        with patch("browser_driver._default_https_progid", return_value="BraveHTML"):
-            with self.assertRaisesRegex(FasihBrowserError, "manual"):
-                resolve_browser(AUTO_BROWSER)
-            self.assertEqual(resolve_browser("Mozilla Firefox"), "Mozilla Firefox")
-        with patch("browser_driver._default_https_progid", return_value=None):
-            with self.assertRaisesRegex(FasihBrowserError, "belum dapat dibaca"):
-                resolve_browser(AUTO_BROWSER)
-
-    def test_chrome_uses_uc_subprocess_and_detects_version(self):
-        with patch("undetected_chromedriver.Chrome") as create:
-            log = []
-            driver = open_fasih_browser("Google Chrome", on_progress=log.append)
-            self.assertIs(driver, create.return_value)
-            self.assertTrue(create.call_args.kwargs["use_subprocess"])
-            self.assertIsNone(create.call_args.kwargs["version_main"])
-            self.assertTrue(any("undetected_chromedriver" in line for line in log))
-
-    def test_chrome_uc_launch_failure_gives_specific_guidance(self):
+    def test_uc_failure_redacts_internal_error(self):
         with patch("undetected_chromedriver.Chrome",
-                   side_effect=RuntimeError("SECRET_INTERNAL_DRIVER_PATH")):
-            with self.assertRaisesRegex(FasihBrowserError, "UC tidak berhasil") as result:
-                open_fasih_browser("Google Chrome")
-        self.assertIn("pilih Firefox", str(result.exception))
-        self.assertNotIn("SECRET_INTERNAL_DRIVER_PATH", str(result.exception))
+                   side_effect=RuntimeError("PRIVATE_SESSION_TOKEN")):
+            with self.assertRaisesRegex(FasihBrowserError, "UC tidak dapat dijalankan") as err:
+                open_fasih_browser(CHROME_BROWSER)
+        self.assertNotIn("PRIVATE_SESSION_TOKEN", str(err.exception))
 
-    def test_selenium_firefox_and_edge_separate_from_uc(self):
-        with patch("selenium.webdriver.Firefox") as create_firefox:
-            driver = open_fasih_browser("Mozilla Firefox")
-            self.assertIs(driver, create_firefox.return_value)
-            create_firefox.assert_called_once()
-        with patch("selenium.webdriver.Edge") as create_edge:
-            driver = open_fasih_browser("Microsoft Edge")
-            self.assertIs(driver, create_edge.return_value)
-            create_edge.assert_called_once()
-
-    def test_edge_success_confirms_only_portal_navigation(self):
+    def test_navigation_to_official_login_succeeds(self):
         browser = FakeBrowser()
-        result = verify_fasih_in_browser(
-            "Microsoft Edge", driver_factory=lambda _: browser
-        )
-        self.assertEqual(result, "Microsoft Edge")
-        self.assertEqual(browser.urls, ["https://fasih-sm.bps.go.id/app"])
-        self.assertTrue(browser.closed)
-
-    def test_firefox_sso_redirect_is_permitted_only_for_bps_https(self):
-        driver = FakeBrowser("https://sso.bps.go.id/realms/bps")
-        result = verify_fasih_in_browser(
-            "Mozilla Firefox", driver_factory=lambda _: driver
-        )
-        self.assertEqual(result, "Mozilla Firefox")
-        self.assertTrue(driver.closed)
-
-    def test_external_site_not_accepted(self):
-        driver = FakeBrowser("https://example.invalid/fasih")
-        with self.assertRaisesRegex(FasihBrowserError, "resmi BPS"):
-            verify_fasih_in_browser(
-                "Microsoft Edge", driver_factory=lambda _: driver
-            )
-        self.assertTrue(driver.closed)
-
-    def test_http_not_accepted(self):
-        driver = FakeBrowser("http://fasih-sm.bps.go.id/app")
-        with self.assertRaisesRegex(FasihBrowserError, "HTTPS"):
-            verify_fasih_in_browser(
-                "Microsoft Edge", driver_factory=lambda _: driver
-            )
-        self.assertTrue(driver.closed)
-
-    def test_real_fasih_oauth_landing_page_works_when_firefox_dom_stalls(self):
-        browser = FakeBrowser("https://fasih-sm.bps.go.id/oauth_login.html")
-        browser.title = "FASIH | Badan Pusat Statistik"
-        # This reproduces the user-visible Firefox screen with WebDriver JS
-        # returning no content; the valid URL/title pair is sufficient.
-        browser.execute_script = lambda _script: (_ for _ in ()).throw(
-            RuntimeError("Firefox document still loading")
-        )
         progress = []
         result = verify_fasih_in_browser(
-            "Mozilla Firefox", driver_factory=lambda _: browser,
-            on_progress=progress.append, timeout_seconds=0.1,
+            CHROME_BROWSER, driver_factory=lambda _: browser, on_progress=progress.append,
         )
-        self.assertEqual(result, "Mozilla Firefox")
+        self.assertEqual(result, CHROME_BROWSER)
+        self.assertEqual(browser.urls, ["https://fasih-sm.bps.go.id/app"])
         self.assertTrue(browser.closed)
-        self.assertTrue(any("OAuth FASIH resmi terverifikasi" in line for line in progress))
+        self.assertTrue(any("berhasil dimuat" in line for line in progress))
 
-    def test_fasih_oauth_path_without_official_title_does_not_pass(self):
+    def test_oauth_login_title_on_official_https_is_valid(self):
+        browser = FakeBrowser("https://fasih-sm.bps.go.id/oauth_login.html")
+        browser.title = "FASIH | Badan Pusat Statistik"
+        browser.execute_script = lambda _script: (_ for _ in ()).throw(RuntimeError("loading"))
+        result = verify_fasih_in_browser(
+            CHROME_BROWSER, driver_factory=lambda _: browser,
+            timeout_seconds=0.1,
+        )
+        self.assertEqual(result, CHROME_BROWSER)
+        self.assertTrue(browser.closed)
+
+    def test_invalid_login_title_not_accepted(self):
         browser = FakeBrowser("https://fasih-sm.bps.go.id/oauth_login.html")
         browser.title = "Loading..."
         browser.execute_script = lambda _script: ""
         with self.assertRaisesRegex(FasihBrowserError, "belum dapat dikonfirmasi"):
             verify_fasih_in_browser(
-                "Mozilla Firefox", driver_factory=lambda _: browser,
-                timeout_seconds=0.01,
+                CHROME_BROWSER, driver_factory=lambda _: browser, timeout_seconds=0.01,
             )
         self.assertTrue(browser.closed)
 
-    def test_oauth_landing_url_must_stay_https(self):
-        browser = FakeBrowser("http://fasih-sm.bps.go.id/oauth_login.html")
-        browser.title = "FASIH | Badan Pusat Statistik"
+    def test_foreign_https_domain_is_rejected(self):
+        browser = FakeBrowser("https://unknown.example.invalid/login")
+        with self.assertRaisesRegex(FasihBrowserError, "di luar FASIH"):
+            verify_fasih_in_browser(CHROME_BROWSER, driver_factory=lambda _: browser)
+        self.assertTrue(browser.closed)
+
+    def test_insecure_http_is_rejected(self):
+        browser = FakeBrowser("http://fasih-sm.bps.go.id/app")
         with self.assertRaisesRegex(FasihBrowserError, "non-HTTPS"):
-            verify_fasih_in_browser(
-                "Mozilla Firefox", driver_factory=lambda _: browser,
-                timeout_seconds=0.1,
-            )
+            verify_fasih_in_browser(CHROME_BROWSER, driver_factory=lambda _: browser)
         self.assertTrue(browser.closed)
 
-    def test_loading_page_with_no_login_content_is_not_accepted(self):
+    def test_failed_navigation_does_not_expose_errors(self):
         browser = FakeBrowser()
-        def blank(_script):
-            return "interactive" if "readyState" in _script else ""
-        browser.execute_script = blank
-        with self.assertRaisesRegex(FasihBrowserError, "belum dapat dikonfirmasi"):
-            verify_fasih_in_browser(
-                "Mozilla Firefox", driver_factory=lambda _: browser,
-                timeout_seconds=0.05,
-            )
-        self.assertTrue(browser.closed)
-
-    def test_provides_stepwise_progress_messages(self):
-        browser = FakeBrowser()
-        progress = []
-        verify_fasih_in_browser(
-            "Mozilla Firefox", driver_factory=lambda _: browser,
-            on_progress=progress.append,
-        )
-        self.assertTrue(any("Browser terbuka" in line for line in progress))
-        self.assertTrue(any("berhasil dimuat" in line for line in progress))
-        self.assertTrue(any("Menutup tab" in line for line in progress))
-
-    def test_navigation_error_does_not_bypass_check(self):
-        driver = FakeBrowser()
         def fail(_url):
-            raise RuntimeError("SENSITIVE_PROXY_VALUE")
-        driver.get = fail
-        with self.assertRaises(FasihBrowserError) as error:
-            verify_fasih_in_browser(
-                "Microsoft Edge", driver_factory=lambda _: driver
-            )
-        self.assertTrue(driver.closed)
-        self.assertNotIn("SENSITIVE_PROXY_VALUE", str(error.exception))
-
-    def test_unknown_browser_rejected(self):
-        with self.assertRaisesRegex(FasihBrowserError, "tidak dikenal"):
-            verify_fasih_in_browser(
-                "Internet Explorer", driver_factory=lambda _: FakeBrowser()
-            )
+            raise RuntimeError("PRIVATE_URL")
+        browser.get = fail
+        with self.assertRaises(FasihBrowserError) as err:
+            verify_fasih_in_browser(CHROME_BROWSER, driver_factory=lambda _: browser)
+        self.assertNotIn("PRIVATE_URL", str(err.exception))
+        self.assertTrue(browser.closed)
 
 
 if __name__ == "__main__":
