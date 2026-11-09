@@ -21,7 +21,10 @@ from operator_google import login_operator
 from google_diagnostic import run_read_only_google_test, load_diagnostic_settings
 from run_lock import local_update_lock
 from fasih_access import FasihAccessError, fasih_failure_notice
-from browser_driver import BROWSER_CHOICES, FasihBrowserError, verify_fasih_in_browser
+from browser_driver import (
+    AUTO_BROWSER, BROWSER_CHOICES, FasihBrowserError,
+    resolve_browser, verify_fasih_in_browser,
+)
 
 DASHBOARD_URL = "https://bpsblora.github.io/bolo-inpek/"
 APP_TITLE = "BOLO INPEK Updater"
@@ -46,7 +49,7 @@ class Updater(tk.Tk):
         self._missing_local_script = False
         self.selected_script = tk.StringVar()
         self.vpn_confirmed = tk.BooleanVar(value=False)
-        self.fasih_browser = tk.StringVar(value="Microsoft Edge")
+        self.fasih_browser = tk.StringVar(value=AUTO_BROWSER)
         self.sso_username = tk.StringVar()
         self.sso_password = tk.StringVar()
         self.online_mode = tk.BooleanVar(value=True)
@@ -96,9 +99,13 @@ class Updater(tk.Tk):
         browser_row.pack(fill="x", pady=(10, 0))
         ttk.Label(browser_row, text="Browser untuk FASIH:", style="Body.TLabel").pack(side="left")
         ttk.Combobox(browser_row, textvariable=self.fasih_browser,
-                     values=BROWSER_CHOICES, state="readonly", width=20).pack(side="left", padx=(10, 0))
-        ttk.Label(panel, text="Pemeriksaan portal dan login FASIH mengikuti browser yang dipilih.",
-                  style="Body.TLabel").pack(anchor="w", pady=(5, 0))
+                     values=BROWSER_CHOICES, state="readonly", width=27).pack(side="left", padx=(10, 0))
+        self.browser_hint = ttk.Label(
+            panel, text="", style="Body.TLabel",
+        )
+        self.browser_hint.pack(anchor="w", pady=(5, 0))
+        self.fasih_browser.trace_add("write", lambda *_: self._update_browser_hint())
+        self.after(80, self._update_browser_hint)
 
         account = ttk.Frame(root, style="Card.TFrame", padding=17)
         account.pack(fill="x", pady=(12, 0))
@@ -171,6 +178,28 @@ class Updater(tk.Tk):
         ttk.Label(root,
                   text="Mode online: login Google untuk Sheets tanpa service-account key. SSO FASIH tetap privat.",
                   style="Subtitle.TLabel").pack(anchor="w", pady=(11, 0))
+
+    def _update_browser_hint(self):
+        try:
+            chosen = resolve_browser(self.fasih_browser.get())
+        except FasihBrowserError:
+            chosen = None
+        if chosen:
+            self.browser_hint.configure(
+                text=("Browser default Windows: " if self.fasih_browser.get() == AUTO_BROWSER
+                      else "Browser pilihan manual: ") + chosen,
+            )
+        else:
+            self.browser_hint.configure(
+                text="Browser default belum dapat dikenali. Pilih browser manual untuk FASIH.",
+            )
+
+    def _chosen_browser(self) -> str | None:
+        try:
+            return resolve_browser(self.fasih_browser.get())
+        except FasihBrowserError as exc:
+            messagebox.showwarning("Browser FASIH", str(exc))
+            return None
 
     def pick_script(self):
         path = filedialog.askopenfilename(
@@ -245,6 +274,9 @@ class Updater(tk.Tk):
         if not username or not password:
             messagebox.showwarning(APP_TITLE, "Masukkan email/username dan password SSO FASIH.")
             return
+        browser = self._chosen_browser()
+        if not browser:
+            return
         confirmed = messagebox.askyesno(
             APP_TITLE,
             "Jalankan scraper dari file lokal yang dipilih?\n\n"
@@ -264,10 +296,10 @@ class Updater(tk.Tk):
         self.update_status()
         self.current_operation = "update"
         self._append_log("Mulai pembaruan manual dari " + script.name
-                         + " dengan browser " + self.fasih_browser.get())
+                         + " dengan browser " + browser)
         threading.Thread(
             target=self._run,
-            args=(script, self.online_mode.get(), sso_credentials, self.fasih_browser.get()),
+            args=(script, self.online_mode.get(), sso_credentials, browser),
             daemon=True,
         ).start()
 
@@ -326,7 +358,12 @@ class Updater(tk.Tk):
         self.running = True
         self.update_status()
         self.current_operation = "preflight"
-        browser = self.fasih_browser.get()
+        browser = self._chosen_browser()
+        if not browser:
+            self.running = False
+            self.current_operation = None
+            self.update_status()
+            return
         self._append_log("Memulai audit akses FASIH melalui " + browser
                          + " tanpa scraping atau login SSO...")
         threading.Thread(
