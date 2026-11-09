@@ -164,6 +164,7 @@ def main():
         factory.assert_called_once()
         self.assertEqual(factory.call_args.args[0], "Microsoft Edge")
         self.assertIn("on_progress", factory.call_args.kwargs)
+        self.assertTrue(factory.call_args.kwargs["diagnostic"])
 
     def test_shared_sso_credentials_required(self):
         self.script.write_text("pass\n", encoding="utf8")
