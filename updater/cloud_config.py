@@ -77,6 +77,35 @@ def read_public_settings(script_dir: Path, request_get=requests.get) -> dict:
     return settings
 
 
+def find_desktop_oauth_file(script_dir: Path, *, home: Path | None = None) -> Path | None:
+    """Temukan OAuth Desktop JSON resmi yang sudah ada di komputer.
+
+    Hanya mencari nama file standar di lokasi terbatas: folder aplikasi,
+    folder script, dan folder Unduhan. Tidak mengunggah, menyalin, maupun
+    membaca JSON lain yang kebetulan tersedia di komputer operator.
+    """
+    home = Path.home() if home is None else Path(home)
+    script_dir = Path(script_dir)
+    candidates = (
+        script_dir,
+        home / "Downloads",
+        home / "Download",
+        home / "OneDrive" / "Downloads",
+        home / "OneDrive" / "Download",
+        Path("D:/Download"),
+        Path("D:/Downloads"),
+    )
+    seen: set[str] = set()
+    for directory in candidates:
+        path = directory / "updater-oauth-desktop.json"
+        key = str(path).casefold()
+        if key not in seen:
+            seen.add(key)
+            if path.is_file():
+                return path
+    return None
+
+
 def read_desktop_oauth_client(
     script_dir: Path, expected_client_id: str, *, client_path: Path | None = None
 ) -> dict:
@@ -85,13 +114,18 @@ def read_desktop_oauth_client(
     Untuk diagnostik saja, operator dapat memilih JSON di folder Unduhan,
     tanpa memindahkan berkas atau menyalin client secret ke GitHub.
     """
-    path = Path(client_path) if client_path is not None else (
-        Path(script_dir) / "updater-oauth-desktop.json"
+    path = Path(client_path) if client_path is not None else find_desktop_oauth_file(
+        script_dir
     )
+    if path is None:
+        raise OnlineConfigError(
+            "File updater-oauth-desktop.json belum ditemukan di folder aplikasi "
+            "atau Download. Simpan file resmi dari Google Cloud di salah satu folder itu."
+        )
     if not path.is_file():
         raise OnlineConfigError(
-            "File updater-oauth-desktop.json belum disiapkan di PC. "
-            "Unduh OAuth Client tipe Desktop dari Google Cloud Console BPS."
+            "File OAuth Desktop tidak ditemukan. Simpan sebagai "
+            "updater-oauth-desktop.json di folder aplikasi atau Download."
         )
     try:
         data = json.loads(path.read_text(encoding="utf-8-sig"))
