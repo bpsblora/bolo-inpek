@@ -3,21 +3,14 @@
 Program berbasis Tkinter untuk menjalankan script scraping lama milik operator dari Windows tanpa membuka VS Code. VPN FortiClient tetap diaktifkan manual. Scraper menggunakan akun SSO yang email/username dan password-nya dimasukkan langsung pada form EXE saat pembaruan. Tidak ada password SSO dalam ZIP atau `.env` pada mode Online.
 
 
-## Pemilihan browser otomatis (Windows)
+## Browser FASIH wajib: Google Chrome + UC
 
-- Updater sekarang memilih **Otomatis (Default Windows)** secara bawaan. Browser FASIH mengikuti asosiasi protokol **HTTPS** Windows, sehingga jika default-nya Firefox/Edge/Chrome, browser itu yang digunakan untuk pemeriksaan dan Selenium.
-- Pengaturan Windows 11 terbaru `UserChoiceLatest` diprioritaskan sebelum `UserChoice` lama, untuk menghindari pembacaan browser default yang sudah berubah.
-- Nama browser terdeteksi tampil di bagian Persiapan Akses. Pilihan manual **Microsoft Edge**, **Mozilla Firefox**, atau **Google Chrome** tetap ada. Jika default Windows tidak dapat dideteksi atau tidak didukung, Updater menjelaskan dan meminta pilihan manual; tidak memaksa Chrome.
-- Login Google melalui browser default Windows tetap dipisahkan dari otomasi scraper FASIH. Masalah driver Selenium/proxy/API perlu ditangani tersendiri; tidak melewati pemeriksaan keamanan.
-- `enabled: false` tetap menonaktifkan sinkronisasi produksi hingga integrasi FASIH diuji dan disetujui.
-
-## Pengujian browser FASIH — 9 November 2026
-
-- Jika FASIH terbuka melalui Edge/Firefox tetapi Python `requests.get()` atau Google Chrome mengalami timeout, **jangan menyimpulkan VPN terputus**.
-- Di EXE pilih **Browser untuk FASIH** (default Otomatis / browser HTTPS Windows); klik **Periksa Persiapan** setelah VPN BPS tersambung. Aplikasi membuka sesi Selenium baru untuk menguji portal resmi HTTPS tanpa melakukan login atau scraping.
-- Saat pembaruan diizinkan, browser yang sama dipakai pada scraper dan portal diperiksa ulang sebelum login SSO. Pemeriksaan tidak dilewati secara manual dan verifikasi TLS tidak dinonaktifkan.
-- Lolos uji browser **belum membuktikan** sesi API `requests` berhasil. Jika API FASIH selanjutnya timeout, administrator TI perlu memeriksa proxy/rute jaringan Python dan kebijakan portal. Selenium Manager mungkin perlu mengunduh `msedgedriver`/`geckodriver` saat pertama kali digunakan, sesuai versi browser setempat.
-- **Mode tulis produksi tetap belum diaktifkan** sampai uji end-to-end disetujui.
+- Pemeriksaan akses FASIH, uji login SSO Eksternal, dan scraping FASIH menggunakan **Google Chrome + undetected_chromedriver (UC)** saja.
+- Mode UC menggunakan `use_subprocess=True` dan mendeteksi versi Chrome otomatis (`version_main=None`).
+- Tidak ada dropdown browser atau pemilihan browser default Windows. Permintaan Firefox, Edge, atau browser otomatis ditolak di modul WebDriver.
+- Login Google OAuth merupakan alur terpisah melalui browser sistem untuk persetujuan akses Sheets; aturan Chrome di atas khusus FASIH.
+- Pemeriksaan halaman FASIH tetap memerlukan VPN BPS, HTTPS dan domain BPS resmi. Uji SSO tidak menulis data; fitur sinkronisasi produksi tetap terpisah.
+- Jika Chrome/UC gagal memulai, periksa Riwayat Proses dan kondisi instalasi Chrome di PC operator. Jangan menonaktifkan verifikasi TLS atau melewati pemeriksaan VPN.
 
 ## Perubahan terakhir: Akun SSO pada aplikasi
 
@@ -61,10 +54,10 @@ Pada tombol diagnostik ini, file publik `updater-settings.json` dibundel sebagai
 ## Urutan VPN → FASIH → SSO (WAJIB)
 
 1. **Operator menyambungkan VPN FortiClient secara manual** sesuai prosedur TI BPS. Aplikasi tidak menghubungkan, mengubah, atau melewati VPN.
-2. **Updater menguji portal** `https://fasih-sm.bps.go.id/app` melalui browser yang dipilih (default **Microsoft Edge**). Redirect ke SSO HTTPS BPS adalah tanda portal dapat dibuka, bukan bukti login atau akses API berhasil.
+2. **Updater menguji portal** `https://fasih-sm.bps.go.id/app` hanya melalui Google Chrome + UC. Redirect ke SSO HTTPS BPS adalah tanda portal dapat dibuka, bukan bukti login atau akses API berhasil.
 3. **Jika FASIH tidak terjangkau**, updater berhenti dengan pesan periksa VPN. Tidak melanjutkan login SSO maupun mengambil data.
 4. Setelah akses portal lolos, updater memeriksa dua Google Sheets dan (mode online) mengambil konfigurasi survei terbaru dengan akun Google operator.
-5. **Baru setelah itu Python membuka browser yang dipilih (Edge/Firefox/Chrome) dan login SSO dengan akun berwenang yang diisi di form EXE**, kemudian mengambil assignment dan menulis hasil ke Sheets.
+5. **Baru setelah itu Python membuka Google Chrome + UC dan login SSO dengan akun berwenang yang diisi di form EXE**, kemudian mengambil assignment dan menulis hasil ke Sheets.
 6. Sebelum Python asli memulai login SSO, pemeriksaan FASIH dijalankan **ulang secara wajib**. Mekanisme lama yang melanjutkan proses walaupun pemeriksaan koneksi gagal telah dinonaktifkan.
 
 Pemeriksaan portal menilai keterjangkauan jaringan, **bukan** status aplikasi FortiClient secara langsung. Jika portal tiba-tiba tidak bisa diakses saat VPN terputus, scraping dibatalkan sebelum SSO; jika VPN terputus saat scraping berlangsung, proses bisa gagal dan memerlukan pemeriksaan ulang.
@@ -137,14 +130,14 @@ FASIH belum diuji end-to-end melalui VPN pada PC operator.
 
 - Antarmuka Windows: pilih file Python, periksa berkas, konfirmasi VPN, mulai scraping, lihat log lokal, dan buka dashboard.
 - Bridge mempertahankan fungsi login SSO bawaan scraper lama namun membaca identitas SSO dari form EXE (hanya selama proses berlangsung). Email/password tidak dikirim ke GitHub, dashboard, atau log aplikasi.
-- Edge/Firefox memakai Selenium Manager untuk mencari driver sesuai browser terpasang; Chrome tetap tersedia sebagai pilihan, tidak lagi dikunci pada versi tertentu.
+- Google Chrome + UC menjadi satu-satunya driver FASIH; UC menyesuaikan versi Chrome secara otomatis.
 - Pengambilan assignment, pegawai, status, dan upload Google Sheets masih menggunakan fungsi dari script Python lama.
 - Panel Admin (branch dev-admin-v2) mendukung impor, edit dan penyimpanan tujuh field FASIH secara privat. Mode online di Updater membaca Firestore secara langsung; mode lokal tetap tersedia untuk uji.
 - BELUM diuji end-to-end dengan VPN/SSO/FASIH asli.
 
 ## Persyaratan PC operator
 
-1. Windows, Microsoft Edge (disarankan) atau Firefox/Chrome, dan VPN BPS yang dikonfigurasi secara resmi.
+1. Windows, Google Chrome, dan VPN BPS yang dikonfigurasi secara resmi.
 2. BOLO-INPEK-Updater.exe dari artifact workflow GitHub Actions branch dev-admin-v2.
 3. Salinan internal script lama (ambil_data_monitoring_inpek_v2.py). Untuk **mode Online (direkomendasikan)**, berkas privat yang diperlukan pada PC:
    - Email/username dan password SSO diisikan pada form EXE saat setiap pembaruan. **Tidak perlu file .env untuk mode Online**;
@@ -163,7 +156,7 @@ File konfigurasi/kredensial dan script internal TIDAK boleh dimasukkan ke reposi
 4. Isi **Email/Username SSO** serta **Password SSO** langsung di EXE, pilih mode Online, kemudian centang konfirmasi VPN BPS.
 5. Klik **Periksa Persiapan** untuk memvalidasi struktur OAuth dan akses FASIH (jika VPN telah diaktifkan). Mode Lokal juga memeriksa akses baca kedua Sheets; mode Online memeriksa izin Sheets saat login operator sebelum scraping.
 6. Setelah penyiapan disetujui, tekan **Perbarui Data FASIH**. Mode online akan meminta login Google operator untuk membaca konfigurasi privat.
-7. Saat Edge/Firefox/Chrome FASIH terbuka, scraper menggunakan akun SSO yang dimasukkan melalui form EXE. Selesaikan OTP/MFA secara manual apabila sistem memintanya.
+7. Saat Google Chrome FASIH terbuka, scraper menggunakan akun SSO yang dimasukkan melalui form EXE. Selesaikan OTP/MFA secara manual apabila sistem memintanya.
 8. Tunggu scraping dan upload ke **dua spreadsheet** selesai; periksa keduanya sebelum menganggap data telah sinkron.
 9. Periksa waktu dan isi monitoring pada dashboard.
 
@@ -183,7 +176,7 @@ Untuk menjalankan sumber saat debugging di PC developer:
 - Aplikasi memuat file Python lokal tepercaya pilihan operator. Jangan memilih script yang tidak dikenal.
 - Tidak menyimpan password SSO di file, EXE, GitHub, atau log; kolom password dikosongkan setelah pembaruan dimulai. Cookie tidak dipindahkan antar komputer.
 - Menulis ke Sheets sesuai hak akses konfigurasi lokal.
-- Build sukses belum membuktikan Selenium dapat dipakai di FASIH. Uji browser terpilih, SSO, VPN, panggilan API FASIH, dan penulisan spreadsheet wajib sebelum produksi.
+- Build sukses belum membuktikan Selenium dapat dipakai di FASIH. Uji Chrome UC, SSO, VPN, panggilan API FASIH, dan penulisan spreadsheet wajib sebelum produksi.
 - Admin dapat mengubah daftar survei melalui website tanpa mengedit Python. Updater mengambil konfigurasi otomatis saat setiap run setelah Firebase dan OAuth Desktop diaktifkan.
 - Jangan letakkan ID FASIH, service-account JSON, ataupun data responden dalam repository publik. Koleksi Firestore scraper_configs dapat dibaca hanya oleh admin atau operator updater yang diberi izin; hanya admin boleh mengubahnya.
 - Scraper lama melewati verifikasi sertifikat HTTPS; bridge Updater kini memaksa verifikasi sertifikat pada request FASIH dan sesi API. Jika jaringan BPS memerlukan CA internal, mintakan CA resmi dari IT (jangan menggunakan verify=False).
