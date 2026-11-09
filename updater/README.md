@@ -12,6 +12,16 @@ Program berbasis Tkinter untuk menjalankan script scraping lama milik operator d
 - Pemeriksaan halaman FASIH tetap memerlukan VPN BPS, HTTPS dan domain BPS resmi. Uji SSO tidak menulis data; fitur sinkronisasi produksi tetap terpisah.
 - Jika Chrome/UC gagal memulai, periksa Riwayat Proses dan kondisi instalasi Chrome di PC operator. Jangan menonaktifkan verifikasi TLS atau melewati pemeriksaan VPN.
 
+## Uji Pengambilan Data FASIH — baca saja
+
+- Gunakan **Survei untuk Uji Baca** (sumber pilihan dari `config_survei.json` lokal), lalu klik **Uji Pengambilan Data (Baca Saja)**.
+- Wajib menggunakan Google Chrome + UC, VPN BPS, dan akun SSO Eksternal yang berwenang. Password kembali diminta karena kolom dikosongkan sesudah pengujian sebelumnya.
+- Tidak memanggil `main()`, `tes_ambil_semua_survei()`, `upload_data_monitoring()`, `upload_sumber_tindak_lanjut()`, Firebase, atau Google Sheets.
+- Hanya **satu POST pencarian** ke endpoint `/app/api/analytic/api/v2/assignment/datatable-all-user-survey-periode` (fungsi pencarian DataTables, **bukan operasi tulis data**); payload `start=0`, `length=20`, dan ID periode dari survei terpilih.
+- Cookie dan User-Agent diambil dari sesi WebDriver yang sudah login, dengan verifikasi HTTPS tetap aktif. Tidak ada cookie, nama responden, ID assignment, atau respons mentah yang dicetak/disimpan; hanya jumlah sampel, status dan validitas field.
+- Tidak ada output file laporan atau perubahan Google Sheets. Koneksi API dari Python dapat gagal walaupun login via Chrome sudah berhasil; hal itu dilaporkan tanpa meneruskan ke proses update.
+- Mode sinkronisasi online produksi tetap dinonaktifkan oleh pengelola. Hasil uji baca tidak membuktikan fitur penulisan Sheets.
+
 ## Perubahan terakhir: Akun SSO pada aplikasi
 
 - **Email/Username SSO** dan **Password SSO** kini diminta langsung pada jendela EXE.
