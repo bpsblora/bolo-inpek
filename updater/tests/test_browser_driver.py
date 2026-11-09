@@ -5,6 +5,7 @@ from unittest.mock import patch, MagicMock
 from browser_driver import (
     AUTO_BROWSER, BROWSER_CHOICES, FasihBrowserError, resolve_browser,
     _browser_from_progid, _default_https_progid, verify_fasih_in_browser,
+    open_fasih_browser,
 )
 
 
@@ -75,6 +76,33 @@ class FASIHBrowserReadinessTests(unittest.TestCase):
         with patch("browser_driver._default_https_progid", return_value=None):
             with self.assertRaisesRegex(FasihBrowserError, "belum dapat dibaca"):
                 resolve_browser(AUTO_BROWSER)
+
+    def test_chrome_uses_uc_subprocess_and_detects_version(self):
+        with patch("undetected_chromedriver.Chrome") as create:
+            log = []
+            driver = open_fasih_browser("Google Chrome", on_progress=log.append)
+            self.assertIs(driver, create.return_value)
+            self.assertTrue(create.call_args.kwargs["use_subprocess"])
+            self.assertIsNone(create.call_args.kwargs["version_main"])
+            self.assertTrue(any("undetected_chromedriver" in line for line in log))
+
+    def test_chrome_uc_launch_failure_gives_specific_guidance(self):
+        with patch("undetected_chromedriver.Chrome",
+                   side_effect=RuntimeError("SECRET_INTERNAL_DRIVER_PATH")):
+            with self.assertRaisesRegex(FasihBrowserError, "UC tidak berhasil") as result:
+                open_fasih_browser("Google Chrome")
+        self.assertIn("pilih Firefox", str(result.exception))
+        self.assertNotIn("SECRET_INTERNAL_DRIVER_PATH", str(result.exception))
+
+    def test_selenium_firefox_and_edge_separate_from_uc(self):
+        with patch("selenium.webdriver.Firefox") as create_firefox:
+            driver = open_fasih_browser("Mozilla Firefox")
+            self.assertIs(driver, create_firefox.return_value)
+            create_firefox.assert_called_once()
+        with patch("selenium.webdriver.Edge") as create_edge:
+            driver = open_fasih_browser("Microsoft Edge")
+            self.assertIs(driver, create_edge.return_value)
+            create_edge.assert_called_once()
 
     def test_edge_success_confirms_only_portal_navigation(self):
         browser = FakeBrowser()
