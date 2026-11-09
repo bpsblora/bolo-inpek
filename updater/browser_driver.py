@@ -30,13 +30,13 @@ def _default_https_progid() -> str | None:
     except ImportError:
         return None
     root = (
-        r"Software\\Microsoft\\Windows\\Shell\\Associations"
-        r"\\UrlAssociations\\https"
+        r"Software\Microsoft\Windows\Shell\Associations"
+        r"\UrlAssociations\https"
     )
     for subkey in ("UserChoiceLatest", "UserChoice"):
         try:
             with winreg.OpenKey(
-                winreg.HKEY_CURRENT_USER, root + "\\\\" + subkey
+                winreg.HKEY_CURRENT_USER, root + "\\" + subkey
             ) as handle:
                 value, _ = winreg.QueryValueEx(handle, "ProgId")
             if isinstance(value, str) and value.strip():
