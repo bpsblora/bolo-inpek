@@ -22,6 +22,19 @@ Mode **Lokal** tetap memakai service account dan kedua ID dari `.env` untuk menj
 
 **Penting:** status share dari kedua spreadsheet saat audit tampak memberi hak Editor kepada siapa pun yang mempunyai link. Pemilik menyatakan pengaturan ini memang diperuntukkan bagi internal. Integrasi tidak mengubah izin yang ada; keamanan tetap bergantung pada kontrol distribusi tautan, serta perlu dikaji jika kebijakan akses kantor berubah.
 
+## Uji Login Google (tanpa VPN / FASIH / scraping)
+
+Jika halaman Google Auth Platform sudah menunjukkan Branding tersimpan, jalankan pengujian autentikasi **terpisah** terlebih dahulu:
+
+1. Unduh EXE dari Actions branch `dev-admin-v2`, jalankan Windows portable.
+2. Klik tombol **Uji Login Google**. Tidak perlu memilih script Python, mengaktifkan VPN, menyediakan `.env`, atau menyediakan `credentials.json`.
+3. Pilih berkas OAuth Desktop JSON yang tersimpan di PC (misalnya `D:\\Download\\updater-oauth-desktop.json`). JSON tidak diunggah ke GitHub; dipilih langsung melalui dialog file.
+4. Login memakai akun Google operator yang telah diberi izin Firebase (untuk percobaan awal: admin `bpsblora@gmail.com`). Bila Google menampilkan peringatan aplikasi belum diverifikasi karena scope sensitif, ikuti kebijakan keamanan instansi, dan jangan menyetujui izin jika sumber aplikasi tidak terverifikasi/diyakini.
+5. Updater menguji pertukaran login Google ke Firebase, membaca dokumen `system_config/sheets`, lalu **membaca saja** metadata tab kedua spreadsheet tujuan melalui akun operator.
+6. Pop-up **Uji Login Google Berhasil** hanya muncul setelah seluruh tahap lolos. Jika belum berhasil, lihat alasan kegagalan pada riwayat aplikasi.
+
+Pada tombol diagnostik ini, file publik `updater-settings.json` dibundel sebagai identitas aplikasi yang tidak rahasia. Nilai `enabled: false` tetap berlaku untuk pembaruan produksi; hanya pemeriksaan baca sengaja boleh berjalan tanpa aktivasi. **Tombol diagnostik tidak** menggunakan SSO Jose Dummy, tidak membuka FASIH, tidak menulis file konfigurasi, tidak menyimpan token, tidak menjalankan scraping, dan tidak mengubah Google Sheets. Tetap diperlukan persetujuan dan uji end-to-end terpisah sebelum produksi.
+
 ## Urutan VPN → FASIH → SSO (WAJIB)
 
 1. **Operator menyambungkan VPN FortiClient secara manual** sesuai prosedur TI BPS. Aplikasi tidak menghubungkan, mengubah, atau melewati VPN.
