@@ -166,6 +166,10 @@ def verify_fasih_in_browser(
                     FASIH_HOST, "sso.bps.go.id", "sso-eksternal.bps.go.id"
                 )
             )
+            if host == FASIH_HOST and address.scheme == "http":
+                raise FasihBrowserError(
+                    "Browser diarahkan ke FASIH non-HTTPS. Pemeriksaan dibatalkan."
+                )
             if approved:
                 last_host = host
                 try:
