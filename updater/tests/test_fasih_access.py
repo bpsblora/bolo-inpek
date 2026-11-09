@@ -57,7 +57,8 @@ class FasihVPNTests(unittest.TestCase):
     def test_failed_fasih_notice_does_not_assume_vpn_disconnected(self):
         notice = fasih_failure_notice("Server membalas HTTP 403")
         self.assertIn("HTTP 403", notice)
-        self.assertIn("Chrome", notice)
+        self.assertIn("Microsoft Edge", notice)
+        self.assertIn("Mozilla Firefox", notice)
         self.assertIn("https://fasih-sm.bps.go.id/app", notice)
         self.assertNotIn("VPN BPS belum tersambung", notice)
 
