@@ -136,7 +136,9 @@ def test_sso_login(
         report("Membuka " + browser + " untuk uji SSO FASIH (tanpa scraping)...")
         driver = (
             browser_factory(browser) if browser_factory is not None
-            else open_fasih_browser(browser, diagnostic=True)
+            else open_fasih_browser(
+                browser, diagnostic=True, on_progress=report,
+            )
         )
         driver.set_page_load_timeout(50)
         with redirect_stdout(output), redirect_stderr(output):
