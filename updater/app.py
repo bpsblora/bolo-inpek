@@ -16,7 +16,7 @@ import webbrowser
 
 from legacy_bridge import check_files, run_legacy_scraper
 from cloud_config import synchronize_online, read_public_settings, read_desktop_oauth_client, find_desktop_oauth_file
-from preflight import preflight_google_sheets, verify_google_sheets_client, read_shared_sso_setup, read_local_setup, PreflightError
+from preflight import preflight_google_sheets, verify_google_sheets_client, read_local_setup, PreflightError
 from operator_google import login_operator
 from google_diagnostic import run_read_only_google_test, load_diagnostic_settings
 from run_lock import local_update_lock
@@ -36,8 +36,8 @@ class Updater(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title(APP_TITLE + " • Portable")
-        self.geometry("850x670")
-        self.minsize(650, 540)
+        self.geometry("910x790")
+        self.minsize(720, 680)
         self.configure(bg="#edf4ff")
         self.events: Queue[tuple[str, str]] = Queue()
         self.running = False
@@ -243,8 +243,9 @@ class Updater(tk.Tk):
             ("Updater akan mengambil daftar survei TERBARU dari BOLO INPEK online. "
              "Akun Google yang diberi izin perlu login untuk membaca ID FASIH. "
              if self.online_mode.get() else "Updater menggunakan konfigurasi uji lokal. ")
-            + "Chrome FASIH menggunakan akun SSO bersama dari konfigurasi privat. "
-            + "Hasilnya akan ditulis ke Google Sheets."
+            + "Login SSO FASIH menggunakan email dan password yang baru saja "
+            + "diisi pada aplikasi. Password tidak disimpan ke file. "
+            + "Hasil pembaruan akan ditulis ke kedua Google Sheets."
         )
         if not confirmed:
             return
