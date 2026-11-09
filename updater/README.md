@@ -3,10 +3,18 @@
 Program berbasis Tkinter untuk menjalankan script scraping lama milik operator dari Windows tanpa membuka VS Code. VPN FortiClient tetap diaktifkan manual. Scraper menggunakan akun SSO yang email/username dan password-nya dimasukkan langsung pada form EXE saat pembaruan. Tidak ada password SSO dalam ZIP atau `.env` pada mode Online.
 
 
+## Pemilihan browser otomatis (Windows)
+
+- Updater sekarang memilih **Otomatis (Default Windows)** secara bawaan. Browser FASIH mengikuti asosiasi protokol **HTTPS** Windows, sehingga jika default-nya Firefox/Edge/Chrome, browser itu yang digunakan untuk pemeriksaan dan Selenium.
+- Pengaturan Windows 11 terbaru `UserChoiceLatest` diprioritaskan sebelum `UserChoice` lama, untuk menghindari pembacaan browser default yang sudah berubah.
+- Nama browser terdeteksi tampil di bagian Persiapan Akses. Pilihan manual **Microsoft Edge**, **Mozilla Firefox**, atau **Google Chrome** tetap ada. Jika default Windows tidak dapat dideteksi atau tidak didukung, Updater menjelaskan dan meminta pilihan manual; tidak memaksa Chrome.
+- Login Google melalui browser default Windows tetap dipisahkan dari otomasi scraper FASIH. Masalah driver Selenium/proxy/API perlu ditangani tersendiri; tidak melewati pemeriksaan keamanan.
+- `enabled: false` tetap menonaktifkan sinkronisasi produksi hingga integrasi FASIH diuji dan disetujui.
+
 ## Pengujian browser FASIH — 9 November 2026
 
 - Jika FASIH terbuka melalui Edge/Firefox tetapi Python `requests.get()` atau Google Chrome mengalami timeout, **jangan menyimpulkan VPN terputus**.
-- Di EXE pilih **Browser untuk FASIH** (default Microsoft Edge); klik **Periksa Persiapan** setelah VPN BPS tersambung. Aplikasi membuka sesi Selenium baru untuk menguji portal resmi HTTPS tanpa melakukan login atau scraping.
+- Di EXE pilih **Browser untuk FASIH** (default Otomatis / browser HTTPS Windows); klik **Periksa Persiapan** setelah VPN BPS tersambung. Aplikasi membuka sesi Selenium baru untuk menguji portal resmi HTTPS tanpa melakukan login atau scraping.
 - Saat pembaruan diizinkan, browser yang sama dipakai pada scraper dan portal diperiksa ulang sebelum login SSO. Pemeriksaan tidak dilewati secara manual dan verifikasi TLS tidak dinonaktifkan.
 - Lolos uji browser **belum membuktikan** sesi API `requests` berhasil. Jika API FASIH selanjutnya timeout, administrator TI perlu memeriksa proxy/rute jaringan Python dan kebijakan portal. Selenium Manager mungkin perlu mengunduh `msedgedriver`/`geckodriver` saat pertama kali digunakan, sesuai versi browser setempat.
 - **Mode tulis produksi tetap belum diaktifkan** sampai uji end-to-end disetujui.
