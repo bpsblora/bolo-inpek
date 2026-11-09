@@ -41,6 +41,7 @@ class Updater(tk.Tk):
         self.configure(bg="#edf4ff")
         self.events: Queue[tuple[str, str]] = Queue()
         self.running = False
+        self._missing_local_script = False
         self.selected_script = tk.StringVar()
         self.vpn_confirmed = tk.BooleanVar(value=False)
         self.online_mode = tk.BooleanVar(value=True)
@@ -50,6 +51,8 @@ class Updater(tk.Tk):
         guessed = application_directory() / "ambil_data_monitoring_inpek_v2.py"
         if guessed.is_file():
             self.selected_script.set(str(guessed))
+        else:
+            self._missing_local_script = True
         self.after(150, self.update_status)
         self.after(120, self.drain_events)
 
@@ -80,22 +83,22 @@ class Updater(tk.Tk):
         panel = ttk.Frame(root, style="Card.TFrame", padding=17)
         panel.pack(fill="x")
         ttk.Label(panel, text="1. Persiapan Akses", style="Section.TLabel").pack(anchor="w")
-        ttk.Label(panel, text="Hubungkan FortiClient VPN menggunakan prosedur resmi BPS.",
+        ttk.Label(panel, text="Hubungkan VPN BPS sebelum mengakses FASIH.",
                   style="Body.TLabel").pack(anchor="w", pady=(6, 8))
-        ttk.Checkbutton(panel, text="Saya sudah mengaktifkan VPN FortiClient dan berwenang mengakses FASIH",
+        ttk.Checkbutton(panel, text="Saya sudah terhubung ke VPN BPS dan berwenang mengakses FASIH",
                         variable=self.vpn_confirmed, command=self.update_status).pack(anchor="w")
         ttk.Label(panel, text="Sebelum login SSO, Updater akan memastikan portal FASIH dapat diakses melalui jaringan.",
                   style="Body.TLabel").pack(anchor="w", pady=(3, 0))
 
         scripts = ttk.Frame(root, style="Card.TFrame", padding=17)
         scripts.pack(fill="x", pady=(12, 0))
-        ttk.Label(scripts, text="2. Script Scraping Lokal", style="Section.TLabel").pack(anchor="w")
-        ttk.Label(scripts, text="Script dan akun SSO bersama tetap privat; survei dan tujuan Sheets dibaca dari Firebase.",
+        ttk.Label(scripts, text="2. Script Scraping FASIH", style="Section.TLabel").pack(anchor="w")
+        ttk.Label(scripts, text="File script dari paket internal digunakan saat pembaruan FASIH. Untuk Uji Login Google, tidak perlu diisi.",
                   style="Body.TLabel").pack(anchor="w", pady=(5, 10))
         entry_row = ttk.Frame(scripts, style="Card.TFrame")
         entry_row.pack(fill="x")
         ttk.Entry(entry_row, textvariable=self.selected_script).pack(side="left", fill="x", expand=True)
-        ttk.Button(entry_row, text="Pilih File", command=self.pick_script,
+        ttk.Button(entry_row, text="Pilih Script (.py)", command=self.pick_script,
                    style="Normal.TButton").pack(side="left", padx=(7, 0))
         self.file_status = ttk.Label(scripts, text="", style="Body.TLabel",
                                      wraplength=760, justify="left")
@@ -134,7 +137,7 @@ class Updater(tk.Tk):
             padx=10, pady=10, state="disabled"
         )
         self.log_window.pack(fill="both", expand=True)
-        self._append_log("Siap memeriksa file. Scraper memakai akun SSO bersama dari .env lokal.")
+        self._append_log("Uji Login Google dapat dijalankan tanpa script, VPN BPS, atau akun SSO.")
         ttk.Label(root,
                   text="Mode online: login Google untuk Sheets tanpa service-account key. SSO FASIH tetap privat.",
                   style="Subtitle.TLabel").pack(anchor="w", pady=(11, 0))
@@ -146,6 +149,7 @@ class Updater(tk.Tk):
         )
         if path:
             self.selected_script.set(path)
+            self._missing_local_script = False
         self.update_status()
 
     def update_status(self):
@@ -164,7 +168,12 @@ class Updater(tk.Tk):
             except PreflightError as exc:
                 problems.append(str(exc))
         if problems:
-            self.file_status.configure(text="Persiapan: " + " | ".join(problems))
+            hint = (
+                "Untuk pembaruan FASIH pilih ambil_data_monitoring_inpek_v2.py "
+                "dari folder hasil ekstrak paket internal. "
+                if self._missing_local_script and not self.selected_script.get() else ""
+            )
+            self.file_status.configure(text="Persiapan: " + hint + " | ".join(problems))
         else:
             self.file_status.configure(text=(
                 "Mode online: daftar survei diperiksa saat pembaruan. "
@@ -192,7 +201,7 @@ class Updater(tk.Tk):
             require_config=not self.online_mode.get(),
             require_google_credentials=not self.online_mode.get(),
         ):
-            messagebox.showwarning(APP_TITLE, "Periksa VPN dan berkas pendukung terlebih dahulu.")
+            messagebox.showwarning(APP_TITLE, "Periksa VPN BPS dan berkas pendukung terlebih dahulu.")
             return
         try:
             if self.online_mode.get():
@@ -278,11 +287,11 @@ class Updater(tk.Tk):
             def report(line):
                 self.events.put(("log", str(line)))
             if self.vpn_confirmed.get():
-                report("Memeriksa apakah portal FASIH dapat diakses setelah VPN tersambung...")
+                report("Memeriksa apakah portal FASIH dapat diakses setelah VPN BPS tersambung...")
                 verify_fasih_access()
                 report("Portal FASIH dapat diakses. Belum melakukan login SSO.")
             else:
-                report("Pemeriksaan FASIH dilewati: operator belum mengonfirmasi VPN.")
+                report("Pemeriksaan FASIH dilewati: operator belum mengonfirmasi VPN BPS.")
             if online:
                 read_shared_sso_setup(script_dir)
                 settings = read_public_settings(script_dir)
@@ -309,7 +318,7 @@ class Updater(tk.Tk):
             def report(line):
                 self.events.put(("log", str(line)))
             with local_update_lock(script.parent):
-                report("Memastikan portal FASIH dapat dibuka setelah VPN Connected...")
+                report("Memastikan portal FASIH dapat dibuka setelah VPN BPS tersambung...")
                 verify_fasih_access()
                 report("Portal FASIH terjangkau. Lanjut memeriksa persiapan.")
                 if use_online:
