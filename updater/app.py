@@ -110,8 +110,8 @@ class Updater(tk.Tk):
 
         account = ttk.Frame(root, style="Card.TFrame", padding=17)
         account.pack(fill="x", pady=(12, 0))
-        ttk.Label(account, text="2. Akun SSO FASIH", style="Section.TLabel").pack(anchor="w")
-        ttk.Label(account, text="Isi akun SSO yang berwenang. Tidak disimpan ke file atau Google Sheets.",
+        ttk.Label(account, text="2. Akun SSO Eksternal FASIH", style="Section.TLabel").pack(anchor="w")
+        ttk.Label(account, text="Gunakan akun SSO Eksternal FASIH (bukan login Google atau SSO BPS pegawai).",
                   style="Body.TLabel").pack(anchor="w", pady=(3, 8))
         account_inputs = ttk.Frame(account, style="Card.TFrame")
         account_inputs.pack(fill="x")
@@ -161,7 +161,7 @@ class Updater(tk.Tk):
                    style="Normal.TButton").pack(side="left", padx=(8, 0))
         ttk.Button(controls, text="Uji Login Google", command=self.start_google_diagnostic,
                    style="Normal.TButton").pack(side="left", padx=(8, 0))
-        ttk.Button(controls, text="Uji Login SSO", command=self.start_sso_diagnostic,
+        ttk.Button(controls, text="Uji SSO Eksternal", command=self.start_sso_diagnostic,
                    style="Normal.TButton").pack(side="left", padx=(8, 0))
         ttk.Button(controls, text="Buka Dashboard", command=lambda: webbrowser.open(DASHBOARD_URL),
                    style="Normal.TButton").pack(side="left", padx=9)
@@ -323,7 +323,7 @@ class Updater(tk.Tk):
         username = self.sso_username.get().strip()
         password = self.sso_password.get()
         if not username or not password:
-            messagebox.showwarning("Uji Login SSO", "Isi email/username dan password SSO pada aplikasi.")
+            messagebox.showwarning("Uji Login SSO", "Isi akun SSO Eksternal FASIH, bukan akun login Google.")
             return
         browser = self._chosen_browser()
         if not browser:
