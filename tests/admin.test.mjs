@@ -4,7 +4,8 @@ import {readFileSync} from 'node:fs';
 
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const admin = readFileSync(new URL('../admin.js', import.meta.url), 'utf8');
-const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+const inlineScripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
+const script = inlineScripts.find(x => x.includes('function validatePayload('));
 if (!script) throw new Error('Dashboard inline script not found');
 
 function extractFunction(src, name) {
@@ -24,7 +25,7 @@ function extractFunction(src, name) {
 
 test('scripts preserve valid JavaScript syntax', () => {
   assert.doesNotThrow(() => new Function(admin));
-  assert.doesNotThrow(() => new Function(script));
+  for (const source of inlineScripts) assert.doesNotThrow(() => new Function(source));
   assert.match(html, /src="\.\/admin\.js"/);
   assert.match(html, /href="\.\/admin\.css"/);
 });
