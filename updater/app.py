@@ -19,6 +19,7 @@ from cloud_config import synchronize_online, read_public_settings, read_desktop_
 from preflight import preflight_google_sheets, verify_google_sheets_client, read_local_setup, PreflightError
 from operator_google import login_operator
 from google_diagnostic import run_read_only_google_test, load_diagnostic_settings
+from sso_diagnostic import test_sso_login, SSOTestError
 from run_lock import local_update_lock
 from fasih_access import FasihAccessError, fasih_failure_notice
 from browser_driver import (
@@ -159,6 +160,8 @@ class Updater(tk.Tk):
         ttk.Button(controls, text="Periksa Persiapan", command=self.check_preparation,
                    style="Normal.TButton").pack(side="left", padx=(8, 0))
         ttk.Button(controls, text="Uji Login Google", command=self.start_google_diagnostic,
+                   style="Normal.TButton").pack(side="left", padx=(8, 0))
+        ttk.Button(controls, text="Uji Login SSO", command=self.start_sso_diagnostic,
                    style="Normal.TButton").pack(side="left", padx=(8, 0))
         ttk.Button(controls, text="Buka Dashboard", command=lambda: webbrowser.open(DASHBOARD_URL),
                    style="Normal.TButton").pack(side="left", padx=9)
@@ -302,6 +305,72 @@ class Updater(tk.Tk):
             args=(script, self.online_mode.get(), sso_credentials, browser),
             daemon=True,
         ).start()
+
+    def start_sso_diagnostic(self):
+        """Uji login SSO saja, tanpa memanggil main() atau API/Sheets."""
+        if self.running:
+            return
+        if not self.vpn_confirmed.get():
+            messagebox.showwarning("Uji Login SSO", "Sambungkan dan konfirmasi VPN BPS terlebih dahulu.")
+            return
+        script = Path(self.selected_script.get() or "")
+        if check_files(
+            script, require_config=False, require_google_credentials=False,
+            require_sso_env=False,
+        ):
+            messagebox.showwarning("Uji Login SSO", "Script internal FASIH belum ditemukan.")
+            return
+        username = self.sso_username.get().strip()
+        password = self.sso_password.get()
+        if not username or not password:
+            messagebox.showwarning("Uji Login SSO", "Isi email/username dan password SSO pada aplikasi.")
+            return
+        browser = self._chosen_browser()
+        if not browser:
+            return
+        confirmed = messagebox.askyesno(
+            "Uji Login SSO FASIH",
+            "Masuk ke SSO Eksternal FASIH menggunakan akun yang diisi?\\n\\n"
+            "Hanya menguji autentikasi dan kembali ke halaman FASIH. "
+            "Tidak menjalankan scraping, tidak membaca assignment, "
+            "dan tidak menulis ke Google Sheets.\\n\\n"
+            "Browser uji akan ditutup setelah proses selesai.",
+        )
+        if not confirmed:
+            return
+        credentials = (username, password)
+        self.sso_password.set("")
+        self.running = True
+        self.current_operation = "sso_test"
+        self.update_status()
+        self.status.set("Menguji SSO")
+        self._append_log("Memulai uji login SSO FASIH tanpa scraping menggunakan " + browser + ".")
+        threading.Thread(
+            target=self._sso_diagnostic_worker,
+            args=(script, browser, credentials), daemon=True
+        ).start()
+
+    def _sso_diagnostic_worker(self, script: Path, browser: str, credentials: tuple[str, str]):
+        try:
+            test_sso_login(
+                script, browser, credentials[0], credentials[1],
+                lambda line: self.events.put(("log", str(line))),
+            )
+            self.events.put((
+                "sso_test_done",
+                "Login SSO FASIH berhasil diuji melalui " + browser
+                + ". Tidak ada scraping atau perubahan Google Sheets."
+            ))
+        except Exception as error:
+            # Never expose SSO credentials, raw network URLs, or server responses.
+            message = (
+                str(error) if isinstance(error, SSOTestError)
+                else "Uji SSO gagal (" + type(error).__name__ + ")."
+            )
+            for value in credentials:
+                if len(value) >= 3:
+                    message = message.replace(value, "[RAHASIA]")
+            self.events.put(("failed", message))
 
     def start_google_diagnostic(self):
         """Tombol aman: login Google + cek akses baca saja, tanpa VPN dan .env."""
@@ -460,7 +529,7 @@ class Updater(tk.Tk):
                 break
             if kind == "log":
                 self._append_log(text)
-            elif kind in ("done", "failed", "fasih_unreachable", "google_test_done"):
+            elif kind in ("done", "failed", "fasih_unreachable", "google_test_done", "sso_test_done"):
                 self.running = False
                 operation = self.current_operation
                 self.current_operation = None
@@ -468,6 +537,10 @@ class Updater(tk.Tk):
                     self._append_log("[✓] " + text)
                     self.update_status()
                     messagebox.showinfo("Uji Login Google Berhasil", text)
+                elif kind == "sso_test_done":
+                    self._append_log("[✓] " + text)
+                    self.update_status()
+                    messagebox.showinfo("Uji Login SSO Berhasil", text)
                 elif kind == "fasih_unreachable":
                     notice = fasih_failure_notice(text)
                     self._append_log("[!] " + notice.replace("\n", " "))
@@ -478,6 +551,7 @@ class Updater(tk.Tk):
                     self.update_status()
                     if kind == "failed":
                         title = ("Uji Login Google Belum Berhasil" if operation == "google_test"
+                                 else "Uji Login SSO Belum Berhasil" if operation == "sso_test"
                                  else "Pemeriksaan Persiapan Belum Berhasil" if operation == "preflight"
                                  else "Pembaruan Data Belum Berhasil")
                         messagebox.showerror(title, text[:1200])
