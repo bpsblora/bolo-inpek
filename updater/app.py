@@ -377,7 +377,7 @@ class Updater(tk.Tk):
                 self.events.put(("log", str(line)))
             if self.vpn_confirmed.get():
                 report("Membuka " + browser + " untuk menguji portal FASIH setelah VPN BPS tersambung...")
-                verify_fasih_in_browser(browser)
+                verify_fasih_in_browser(browser, on_progress=report)
                 report("Portal FASIH berhasil dibuka lewat " + browser
                        + ". Belum melakukan login SSO atau panggilan API FASIH.")
             else:
@@ -409,7 +409,7 @@ class Updater(tk.Tk):
             with local_update_lock(script.parent):
                 report("Memastikan portal FASIH dapat dibuka dengan " + browser
                        + " setelah VPN BPS tersambung...")
-                verify_fasih_in_browser(browser)
+                verify_fasih_in_browser(browser, on_progress=report)
                 report("Portal FASIH terbuka melalui " + browser
                        + ". Lanjut memeriksa persiapan.")
                 if use_online:
