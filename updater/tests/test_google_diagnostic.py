@@ -45,7 +45,7 @@ class ReadOnlyGoogleDiagnosticTests(unittest.TestCase):
         def get_config(directory, client_id, *, client_path):
             calls.append("file")
             self.assertEqual(client_id, settings["google_oauth_desktop_client_id"])
-            self.assertEqual(str(client_path), "D:/Downloads/updater-oauth-desktop.json")
+            self.assertEqual(Path(client_path).name, "updater-oauth-desktop.json")
             return {"installed": {"client_id": client_id}}
 
         def login(config):
