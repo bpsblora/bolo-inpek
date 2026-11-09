@@ -249,9 +249,8 @@ def run_legacy_scraper(
         # Pengguna tetap menghubungkan VPN sendiri, dan dapat menyelesaikan
         # MFA/OTP jika sistem SSO memintanya.
 
-        # Pertahankan kontrak scraper lama (buka_chrome), tetapi WebDriver
-        # dapat memakai Edge atau Firefox tanpa mengubah script internal.
-        # Default browser dipilih pada EXE. Mode bridge lama tetap kompatibel.
+        # Pertahankan kontrak scraper lama (buka_chrome). Jalur FASIH pada
+        # Updater hanya memakai Chrome + UC, tanpa browser alternatif.
         if browser is not None:
             from browser_driver import open_fasih_browser, resolve_browser
             selected_browser = resolve_browser(browser)
@@ -259,13 +258,6 @@ def run_legacy_scraper(
                 log("Menyiapkan browser scraping " + selected_browser + "...")
                 driver = open_fasih_browser(
                     selected_browser,
-                    # FASIH can display the OAuth landing page before all
-                    # subresources settle. The legacy scraper already waits
-                    # for visible elements, so nonblocking navigation prevents
-                    # Firefox/Edge from hanging on page-load completion.
-                    diagnostic=selected_browser in (
-                        "Mozilla Firefox", "Microsoft Edge",
-                    ),
                     on_progress=lambda text: log(str(text)),
                 )
                 driver.set_page_load_timeout(90)
@@ -280,7 +272,7 @@ def run_legacy_scraper(
                 options.add_argument("--disable-popup-blocking")
                 driver = module.uc.Chrome(
                     options=options,
-                    use_subprocess=False,
+                    use_subprocess=True,
                     version_main=None,
                 )
                 driver.set_page_load_timeout(90)
@@ -298,9 +290,8 @@ def run_legacy_scraper(
             original_session = module.buat_session_dari_chrome
             def verified_session(driver):
                 session = original_session(driver)
-                # Generic WebDriver APIs (navigator.userAgent/get_cookies)
-                # work with Chrome UC, Firefox GeckoDriver, and EdgeDriver.
-                # Cookies stay in process memory; never expose their values.
+                # WebDriver cookies stay in process memory and are never logged.
+                # Chrome UC supplies the session for FASIH API calls.
                 session.verify = True
                 if browser is not None:
                     cookie_jar = getattr(session, "cookies", None)
