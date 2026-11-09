@@ -393,6 +393,39 @@
 }
 </style>
 
+  
+<style>
+/* Updater download and read-first dialog - separated from survey progress data */
+#bolo-updater-trigger{margin-left:auto;flex:0 0 auto;display:inline-flex;align-items:center;gap:9px;
+  border:1px solid #a4d4ff;background:#e8f4ff;color:#123f72;padding:11px 16px;border-radius:11px;
+  box-shadow:0 3px 11px #082f5240;font-weight:750;transition:transform .2s,background .2s}
+#bolo-updater-trigger:hover{background:#fff;transform:translateY(-1px)}
+#bolo-admin-launch{margin-left:0}
+#bolo-updater-dialog{width:min(92vw,580px);max-width:580px;max-height:90dvh;padding:0;
+  border:1px solid #cadcf1;border-radius:20px;background:#fff;color:#1d3652;overflow:auto;
+  box-shadow:0 22px 80px #09243f60}
+#bolo-updater-dialog::backdrop{background:#061d39a8;backdrop-filter:blur(3px)}
+.bolo-updater-head{background:linear-gradient(115deg,#12375f,#205d9c);color:white;
+  display:flex;align-items:flex-start;justify-content:space-between;padding:22px 24px;gap:12px}
+.bolo-updater-head h2{font-size:22px;margin:0 0 5px}
+.bolo-updater-head p{font-size:13px;color:#dcecff;margin:0}
+#bolo-updater-close{background:#ffffff19;border:1px solid #ffffff50;color:#fff;font-size:22px;
+  border-radius:10px;min-width:37px;min-height:37px}
+.bolo-updater-body{padding:23px 26px}
+.bolo-updater-body ol{margin:14px 0;padding-left:24px}
+.bolo-updater-body li{padding:0 0 12px;line-height:1.55}
+.bolo-updater-body strong{color:#124479}
+.bolo-updater-info{font-size:13px;color:#4f6883;padding:12px 14px;border-radius:10px;
+  background:#eff6ff;border:1px solid #d5e5f7;line-height:1.55;margin-bottom:15px}
+.bolo-updater-download{display:flex;align-items:center;justify-content:center;text-align:center;gap:9px;
+  text-decoration:none;border-radius:11px;background:#195aa0;color:white!important;font-weight:750;
+  padding:13px 18px;transition:background .2s,transform .2s}
+.bolo-updater-download:hover{background:#113f76;transform:translateY(-1px)}
+.bolo-updater-note{color:#5e7184;font-size:12px;margin:12px 0 0}
+@media(max-width:800px){#bolo-updater-trigger{margin-left:0}#bolo-admin-launch{margin-left:0}.header-inner{flex-wrap:wrap}}
+@media(prefers-reduced-motion:reduce){#bolo-updater-trigger,.bolo-updater-download{transition:none}}
+</style>
+
 </head>
 <body>
   <!-- HEADER: identitas BOLO INPEK dan BPS Kabupaten Blora -->
@@ -423,6 +456,10 @@
         Monitoring Survei Statistik INPEK - Blora Pengelolaan Statistik INPEK
       </p>
     </div>
+    <button type="button" id="bolo-updater-trigger" aria-haspopup="dialog"
+      aria-controls="bolo-updater-dialog" aria-label="Buka panduan dan unduh paket pembaruan data">
+      <span aria-hidden="true">↻</span> Perbarui Data
+    </button>
   </div>
 </header>
   <main>
@@ -491,6 +528,54 @@
     <section id="view" aria-label="Monitoring survei"></section>
   </main>
   <footer>BOLO INPEK · Sumber: Google Sheets · Persentase dihitung dari seluruh assignment pada kelompok yang sedang dibuka. Data pendataan diperbarui setelah operator menjalankan Python. · <a href="./kebijakan-privasi.html">Kebijakan Privasi</a></footer>
+
+  <!-- Paket publik hanya berisi aplikasi portable + panduan + contoh tanpa akun SSO -->
+  <dialog id="bolo-updater-dialog" aria-labelledby="bolo-updater-title">
+    <div class="bolo-updater-head">
+      <div>
+        <h2 id="bolo-updater-title">Perbarui Data BOLO INPEK</h2>
+        <p>Unduh satu paket Updater Windows beserta panduan penggunaan.</p>
+      </div>
+      <button type="button" id="bolo-updater-close" aria-label="Tutup panduan pembaruan">×</button>
+    </div>
+    <div class="bolo-updater-body">
+      <div class="bolo-updater-info">
+        <strong>Operator berwenang:</strong> jalankan Updater di komputer Windows,
+        bukan langsung di browser. Paket website tidak berisi password SSO,
+        file rahasia, atau script internal FASIH.
+      </div>
+      <ol>
+        <li><strong>Unduh &amp; ekstrak ZIP.</strong> Baca <code>PANDUAN_UPDATER.html</code>
+          dan jalankan <code>BOLO-INPEK-Updater.exe</code>.</li>
+        <li><strong>Uji Login Google.</strong> Pilih OAuth Desktop JSON resmi dan
+          pastikan Firebase serta dua Google Sheets bisa dibaca.</li>
+        <li><strong>Untuk pembaruan FASIH:</strong> siapkan script dan akun internal
+          melalui pengelola, kemudian sambungkan VPN FortiClient sebelum login SSO.</li>
+      </ol>
+      <a class="bolo-updater-download"
+         href="https://github.com/bpsblora/bolo-inpek/releases/download/updater-v2-preview/BOLO-INPEK-Updater-Windows.zip"
+         rel="noopener noreferrer" target="_blank">
+        <span aria-hidden="true">↓</span> Unduh Paket Updater Windows (.zip)
+      </a>
+      <p class="bolo-updater-note">
+        Status: paket uji coba. Sinkronisasi produksi belum diaktifkan; jangan
+        menjalankan scraping sampai pengujian dan izin operasional selesai.
+      </p>
+    </div>
+  </dialog>
+  <script>
+  (() => {
+    const dialog = document.getElementById('bolo-updater-dialog');
+    const trigger = document.getElementById('bolo-updater-trigger');
+    const close = document.getElementById('bolo-updater-close');
+    trigger.addEventListener('click', () => dialog.showModal());
+    close.addEventListener('click', () => dialog.close());
+    dialog.addEventListener('click', event => {
+      if (event.target === dialog) dialog.close();
+    });
+  })();
+  </script>
+
   <noscript>Aktifkan JavaScript untuk menggunakan dashboard ini.</noscript>
   <script src="./firebase-config.js"></script>
   <script src="./admin.js" defer></script>
