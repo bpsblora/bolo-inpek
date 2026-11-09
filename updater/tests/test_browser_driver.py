@@ -17,6 +17,16 @@ class FakeBrowser:
     def get(self, url):
         self.urls.append(url)
 
+    def set_script_timeout(self, seconds):
+        self.script_timeout = seconds
+
+    def execute_script(self, script):
+        if "readyState" in script:
+            return "interactive"
+        if "innerText" in script:
+            return "Badan Pusat Statistik - Login SSO Eksternal"
+        return None
+
     def quit(self):
         self.closed = True
 
@@ -98,6 +108,29 @@ class FASIHBrowserReadinessTests(unittest.TestCase):
                 "Microsoft Edge", driver_factory=lambda _: driver
             )
         self.assertTrue(driver.closed)
+
+    def test_loading_page_with_no_login_content_is_not_accepted(self):
+        browser = FakeBrowser()
+        def blank(_script):
+            return "interactive" if "readyState" in _script else ""
+        browser.execute_script = blank
+        with self.assertRaisesRegex(FasihBrowserError, "belum dapat dikonfirmasi"):
+            verify_fasih_in_browser(
+                "Mozilla Firefox", driver_factory=lambda _: browser,
+                timeout_seconds=0.05,
+            )
+        self.assertTrue(browser.closed)
+
+    def test_provides_stepwise_progress_messages(self):
+        browser = FakeBrowser()
+        progress = []
+        verify_fasih_in_browser(
+            "Mozilla Firefox", driver_factory=lambda _: browser,
+            on_progress=progress.append,
+        )
+        self.assertTrue(any("Browser terbuka" in line for line in progress))
+        self.assertTrue(any("berhasil dimuat" in line for line in progress))
+        self.assertTrue(any("Menutup sesi" in line for line in progress))
 
     def test_navigation_error_does_not_bypass_check(self):
         driver = FakeBrowser()
