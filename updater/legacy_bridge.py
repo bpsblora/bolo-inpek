@@ -259,6 +259,13 @@ def run_legacy_scraper(
                 log("Menyiapkan browser scraping " + selected_browser + "...")
                 driver = open_fasih_browser(
                     selected_browser,
+                    # FASIH can display the OAuth landing page before all
+                    # subresources settle. The legacy scraper already waits
+                    # for visible elements, so nonblocking navigation prevents
+                    # Firefox/Edge from hanging on page-load completion.
+                    diagnostic=selected_browser in (
+                        "Mozilla Firefox", "Microsoft Edge",
+                    ),
                     on_progress=lambda text: log(str(text)),
                 )
                 driver.set_page_load_timeout(90)
