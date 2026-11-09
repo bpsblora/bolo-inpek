@@ -10,11 +10,76 @@ from urllib.parse import urlsplit
 
 FASIH_URL = "https://fasih-sm.bps.go.id/app"
 FASIH_HOST = "fasih-sm.bps.go.id"
-BROWSER_CHOICES = ("Microsoft Edge", "Mozilla Firefox", "Google Chrome")
+AUTO_BROWSER = "Otomatis (Default Windows)"
+SUPPORTED_BROWSERS = ("Microsoft Edge", "Mozilla Firefox", "Google Chrome")
+BROWSER_CHOICES = (AUTO_BROWSER,) + SUPPORTED_BROWSERS
 
 
 class FasihBrowserError(RuntimeError):
     """Tidak dapat membuka FASIH dengan browser yang dipilih."""
+
+
+def _default_https_progid() -> str | None:
+    """Read Windows user's HTTPS app association, without changing it.
+
+    Newer Windows 11 builds may store the latest choice in UserChoiceLatest.
+    Read it before the older UserChoice key to avoid a stale Edge association.
+    """
+    try:
+        import winreg
+    except ImportError:
+        return None
+    root = (
+        r"Software\\Microsoft\\Windows\\Shell\\Associations"
+        r"\\UrlAssociations\\https"
+    )
+    for subkey in ("UserChoiceLatest", "UserChoice"):
+        try:
+            with winreg.OpenKey(
+                winreg.HKEY_CURRENT_USER, root + "\\\\" + subkey
+            ) as handle:
+                value, _ = winreg.QueryValueEx(handle, "ProgId")
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        except OSError:
+            continue
+    return None
+
+
+def _browser_from_progid(progid: str) -> str | None:
+    name = progid.strip().casefold()
+    if name.startswith("msedge") and "htm" in name:
+        return "Microsoft Edge"
+    if name.startswith("firefoxurl") or name.startswith("firefoxhtml"):
+        return "Mozilla Firefox"
+    if name.startswith("chromehtml"):
+        return "Google Chrome"
+    return None
+
+
+def resolve_browser(browser: str) -> str:
+    """Choose the exact Windows HTTPS default, or honor a manual override.
+
+    Unsupported defaults are never silently replaced by Edge/Chrome. Doing so
+    could resurrect the browser already failing on the operator's PC.
+    """
+    if browser in SUPPORTED_BROWSERS:
+        return browser
+    if browser != AUTO_BROWSER:
+        raise FasihBrowserError("Pilihan browser FASIH tidak dikenali.")
+    progid = _default_https_progid()
+    if not progid:
+        raise FasihBrowserError(
+            "Browser default HTTPS Windows belum dapat dibaca. "
+            "Pilih Edge, Firefox, atau Chrome secara manual."
+        )
+    resolved = _browser_from_progid(progid)
+    if not resolved:
+        raise FasihBrowserError(
+            "Browser default Windows saat ini belum didukung untuk otomasi FASIH. "
+            "Pilih Edge, Firefox, atau Chrome secara manual di Updater."
+        )
+    return resolved
 
 
 def open_fasih_browser(browser: str):
@@ -23,8 +88,7 @@ def open_fasih_browser(browser: str):
     Edge and Firefox use official Selenium WebDriver + Selenium Manager; a
     compatible driver may be downloaded on first use depending on the PC.
     """
-    if browser not in BROWSER_CHOICES:
-        raise FasihBrowserError("Pilihan browser FASIH tidak dikenali.")
+    browser = resolve_browser(browser)
     try:
         if browser == "Microsoft Edge":
             from selenium import webdriver
@@ -64,8 +128,7 @@ def verify_fasih_in_browser(browser: str, *, driver_factory=None) -> str:
     not proof of SSO authorization or API access. Failed navigation is not
     counted as success. Driver always closes after this diagnostic.
     """
-    if browser not in BROWSER_CHOICES:
-        raise FasihBrowserError("Pilihan browser tidak dikenal.")
+    browser = resolve_browser(browser)
     driver = None
     try:
         driver = (driver_factory or open_fasih_browser)(browser)
