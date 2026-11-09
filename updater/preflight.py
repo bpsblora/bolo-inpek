@@ -36,7 +36,7 @@ def read_shared_sso_setup(script_dir: Path) -> None:
         )
 
 
-def read_local_setup(script_dir: Path) -> dict[str, str]:
+def read_local_setup(script_dir: Path, *, require_sso: bool = True) -> dict[str, str]:
     from dotenv import dotenv_values
 
     script_dir = Path(script_dir).expanduser().resolve()
@@ -44,10 +44,9 @@ def read_local_setup(script_dir: Path) -> dict[str, str]:
     if not env_path.is_file():
         raise PreflightError("File .env privat tidak ditemukan di folder scraper.")
     values = dotenv_values(env_path)
-    required = (
-        "FASIH_USERNAME", "FASIH_PASSWORD",
-        "GOOGLE_SPREADSHEET_ID", "TINDAK_LANJUT_SPREADSHEET_ID",
-    )
+    required = ["GOOGLE_SPREADSHEET_ID", "TINDAK_LANJUT_SPREADSHEET_ID"]
+    if require_sso:
+        required.extend(["FASIH_USERNAME", "FASIH_PASSWORD"])
     missing = [
         key for key in required if not isinstance(values.get(key), str)
         or not values[key].strip()
@@ -99,7 +98,7 @@ def preflight_google_sheets(
     Validasi akses Editor tetap harus dilakukan dalam uji operasional, karena
     read-only preflight tidak melakukan modifikasi yang berisiko.
     """
-    settings = read_local_setup(script_dir)
+    settings = read_local_setup(script_dir, require_sso=False)
     log("Konfigurasi privat dan dua tujuan Google Sheets telah diperiksa.")
 
     if not connect:
