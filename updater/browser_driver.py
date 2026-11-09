@@ -84,7 +84,10 @@ def resolve_browser(browser: str) -> str:
     return resolved
 
 
-def open_fasih_browser(browser: str, *, diagnostic: bool = False):
+def open_fasih_browser(
+    browser: str, *, diagnostic: bool = False,
+    on_progress: Callable[[str], None] | None = None,
+):
     """Start an isolated browser session using the installed browser.
 
     Edge and Firefox use official Selenium WebDriver + Selenium Manager; a
@@ -93,6 +96,9 @@ def open_fasih_browser(browser: str, *, diagnostic: bool = False):
     from navigation immediately and check actual page readiness separately.
     """
     browser = resolve_browser(browser)
+    report = on_progress or (lambda _message: None)
+    driver = None
+    report("Menyiapkan WebDriver " + browser + "...")
     try:
         if browser == "Microsoft Edge":
             from selenium import webdriver
@@ -100,11 +106,13 @@ def open_fasih_browser(browser: str, *, diagnostic: bool = False):
             options.page_load_strategy = "none" if diagnostic else "eager"
             options.add_argument("--start-maximized")
             options.add_argument("--disable-notifications")
+            report("Menjalankan Microsoft Edge melalui EdgeDriver...")
             driver = webdriver.Edge(options=options)
         elif browser == "Mozilla Firefox":
             from selenium import webdriver
             options = webdriver.FirefoxOptions()
             options.page_load_strategy = "none" if diagnostic else "eager"
+            report("Menjalankan Mozilla Firefox melalui GeckoDriver...")
             driver = webdriver.Firefox(options=options)
             driver.maximize_window()
         else:
@@ -113,16 +121,41 @@ def open_fasih_browser(browser: str, *, diagnostic: bool = False):
             options.page_load_strategy = "none" if diagnostic else "eager"
             options.add_argument("--start-maximized")
             options.add_argument("--disable-notifications")
-            driver = uc.Chrome(options=options, use_subprocess=False, version_main=None)
+            # Original FASIH scraper used UC's subprocess launcher. Restore
+            # that behavior for Chrome only, with auto version detection.
+            # This does not modify or replace the Firefox/Edge WebDrivers.
+            report(
+                "Menjalankan Google Chrome melalui undetected_chromedriver "
+                "(UC, deteksi versi otomatis)..."
+            )
+            driver = uc.Chrome(
+                options=options, use_subprocess=True, version_main=None,
+            )
+        driver.set_page_load_timeout(50)
+        report("WebDriver " + browser + " berhasil dibuat.")
+        return driver
     except Exception as exc:
+        if driver is not None:
+            try:
+                driver.quit()
+            except Exception:
+                pass
+        if browser == "Google Chrome":
+            guidance = (
+                "UC tidak berhasil membuat sesi Chrome. Buka Chrome secara "
+                "manual untuk memeriksa apakah browser dapat dijalankan. "
+                "Jika Chrome bermasalah di PC ini, pilih Firefox yang sudah "
+                "terbukti dapat membuka portal. Jangan ubah pengaturan VPN."
+            )
+        else:
+            guidance = (
+                "Periksa browser terpasang, ketersediaan driver Selenium "
+                "dan akses jaringan pengunduhan driver di PC BPS."
+            )
         raise FasihBrowserError(
-            "Tidak dapat memulai " + browser + " untuk FASIH ("
-            + type(exc).__name__ + "). Periksa browser sudah terpasang, "
-            "driver Selenium yang sesuai tersedia, dan akses unduh driver "
-            "jika diperlukan."
+            "Tidak dapat memulai " + browser + " ("
+            + type(exc).__name__ + "). " + guidance
         ) from exc
-    driver.set_page_load_timeout(50)
-    return driver
 
 
 def verify_fasih_in_browser(
@@ -147,7 +180,9 @@ def verify_fasih_in_browser(
         report("Menjalankan " + browser + " melalui Selenium...")
         driver = (
             driver_factory(browser) if driver_factory is not None
-            else open_fasih_browser(browser, diagnostic=True)
+            else open_fasih_browser(
+                browser, diagnostic=True, on_progress=report,
+            )
         )
         try:
             driver.set_script_timeout(8)
