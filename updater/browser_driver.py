@@ -132,12 +132,13 @@ def verify_fasih_in_browser(
     on_progress: Callable[[str], None] | None = None,
     timeout_seconds: float = 25,
 ) -> str:
-    """Verify that an actual BPS HTTPS login page became interactive.
+    """Verify the real HTTPS FASIH login landing page without authentication.
 
-    Use a diagnostic-only nonblocking page navigation because OAuth login
-    resources can keep Firefox in a 'loading' state indefinitely even while
-    the page is already interactive. Do NOT count an open browser window
-    alone as success. Never click SSO, read credentials, or bypass TLS.
+    Firefox may show the official OAuth login page while innerText and
+    readyState are not yet accessible. Recognize the *exact official*
+    /oauth_login.html URL with a matching browser-tab title as an additional
+    readiness signal. Do NOT count merely opening a browser, hosting on BPS,
+    or a path without an actual title as success. Never bypass TLS or VPN.
     """
     browser = resolve_browser(browser)
     driver = None
@@ -172,10 +173,30 @@ def verify_fasih_in_browser(
                 )
             if approved:
                 last_host = host
+                # FASIH routes /app to its own official OAuth landing page.
+                # On Firefox, innerText/readyState can remain unavailable while
+                # the visible login page has already rendered.  Confirm the
+                # exact HTTPS hostname/path AND an independently readable page
+                # title; never accept a URL alone or an arbitrary BPS-like site.
+                if (host == FASIH_HOST
+                    and address.path.lower().rstrip("/") == "/oauth_login.html"):
+                    try:
+                        title = str(driver.title or "").casefold()
+                    except Exception:
+                        title = ""
+                    if "fasih" in title or "badan pusat statistik" in title:
+                        report(
+                            "Halaman OAuth FASIH resmi terverifikasi dari "
+                            "alamat HTTPS dan judul tab melalui " + browser + "."
+                        )
+                        return browser
+
                 try:
                     state = driver.execute_script("return document.readyState")
                     page_text = driver.execute_script(
-                        "return (document.body && document.body.innerText || '').slice(0, 2500)"
+                        "return (document.body && "
+                        "(document.body.innerText || document.body.textContent) "
+                        "|| '').slice(0, 4000)"
                     )
                     if state in ("interactive", "complete") and isinstance(page_text, str):
                         lowered = page_text.lower()
@@ -187,7 +208,7 @@ def verify_fasih_in_browser(
                             return browser
                 except Exception:
                     # The page may be transitioning between FASIH and BPS SSO.
-                    # Do not declare success until the DOM is verified.
+                    # Do not declare success until page evidence is verified.
                     pass
             elif address.scheme in ("http", "https") and host not in ("", FASIH_HOST):
                 raise FasihBrowserError(
@@ -223,7 +244,7 @@ def verify_fasih_in_browser(
         raise FasihBrowserError(message) from exc
     finally:
         if driver is not None:
-            report("Menutup sesi browser khusus pemeriksaan FASIH...")
+            report("Menutup tab Firefox/Edge/Chrome khusus pemeriksaan (normal setelah tes)...")
             try:
                 driver.quit()
             except Exception:
