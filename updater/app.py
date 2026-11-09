@@ -18,7 +18,7 @@ from legacy_bridge import check_files, run_legacy_scraper
 from cloud_config import synchronize_online, read_public_settings, read_desktop_oauth_client, find_desktop_oauth_file
 from preflight import preflight_google_sheets, verify_google_sheets_client, read_shared_sso_setup, read_local_setup, PreflightError
 from operator_google import login_operator
-from google_diagnostic import run_read_only_google_test
+from google_diagnostic import run_read_only_google_test, load_diagnostic_settings
 from run_lock import local_update_lock
 from fasih_access import verify_fasih_access, FasihAccessError, fasih_failure_notice
 
@@ -44,6 +44,8 @@ class Updater(tk.Tk):
         self._missing_local_script = False
         self.selected_script = tk.StringVar()
         self.vpn_confirmed = tk.BooleanVar(value=False)
+        self.sso_username = tk.StringVar()
+        self.sso_password = tk.StringVar()
         self.online_mode = tk.BooleanVar(value=True)
         self.status = tk.StringVar(value="Belum siap")
         self._style()
@@ -90,9 +92,29 @@ class Updater(tk.Tk):
         ttk.Label(panel, text="Sebelum login SSO, Updater akan memastikan portal FASIH dapat diakses melalui jaringan.",
                   style="Body.TLabel").pack(anchor="w", pady=(3, 0))
 
+        account = ttk.Frame(root, style="Card.TFrame", padding=17)
+        account.pack(fill="x", pady=(12, 0))
+        ttk.Label(account, text="2. Akun SSO FASIH", style="Section.TLabel").pack(anchor="w")
+        ttk.Label(account, text="Isi akun SSO yang berwenang. Tidak disimpan ke file atau Google Sheets.",
+                  style="Body.TLabel").pack(anchor="w", pady=(3, 8))
+        account_inputs = ttk.Frame(account, style="Card.TFrame")
+        account_inputs.pack(fill="x")
+        email_box = ttk.Frame(account_inputs, style="Card.TFrame")
+        email_box.pack(side="left", fill="x", expand=True, padx=(0, 9))
+        ttk.Label(email_box, text="Email / Username SSO", style="Body.TLabel").pack(anchor="w")
+        ttk.Entry(email_box, textvariable=self.sso_username).pack(fill="x", pady=(4, 0))
+        password_box = ttk.Frame(account_inputs, style="Card.TFrame")
+        password_box.pack(side="left", fill="x", expand=True)
+        ttk.Label(password_box, text="Password SSO", style="Body.TLabel").pack(anchor="w")
+        ttk.Entry(password_box, textvariable=self.sso_password, show="●").pack(fill="x", pady=(4, 0))
+        ttk.Label(account, text="Password dikosongkan segera setelah pembaruan dimulai.",
+                  style="Body.TLabel").pack(anchor="w", pady=(7, 0))
+        self.sso_username.trace_add("write", lambda *_: self.update_status())
+        self.sso_password.trace_add("write", lambda *_: self.update_status())
+
         scripts = ttk.Frame(root, style="Card.TFrame", padding=17)
         scripts.pack(fill="x", pady=(12, 0))
-        ttk.Label(scripts, text="2. Script Scraping FASIH", style="Section.TLabel").pack(anchor="w")
+        ttk.Label(scripts, text="3. Script Scraping FASIH", style="Section.TLabel").pack(anchor="w")
         ttk.Label(scripts, text="File script dari paket internal digunakan saat pembaruan FASIH. Untuk Uji Login Google, tidak perlu diisi.",
                   style="Body.TLabel").pack(anchor="w", pady=(5, 10))
         entry_row = ttk.Frame(scripts, style="Card.TFrame")
@@ -129,7 +151,7 @@ class Updater(tk.Tk):
 
         console = ttk.Frame(root, style="Card.TFrame", padding=14)
         console.pack(fill="both", expand=True)
-        ttk.Label(console, text="3. Riwayat Proses (di PC Ini)",
+        ttk.Label(console, text="4. Riwayat Proses (di PC Ini)",
                   style="Section.TLabel").pack(anchor="w", pady=(0, 8))
         self.log_window = scrolledtext.ScrolledText(
             console, height=11, font=("Consolas", 9), wrap="word",
@@ -158,13 +180,11 @@ class Updater(tk.Tk):
             script,
             require_config=not self.online_mode.get(),
             require_google_credentials=not self.online_mode.get(),
+            require_sso_env=False,
         )
-        if not problems:
+        if not problems and not self.online_mode.get():
             try:
-                if self.online_mode.get():
-                    read_shared_sso_setup(script.parent)
-                else:
-                    read_local_setup(script.parent)
+                read_local_setup(script.parent, require_sso=False)
             except PreflightError as exc:
                 problems.append(str(exc))
         if problems:
@@ -181,10 +201,12 @@ class Updater(tk.Tk):
                 if self.online_mode.get() else
                 "Mode uji lokal: scraper memakai config_survei.json pada PC."
             ))
-        ready = not problems and self.vpn_confirmed.get() and not self.running
+        sso_ready = bool(self.sso_username.get().strip()) and bool(self.sso_password.get())
+        ready = not problems and self.vpn_confirmed.get() and sso_ready and not self.running
         self.run_button.configure(state=("normal" if ready else "disabled"))
-        self.status.set("Sedang memperbarui" if self.running else
-                        "Siap diperbarui" if ready else "Belum siap")
+        self.status.set("Sedang memproses" if self.running else
+                        "Siap diperbarui" if ready else
+                        "Isi akun SSO" if not sso_ready and not problems else "Belum siap")
 
     def _append_log(self, line):
         self.log_window.configure(state="normal")
@@ -200,16 +222,20 @@ class Updater(tk.Tk):
             script,
             require_config=not self.online_mode.get(),
             require_google_credentials=not self.online_mode.get(),
+            require_sso_env=False,
         ):
             messagebox.showwarning(APP_TITLE, "Periksa VPN BPS dan berkas pendukung terlebih dahulu.")
             return
         try:
-            if self.online_mode.get():
-                read_shared_sso_setup(script.parent)
-            else:
-                read_local_setup(script.parent)
+            if not self.online_mode.get():
+                read_local_setup(script.parent, require_sso=False)
         except PreflightError as exc:
             messagebox.showwarning(APP_TITLE, str(exc))
+            return
+        username = self.sso_username.get().strip()
+        password = self.sso_password.get()
+        if not username or not password:
+            messagebox.showwarning(APP_TITLE, "Masukkan email/username dan password SSO FASIH.")
             return
         confirmed = messagebox.askyesno(
             APP_TITLE,
@@ -222,11 +248,16 @@ class Updater(tk.Tk):
         )
         if not confirmed:
             return
+        sso_credentials = (username, password)
+        self.sso_password.set("")
+        password = None  # Tidak disimpan pada UI/form atau file lokal.
         self.running = True
         self.update_status()
         self._append_log("Mulai pembaruan manual dari " + script.name)
         threading.Thread(
-            target=self._run, args=(script, self.online_mode.get()), daemon=True
+            target=self._run,
+            args=(script, self.online_mode.get(), sso_credentials),
+            daemon=True,
         ).start()
 
     def start_google_diagnostic(self):
@@ -276,6 +307,7 @@ class Updater(tk.Tk):
             script,
             require_config=not self.online_mode.get(),
             require_google_credentials=not self.online_mode.get(),
+            require_sso_env=False,
         ):
             messagebox.showwarning(APP_TITLE, "Pilih file Python dan lengkapi konfigurasi dulu.")
             return
@@ -298,8 +330,7 @@ class Updater(tk.Tk):
             else:
                 report("Pemeriksaan FASIH dilewati: operator belum mengonfirmasi VPN BPS.")
             if online:
-                read_shared_sso_setup(script_dir)
-                settings = read_public_settings(script_dir)
+                settings = load_diagnostic_settings()
                 read_desktop_oauth_client(
                     script_dir, settings["google_oauth_desktop_client_id"]
                 )
@@ -318,7 +349,7 @@ class Updater(tk.Tk):
                 "failed", type(error).__name__ + ": " + str(error)
             ))
 
-    def _run(self, script, use_online):
+    def _run(self, script, use_online, sso_credentials: tuple[str, str]):
         try:
             def report(line):
                 self.events.put(("log", str(line)))
@@ -347,16 +378,22 @@ class Updater(tk.Tk):
                         script, report,
                         authorized_client=session.spreadsheet_client,
                         spreadsheet_targets=targets,
+                        sso_credentials=sso_credentials,
                     )
                 else:
                     report("Mode uji lokal: tidak menarik konfigurasi online.")
                     preflight_google_sheets(script.parent, report)
-                    run_legacy_scraper(script, report)
+                    run_legacy_scraper(script, report, sso_credentials=sso_credentials)
             self.events.put(("done", "Proses selesai. Buka dashboard untuk memuat data terbaru."))
         except FasihAccessError as error:
             self.events.put(("fasih_unreachable", str(error)))
         except BaseException as error:
-            self.events.put(("failed", type(error).__name__ + ": " + str(error)))
+            message = type(error).__name__ + ": " + str(error)
+            # Jangan tampilkan email/password SSO bila library memasukkannya ke error.
+            for value in sso_credentials:
+                if len(value) >= 3:
+                    message = message.replace(value, "[RAHASIA]")
+            self.events.put(("failed", message))
 
     def drain_events(self):
         while True:
