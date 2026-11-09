@@ -1,8 +1,8 @@
-"""Browser-based FASIH reachability for Windows VPN connections.
+"""Chrome-only FASIH reachability using Selenium UC on a VPN-connected PC.
 
-Some office networks route Edge/Firefox differently from Python requests and
-Chrome. This module tests the actual selected browser, not an unauthenticated
-Python HTTP request. It never bypasses TLS checks or VPN requirements.
+The updater intentionally uses Google Chrome + undetected_chromedriver for
+FASIH checks, SSO and scraping, independently of the Windows default browser.
+TLS validation and official-BPS-host checks remain mandatory.
 """
 from __future__ import annotations
 
@@ -12,127 +12,46 @@ from typing import Callable
 
 FASIH_URL = "https://fasih-sm.bps.go.id/app"
 FASIH_HOST = "fasih-sm.bps.go.id"
-AUTO_BROWSER = "Otomatis (Default Windows)"
-SUPPORTED_BROWSERS = ("Microsoft Edge", "Mozilla Firefox", "Google Chrome")
-BROWSER_CHOICES = (AUTO_BROWSER,) + SUPPORTED_BROWSERS
+CHROME_BROWSER = "Google Chrome"
+SUPPORTED_BROWSERS = (CHROME_BROWSER,)
+BROWSER_CHOICES = SUPPORTED_BROWSERS
 
 
 class FasihBrowserError(RuntimeError):
-    """Tidak dapat membuka FASIH dengan browser yang dipilih."""
-
-
-def _default_https_progid() -> str | None:
-    """Read Windows user's HTTPS app association, without changing it.
-
-    Newer Windows 11 builds may store the latest choice in UserChoiceLatest.
-    Read it before the older UserChoice key to avoid a stale Edge association.
-    """
-    try:
-        import winreg
-    except ImportError:
-        return None
-    root = (
-        r"Software\Microsoft\Windows\Shell\Associations"
-        r"\UrlAssociations\https"
-    )
-    for subkey in ("UserChoiceLatest", "UserChoice"):
-        try:
-            with winreg.OpenKey(
-                winreg.HKEY_CURRENT_USER, root + "\\" + subkey
-            ) as handle:
-                value, _ = winreg.QueryValueEx(handle, "ProgId")
-            if isinstance(value, str) and value.strip():
-                return value.strip()
-        except OSError:
-            continue
-    return None
-
-
-def _browser_from_progid(progid: str) -> str | None:
-    name = progid.strip().casefold()
-    if name.startswith("msedge") and "htm" in name:
-        return "Microsoft Edge"
-    if name.startswith("firefoxurl") or name.startswith("firefoxhtml"):
-        return "Mozilla Firefox"
-    if name.startswith("chromehtml"):
-        return "Google Chrome"
-    return None
+    """Gagal menggunakan Google Chrome untuk FASIH."""
 
 
 def resolve_browser(browser: str) -> str:
-    """Choose the exact Windows HTTPS default, or honor a manual override.
-
-    Unsupported defaults are never silently replaced by Edge/Chrome. Doing so
-    could resurrect the browser already failing on the operator's PC.
-    """
-    if browser in SUPPORTED_BROWSERS:
-        return browser
-    if browser != AUTO_BROWSER:
-        raise FasihBrowserError("Pilihan browser FASIH tidak dikenali.")
-    progid = _default_https_progid()
-    if not progid:
+    """Fail closed: no Windows-default, Firefox, or Edge fallback for FASIH."""
+    if browser != CHROME_BROWSER:
         raise FasihBrowserError(
-            "Browser default HTTPS Windows belum dapat dibaca. "
-            "Pilih Edge, Firefox, atau Chrome secara manual."
+            "BOLO INPEK Updater hanya mendukung Google Chrome + UC ChromeDriver "
+            "untuk FASIH. Browser lain tidak dapat dipakai."
         )
-    resolved = _browser_from_progid(progid)
-    if not resolved:
-        raise FasihBrowserError(
-            "Browser default Windows saat ini belum didukung untuk otomasi FASIH. "
-            "Pilih Edge, Firefox, atau Chrome secara manual di Updater."
-        )
-    return resolved
+    return CHROME_BROWSER
 
 
 def open_fasih_browser(
-    browser: str, *, diagnostic: bool = False,
+    browser: str = CHROME_BROWSER, *, diagnostic: bool = False,
     on_progress: Callable[[str], None] | None = None,
 ):
-    """Start an isolated browser session using the installed browser.
-
-    Edge and Firefox use official Selenium WebDriver + Selenium Manager; a
-    compatible driver may be downloaded on first use depending on the PC.
-    For diagnostic checks, do not block on third-party page assets: return
-    from navigation immediately and check actual page readiness separately.
-    """
+    """Start Chrome with UC's subprocess launcher and automatic version match."""
     browser = resolve_browser(browser)
     report = on_progress or (lambda _message: None)
     driver = None
-    report("Menyiapkan WebDriver " + browser + "...")
+    report("Menyiapkan Google Chrome + UC ChromeDriver...")
     try:
-        if browser == "Microsoft Edge":
-            from selenium import webdriver
-            options = webdriver.EdgeOptions()
-            options.page_load_strategy = "none" if diagnostic else "eager"
-            options.add_argument("--start-maximized")
-            options.add_argument("--disable-notifications")
-            report("Menjalankan Microsoft Edge melalui EdgeDriver...")
-            driver = webdriver.Edge(options=options)
-        elif browser == "Mozilla Firefox":
-            from selenium import webdriver
-            options = webdriver.FirefoxOptions()
-            options.page_load_strategy = "none" if diagnostic else "eager"
-            report("Menjalankan Mozilla Firefox melalui GeckoDriver...")
-            driver = webdriver.Firefox(options=options)
-            driver.maximize_window()
-        else:
-            import undetected_chromedriver as uc
-            options = uc.ChromeOptions()
-            options.page_load_strategy = "none" if diagnostic else "eager"
-            options.add_argument("--start-maximized")
-            options.add_argument("--disable-notifications")
-            # Original FASIH scraper used UC's subprocess launcher. Restore
-            # that behavior for Chrome only, with auto version detection.
-            # This does not modify or replace the Firefox/Edge WebDrivers.
-            report(
-                "Menjalankan Google Chrome melalui undetected_chromedriver "
-                "(UC, deteksi versi otomatis)..."
-            )
-            driver = uc.Chrome(
-                options=options, use_subprocess=True, version_main=None,
-            )
+        import undetected_chromedriver as uc
+        options = uc.ChromeOptions()
+        options.page_load_strategy = "none" if diagnostic else "eager"
+        options.add_argument("--start-maximized")
+        options.add_argument("--disable-notifications")
+        report("Menjalankan Chrome melalui UC (deteksi versi otomatis)...")
+        driver = uc.Chrome(
+            options=options, use_subprocess=True, version_main=None,
+        )
         driver.set_page_load_timeout(50)
-        report("WebDriver " + browser + " berhasil dibuat.")
+        report("Google Chrome + UC berhasil dijalankan.")
         return driver
     except Exception as exc:
         if driver is not None:
@@ -140,21 +59,11 @@ def open_fasih_browser(
                 driver.quit()
             except Exception:
                 pass
-        if browser == "Google Chrome":
-            guidance = (
-                "UC tidak berhasil membuat sesi Chrome. Buka Chrome secara "
-                "manual untuk memeriksa apakah browser dapat dijalankan. "
-                "Jika Chrome bermasalah di PC ini, pilih Firefox yang sudah "
-                "terbukti dapat membuka portal. Jangan ubah pengaturan VPN."
-            )
-        else:
-            guidance = (
-                "Periksa browser terpasang, ketersediaan driver Selenium "
-                "dan akses jaringan pengunduhan driver di PC BPS."
-            )
         raise FasihBrowserError(
-            "Tidak dapat memulai " + browser + " ("
-            + type(exc).__name__ + "). " + guidance
+            "Google Chrome + UC tidak dapat dijalankan ("
+            + type(exc).__name__ + "). Pastikan Google Chrome terpasang, "
+            "tidak sedang gagal memulai, dan VPN BPS terhubung. "
+            "Lihat Riwayat Proses untuk tahap terakhir."
         ) from exc
 
 
@@ -165,13 +74,10 @@ def verify_fasih_in_browser(
     on_progress: Callable[[str], None] | None = None,
     timeout_seconds: float = 25,
 ) -> str:
-    """Verify the real HTTPS FASIH login landing page without authentication.
+    """Check the Chrome HTTPS FASIH login page without logging into SSO.
 
-    Firefox may show the official OAuth login page while innerText and
-    readyState are not yet accessible. Recognize the *exact official*
-    /oauth_login.html URL with a matching browser-tab title as an additional
-    readiness signal. Do NOT count merely opening a browser, hosting on BPS,
-    or a path without an actual title as success. Never bypass TLS or VPN.
+    A valid BPS HTTPS hostname and rendered OAuth page must be confirmed.
+    A browser opening without the official login page is never success.
     """
     browser = resolve_browser(browser)
     driver = None
@@ -209,8 +115,7 @@ def verify_fasih_in_browser(
             if approved:
                 last_host = host
                 # FASIH routes /app to its own official OAuth landing page.
-                # On Firefox, innerText/readyState can remain unavailable while
-                # the visible login page has already rendered.  Confirm the
+                # Loading assets can delay innerText/readyState; confirm the
                 # exact HTTPS hostname/path AND an independently readable page
                 # title; never accept a URL alone or an arbitrary BPS-like site.
                 if (host == FASIH_HOST
@@ -255,7 +160,7 @@ def verify_fasih_in_browser(
             raise FasihBrowserError(
                 browser + " membuka host BPS, tetapi halaman login belum dapat "
                 "dikonfirmasi siap dalam " + str(int(timeout_seconds)) + " detik. "
-                "Periksa Riwayat Proses dan kondisi Firefox/Selenium."
+                "Periksa Riwayat Proses dan kondisi Chrome UC."
             )
         raise FasihBrowserError(
             browser + " terbuka, tetapi tidak mencapai halaman HTTPS FASIH/SSO "
@@ -279,7 +184,7 @@ def verify_fasih_in_browser(
         raise FasihBrowserError(message) from exc
     finally:
         if driver is not None:
-            report("Menutup tab Firefox/Edge/Chrome khusus pemeriksaan (normal setelah tes)...")
+            report("Menutup Chrome khusus pemeriksaan (normal setelah tes)...")
             try:
                 driver.quit()
             except Exception:
