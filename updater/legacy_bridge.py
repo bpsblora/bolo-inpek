@@ -23,7 +23,10 @@ ALLOWED_ENV_KEYS = (
 )
 
 
-def check_files(script: Path, *, require_config: bool = True, require_google_credentials: bool = True) -> list[str]:
+def check_files(
+    script: Path, *, require_config: bool = True,
+    require_google_credentials: bool = True, require_sso_env: bool = True
+) -> list[str]:
     problems: list[str] = []
     script = Path(script).expanduser().resolve()
     if script.suffix.lower() != ".py" or not script.is_file():
@@ -61,17 +64,19 @@ def check_files(script: Path, *, require_config: bool = True, require_google_cre
         except (ValueError, OSError, UnicodeError):
             problems.append("config_survei.json tidak dapat dibaca sebagai JSON valid.")
     environment = script.parent / ".env"
-    if not environment.is_file():
-        problems.append("File .env untuk ID Google Sheets belum ada.")
-    else:
+    if require_google_credentials and not environment.is_file():
+        problems.append("File .env untuk ID Google Sheets belum ada (mode Lokal).")
+    elif require_sso_env and not environment.is_file():
+        problems.append("File .env untuk akun SSO belum ada (mode lama).")
+    elif environment.is_file():
         try:
             from dotenv import dotenv_values
             values = dotenv_values(environment)
             if require_google_credentials and not values.get("GOOGLE_SPREADSHEET_ID"):
                 problems.append("GOOGLE_SPREADSHEET_ID belum dikonfigurasi.")
-            if not (values.get("FASIH_USERNAME") or "").strip():
+            if require_sso_env and not (values.get("FASIH_USERNAME") or "").strip():
                 problems.append("Username akun SSO bersama belum diisi di .env lokal.")
-            if not (values.get("FASIH_PASSWORD") or "").strip():
+            if require_sso_env and not (values.get("FASIH_PASSWORD") or "").strip():
                 problems.append("Password akun SSO bersama belum diisi di .env lokal.")
             if require_google_credentials:
                 creds = values.get("GOOGLE_CREDENTIALS_FILE", "credentials.json")
@@ -98,7 +103,8 @@ def _load_safe_environment(script_dir: Path) -> None:
 
 def run_legacy_scraper(
     script: Path, log: Callable[[str], None], *,
-    authorized_client=None, spreadsheet_targets: dict | None = None
+    authorized_client=None, spreadsheet_targets: dict | None = None,
+    sso_credentials: tuple[str, str] | None = None
 ) -> None:
     """Menjalankan fungsi main() dari scraper asli dengan akun SSO bersama.
 
@@ -109,8 +115,16 @@ def run_legacy_scraper(
     """
     script = Path(script).expanduser().resolve()
     errors = check_files(
-        script, require_google_credentials=(authorized_client is None)
+        script,
+        require_google_credentials=(authorized_client is None),
+        require_sso_env=(sso_credentials is None),
     )
+    if sso_credentials is not None and (
+        not isinstance(sso_credentials, tuple)
+        or len(sso_credentials) != 2
+        or not all(isinstance(v, str) and v.strip() for v in sso_credentials)
+    ):
+        raise RuntimeError("Masukkan email dan password SSO FASIH melalui aplikasi.")
     if errors:
         raise RuntimeError("Persiapan belum lengkap:\n" + "\n".join(errors))
 
@@ -132,11 +146,15 @@ def run_legacy_scraper(
     # Pesan error dari library pihak ketiga dapat tanpa sengaja memuat nilai
     # autentikasi. Redaksi dilakukan sebelum masuk ke konsol UI.
     from dotenv import dotenv_values
-    private_values = dotenv_values(script.parent / ".env")
+    private_values = dotenv_values(script.parent / ".env") if (
+        script.parent / ".env"
+    ).exists() else {}
     redact = [
         value for name in ("FASIH_USERNAME", "FASIH_PASSWORD")
         if isinstance((value := private_values.get(name)), str) and len(value) >= 4
     ]
+    if sso_credentials is not None:
+        redact.extend(v for v in sso_credentials if len(v) >= 4)
 
     class LogWriter:
         encoding = "utf-8"
@@ -169,17 +187,27 @@ def run_legacy_scraper(
         sys.stdout = sys.stderr = LogWriter()
         spec.loader.exec_module(module)
 
+        if sso_credentials is not None:
+            # Data login diambil langsung dari form EXE. Scraper tidak perlu
+            # membaca/menulis .env untuk akun SSO, dan password tidak dicetak.
+            def baca_pengaturan_form():
+                if authorized_client is not None:
+                    os.environ["GOOGLE_SPREADSHEET_ID"] = spreadsheet_targets["monitoring_id"]
+                    os.environ["TINDAK_LANJUT_SPREADSHEET_ID"] = spreadsheet_targets["tindak_lanjut_id"]
+                print("[✓] Akun SSO diterima dari aplikasi, tanpa disimpan ke file.")
+                return sso_credentials
+            module.baca_pengaturan = baca_pengaturan_form
+
         if authorized_client is not None:
-            # baca_pengaturan() dari script lama melakukan load_dotenv(override=True).
-            # Setelah SSO dari .env dibaca, kembalikan dua tujuan Sheets online
-            # agar spreadsheet yang tertulis selalu berasal dari Firebase.
-            original_baca_pengaturan = module.baca_pengaturan
-            def baca_pengaturan_operator():
-                username, password = original_baca_pengaturan()
-                os.environ["GOOGLE_SPREADSHEET_ID"] = spreadsheet_targets["monitoring_id"]
-                os.environ["TINDAK_LANJUT_SPREADSHEET_ID"] = spreadsheet_targets["tindak_lanjut_id"]
-                return username, password
-            module.baca_pengaturan = baca_pengaturan_operator
+            if sso_credentials is None:
+                # Kompatibilitas dengan mode lama yang masih membaca .env.
+                original_baca_pengaturan = module.baca_pengaturan
+                def baca_pengaturan_operator():
+                    username, password = original_baca_pengaturan()
+                    os.environ["GOOGLE_SPREADSHEET_ID"] = spreadsheet_targets["monitoring_id"]
+                    os.environ["TINDAK_LANJUT_SPREADSHEET_ID"] = spreadsheet_targets["tindak_lanjut_id"]
+                    return username, password
+                module.baca_pengaturan = baca_pengaturan_operator
 
             # Ganti backend autentikasi gspread untuk seluruh fungsi scraper,
             # TANPA menyalin private key Google ke PC operator.
@@ -273,7 +301,7 @@ def run_legacy_scraper(
         # aplikasi tanpa terminal tidak boleh hang di situ.
         builtins.input = lambda _prompt="": ""
 
-        log("Menjalankan scraping menggunakan akun SSO bersama yang dikonfigurasi di PC ini...")
+        log("Menjalankan scraping menggunakan akun SSO yang dimasukkan di aplikasi...")
         module.main()
         log("Scraping selesai. Periksa status Google Sheets di dashboard.")
     except SystemExit as exc:
