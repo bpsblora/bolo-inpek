@@ -10,7 +10,7 @@ from sso_diagnostic import SSOTestError, test_sso_login
 
 class FakeDriver:
     def __init__(self):
-        self.current_url = "https://fasih-sm.bps.go.id/app"
+        self.current_url = "https://sso.bps.go.id/realms/bps"
         self.closed = False
 
     def set_page_load_timeout(self, _seconds):
@@ -38,6 +38,7 @@ def login_sso_eksternal(driver, username, password):
     print("SECRET_TEST_VALUE should never reach user-visible log")
 def tunggu_login_berhasil(driver, timeout=90):
     assert timeout == 120
+    driver.current_url = "https://fasih-sm.bps.go.id/app"
     return True
 def main():
     raise AssertionError("main() SCRAPER MUST NEVER RUN")
@@ -64,6 +65,17 @@ def main():
             test_sso_login(
                 self.script, "Mozilla Firefox",
                 "user@example.invalid", "WRONG",
+                lambda _: None, browser_factory=lambda _: fake,
+            )
+        self.assertTrue(fake.closed)
+
+    def test_redirect_to_external_site_rejected_before_sending_password(self):
+        fake = FakeDriver()
+        fake.current_url = "https://untrusted.example.invalid/submit"
+        with self.assertRaisesRegex(SSOTestError, "domain login SSO resmi"):
+            test_sso_login(
+                self.script, "Mozilla Firefox",
+                "test@example.invalid", "SECRET_TEST_VALUE",
                 lambda _: None, browser_factory=lambda _: fake,
             )
         self.assertTrue(fake.closed)
