@@ -44,15 +44,38 @@ jobs:
             updater/app.py
       - name: Assemble one safe ZIP for website download
         shell: pwsh
+        env:
+          BOLO_OAUTH_DESKTOP_JSON_B64: ${{ secrets.BOLO_OAUTH_DESKTOP_JSON_B64 }}
         run: |
           $folder = "dist/BOLO-INPEK-Updater-Windows"
           New-Item -ItemType Directory -Path $folder -Force | Out-Null
           Copy-Item "dist/BOLO-INPEK-Updater.exe" "$folder/BOLO-INPEK-Updater.exe"
           Copy-Item "updater/PANDUAN_UPDATER.html" "$folder/PANDUAN_UPDATER.html"
-          Copy-Item "updater/CONTOH_ENV.txt" "$folder/CONTOH_ENV.txt"
-          "BOLO INPEK Updater - Paket publik tanpa script FASIH internal dan tanpa kredensial." | Set-Content -Path "$folder/BACA_DULU.txt" -Encoding UTF8
-          "Buka PANDUAN_UPDATER.html sebelum menjalankan. Hubungi pengelola untuk script FASIH internal dan file OAuth resmi." | Add-Content -Path "$folder/BACA_DULU.txt" -Encoding UTF8
+          Copy-Item "updater/PETUNJUK_LOGIN_SSO.txt" "$folder/PETUNJUK_LOGIN_SSO.txt"
+          "BOLO INPEK Updater - Paket publik tanpa script FASIH internal dan tanpa password." | Set-Content -Path "$folder/BACA_DULU.txt" -Encoding UTF8
+          "Email/username dan password SSO sekarang diisi langsung pada EXE. Tidak perlu file .env dalam mode Online." | Add-Content -Path "$folder/BACA_DULU.txt" -Encoding UTF8
+          "Buka PANDUAN_UPDATER.html sebelum menjalankan. Hubungi pengelola untuk script FASIH internal dan OAuth Desktop JSON." | Add-Content -Path "$folder/BACA_DULU.txt" -Encoding UTF8
           "Git commit: ${{ github.sha }}" | Add-Content -Path "$folder/BACA_DULU.txt" -Encoding UTF8
+          # OAuth Desktop adalah public client menurut Google; tidak sama dengan
+          # password SSO atau service-account private key. Jika pengelola
+          # menyediakan JSON resmi melalui GitHub Actions secret, paket menyertakannya.
+          # Secret opsional; build aman tetap berjalan bila belum tersedia.
+          if ($env:BOLO_OAUTH_DESKTOP_JSON_B64) {
+            $oauthFile = "$folder/updater-oauth-desktop.json"
+            $bytes = [Convert]::FromBase64String($env:BOLO_OAUTH_DESKTOP_JSON_B64)
+            [System.IO.File]::WriteAllBytes((Join-Path (Get-Location) $oauthFile), $bytes)
+            $parsed = Get-Content $oauthFile -Raw | ConvertFrom-Json
+            $settings = Get-Content "updater-settings.json" -Raw | ConvertFrom-Json
+            if (-not $parsed.installed -or
+                $parsed.installed.client_id -ne $settings.google_oauth_desktop_client_id -or
+                -not $parsed.installed.client_secret) {
+              Remove-Item $oauthFile -ErrorAction SilentlyContinue
+              throw "OAuth Desktop JSON does not match configured BOLO INPEK client."
+            }
+            Write-Host "Bundled validated Desktop OAuth client JSON (not a service-account key)."
+          } else {
+            "OAuth Desktop JSON belum tersedia dalam ZIP. Gunakan file resmi yang sudah ada di folder Download, atau minta pengelola melengkapi paket." | Add-Content -Path "$folder/BACA_DULU.txt" -Encoding UTF8
+          }
           Compress-Archive -Path "$folder/*" -DestinationPath "dist/BOLO-INPEK-Updater-Windows.zip" -Force
       - name: Upload one-ZIP website package
         uses: actions/upload-artifact@v4
@@ -74,8 +97,10 @@ jobs:
           files: dist/BOLO-INPEK-Updater-Windows.zip
           body: |
             Paket publik BOLO INPEK Updater untuk Windows (versi uji).
-            Berisi aplikasi EXE, panduan HTML, dan contoh .env TANPA kredensial.
-            Tidak menyertakan script FASIH internal, JSON OAuth Desktop, maupun password SSO.
+            Berisi aplikasi EXE, panduan HTML, dan petunjuk login SSO pada aplikasi.
+            Tidak menyertakan script FASIH internal atau password SSO.
+            OAuth Desktop JSON hanya disertakan jika file resmi telah dipasang pengelola
+            melalui secret BOLO_OAUTH_DESKTOP_JSON_B64.
             Sinkronisasi produksi masih dinonaktifkan. Gunakan tombol Uji Login Google saja
             sampai pengujian dan persetujuan operasional selesai.
       - name: Upload portable preview (no source credentials)
