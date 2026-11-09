@@ -1,0 +1,25 @@
+BOLO INPEK UPDATER - PANDUAN LOGIN SSO FASIH
+============================================
+
+1. Jalankan BOLO-INPEK-Updater.exe.
+2. Jika ingin menguji login Google saja, klik "Uji Login Google".
+   Tes ini tidak memerlukan VPN, email, atau password SSO FASIH.
+3. Untuk pembaruan sebenarnya, sambungkan VPN BPS terlebih dahulu.
+4. Isi "Email / Username SSO" dan "Password SSO" langsung di aplikasi.
+5. Pilih mode Online, lalu klik "Perbarui Data FASIH" setelah ada
+   persetujuan pengelola. Jika portal FASIH gagal dibuka, proses berhenti.
+6. Login Google operator memberi akses ke Firebase dan dua Google Sheets.
+   Login SSO FASIH menggunakan informasi dari form EXE.
+7. Password SSO tidak disimpan ke .env, EXE, ZIP, GitHub, atau Sheets;
+   field password dikosongkan saat pembaruan mulai.
+
+File updater-oauth-desktop.json (OAuth Client tipe Desktop) dapat disertakan
+di ZIP oleh pengelola. Jika sudah ada, aplikasi mencarinya otomatis di
+folder hasil ekstraksi dan folder Download. Jika tidak tersedia, admin
+perlu menyediakan file JSON resmi tersebut terlebih dahulu.
+
+JANGAN memasukkan password akun atau token ke file JSON OAuth!
+Jangan membagikan akun SSO atau file service-account credentials.json.
+
+Saat pengembangan, mode update produksi belum diaktifkan sampai
+pengujian VPN, OAuth, SSO, dan kedua Sheets disetujui pengelola.
