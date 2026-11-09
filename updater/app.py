@@ -393,7 +393,7 @@ class Updater(tk.Tk):
                 preflight_google_sheets(script_dir, report)
             self.events.put((
                 "done",
-                "Prajalankan selesai. Tidak ada scraping atau perubahan data."
+                "Pemeriksaan persiapan selesai. Portal FASIH sudah diperiksa; tidak ada scraping, login SSO, atau perubahan data."
             ))
         except (FasihAccessError, FasihBrowserError) as error:
             self.events.put(("fasih_unreachable", str(error)))
@@ -472,7 +472,7 @@ class Updater(tk.Tk):
                     notice = fasih_failure_notice(text)
                     self._append_log("[!] " + notice.replace("\n", " "))
                     self.update_status()
-                    messagebox.showwarning("Koneksi FASIH Belum Tersambung", notice)
+                    messagebox.showwarning("Pemeriksaan FASIH Belum Berhasil", notice)
                 else:
                     self._append_log(("[✓] " if kind == "done" else "[X] ") + text)
                     self.update_status()
