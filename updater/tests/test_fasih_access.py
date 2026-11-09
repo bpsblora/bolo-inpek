@@ -39,7 +39,7 @@ class FasihVPNTests(unittest.TestCase):
     def test_untrusted_https_certificate_blocks(self):
         def invalid_ca(url, **kwargs):
             raise requests.exceptions.SSLError("unverified")
-        with self.assertRaisesRegex(FasihAccessError, "sertifikat"):
+        with self.assertRaisesRegex(FasihAccessError, "Sertifikat HTTPS"):
             verify_fasih_access(get=invalid_ca)
 
     def test_bad_http_status_blocks(self):
@@ -54,15 +54,39 @@ class FasihVPNTests(unittest.TestCase):
                 )
             )
 
-    def test_failed_fasih_notice_mentions_vpn_and_computer_internet(self):
-        notice = fasih_failure_notice("Portal FASIH belum dapat dijangkau")
-        self.assertIn("VPN BPS", notice)
-        self.assertIn("koneksi internet komputer yang digunakan", notice)
-        self.assertIn("ulangi pemeriksaan", notice)
+    def test_failed_fasih_notice_does_not_assume_vpn_disconnected(self):
+        notice = fasih_failure_notice("Server membalas HTTP 403")
+        self.assertIn("HTTP 403", notice)
+        self.assertIn("Chrome", notice)
+        self.assertIn("https://fasih-sm.bps.go.id/app", notice)
+        self.assertNotIn("VPN BPS belum tersambung", notice)
 
-    def test_ssl_failure_notice_keeps_certificate_guidance(self):
-        notice = fasih_failure_notice("sertifikat HTTPS gagal")
-        self.assertIn("pengelola jaringan BPS", notice)
+    def test_ssl_failure_notice_keeps_specific_reason(self):
+        notice = fasih_failure_notice("Sertifikat HTTPS tidak terverifikasi")
+        self.assertIn("Sertifikat HTTPS", notice)
+        self.assertIn("proxy", notice)
+
+    def test_proxy_failure_reports_proxy_not_vpn(self):
+        def proxy_blocked(url, **kwargs):
+            raise requests.exceptions.ProxyError("sensitive-proxy-host:secret")
+        with self.assertRaises(FasihAccessError) as observed:
+            verify_fasih_access(get=proxy_blocked)
+        self.assertIn("proxy", str(observed.exception).lower())
+        self.assertNotIn("sensitive-proxy-host", str(observed.exception))
+
+    def test_http_403_server_reachable_but_forbidden(self):
+        with self.assertRaises(FasihAccessError) as observed:
+            verify_fasih_access(get=lambda url, **kwargs: FakeResponse(403))
+        self.assertIn("Server FASIH dapat dijangkau", str(observed.exception))
+        self.assertIn("HTTP 403", str(observed.exception))
+
+    def test_read_timeout_is_differentiated(self):
+        def slow(url, **kwargs):
+            raise requests.exceptions.ReadTimeout("token=secret")
+        with self.assertRaises(FasihAccessError) as observed:
+            verify_fasih_access(get=slow)
+        self.assertIn("tidak menjawab tepat waktu", str(observed.exception))
+        self.assertNotIn("secret", str(observed.exception))
 
     def test_reject_fake_fasih_url(self):
         with self.assertRaisesRegex(FasihAccessError, "resmi"):
