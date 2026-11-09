@@ -161,7 +161,9 @@ def main():
                 browser="Microsoft Edge",
             )
         checker.assert_called_once_with("Microsoft Edge")
-        factory.assert_called_once_with("Microsoft Edge")
+        factory.assert_called_once()
+        self.assertEqual(factory.call_args.args[0], "Microsoft Edge")
+        self.assertIn("on_progress", factory.call_args.kwargs)
 
     def test_shared_sso_credentials_required(self):
         self.script.write_text("pass\n", encoding="utf8")
