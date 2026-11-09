@@ -93,6 +93,35 @@ def main():
         self.assertFalse(any("SECRET_TEST_VALUE" in line for line in logs))
         self.assertFalse(any("test@example.invalid" in line for line in logs))
 
+    def test_new_tab_with_official_sso_is_supported(self):
+        class TabDriver(FakeDriver):
+            def __init__(self):
+                super().__init__()
+                self.window_handles = ["fasih", "sso"]
+                self.switch_to = self
+                self.current_url = "https://fasih-sm.bps.go.id/oauth_login.html"
+            def window(self, handle):
+                if handle == "sso":
+                    self.current_url = "https://sso.bps.go.id/realms/bps"
+        fake = TabDriver()
+        test_sso_login(
+            self.script, "Mozilla Firefox",
+            "test@example.invalid", "SECRET_TEST_VALUE",
+            lambda line: None, browser_factory=lambda _: fake,
+        )
+        self.assertTrue(fake.closed)
+
+    def test_unknown_bps_domain_blocks_automatic_password_submission(self):
+        fake = FakeDriver()
+        fake.current_url = "https://unexpected-login.bps.go.id/form"
+        with self.assertRaisesRegex(SSOTestError, "belum dikenali"):
+            test_sso_login(
+                self.script, "Mozilla Firefox",
+                "test@example.invalid", "SECRET_TEST_VALUE",
+                lambda _: None, browser_factory=lambda _: fake,
+            )
+        self.assertTrue(fake.closed)
+
     def test_requires_private_script_and_credentials(self):
         with self.assertRaises(SSOTestError):
             test_sso_login(
