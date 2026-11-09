@@ -89,6 +89,7 @@ def test_sso_login(
         raise SSOTestError("Script FASIH tidak dapat dibaca.")
     mod = module_from_spec(spec)
     driver = None
+    stage = "Memuat komponen scraper"
     original_path = list(sys.path)
     output = _PrivateStdout()
     try:
@@ -106,6 +107,7 @@ def test_sso_login(
             if not callable(getattr(mod, name, None)):
                 raise SSOTestError("Versi script belum mendukung uji SSO terpisah.")
 
+        stage = "Membuka browser untuk SSO"
         report("Membuka " + browser + " untuk uji SSO FASIH (tanpa scraping)...")
         driver = (
             browser_factory(browser) if browser_factory is not None
@@ -113,12 +115,17 @@ def test_sso_login(
         )
         driver.set_page_load_timeout(50)
         with redirect_stdout(output), redirect_stderr(output):
+            stage = "Mencari dan mengeklik tombol SSO Eksternal"
+            report("[SSO 1/4] Mencari tombol SSO Eksternal pada halaman FASIH...")
             mod.klik_sso_eksternal(driver)
-            report("Memastikan pengalihan ke domain HTTPS SSO resmi BPS...")
+            stage = "Memeriksa domain HTTPS login SSO"
+            report("[SSO 2/4] Memastikan pengalihan ke domain HTTPS SSO resmi BPS...")
             _wait_for_official_sso_redirect(driver)
-            report("Mengisi login SSO Eksternal pada halaman resmi BPS...")
+            stage = "Mengisi dan mengirim formulir login SSO"
+            report("[SSO 3/4] Mengisi formulir akun SSO Eksternal...")
             mod.login_sso_eksternal(driver, username, password)
-            report("Memeriksa apakah SSO mengembalikan sesi ke FASIH...")
+            stage = "Menunggu autentikasi dan kembali ke FASIH"
+            report("[SSO 4/4] Menunggu autentikasi SSO dan kembali ke FASIH...")
             success = mod.tunggu_login_berhasil(driver, timeout=120)
         if success is not True:
             raise SSOTestError("SSO belum memberikan konfirmasi login berhasil.")
@@ -126,14 +133,39 @@ def test_sso_login(
         if current.scheme != "https" or current.hostname != FASIH_HOST:
             raise SSOTestError("Login belum kembali ke alamat HTTPS FASIH resmi.")
         report("Login SSO FASIH berhasil. Tidak ada scraping atau perubahan Sheets.")
-    except SSOTestError:
-        raise
     except Exception as exc:
+        # Do not show raw exception text or URL: they could include
+        # username, password, authorization codes, or proxy credentials.
         safe_kind = type(exc).__name__
-        raise SSOTestError(
-            "Uji login SSO belum berhasil (" + safe_kind + "). "
-            "Periksa akun, OTP/MFA dan tampilan browser FASIH."
-        ) from None
+        if isinstance(exc, SSOTestError):
+            message = str(exc)
+        elif stage == "Mencari dan mengeklik tombol SSO Eksternal":
+            message = (
+                "Tombol SSO Eksternal tidak dapat dipilih otomatis ("
+                + safe_kind + "). Pastikan halaman FASIH benar-benar tampil. "
+                "Tombol ini hanya mendukung akun SSO Eksternal, bukan SSO BPS pegawai."
+            )
+        elif stage == "Memeriksa domain HTTPS login SSO":
+            message = (
+                "SSO Eksternal belum mengalihkan browser ke domain login resmi BPS "
+                "(" + safe_kind + "). Periksa halaman yang terlihat di browser."
+            )
+        elif stage == "Mengisi dan mengirim formulir login SSO":
+            message = (
+                "Formulir SSO Eksternal tidak dapat diisi atau dikirim otomatis "
+                "(" + safe_kind + "). Periksa apakah muncul CAPTCHA/MFA "
+                "atau halaman login berubah."
+            )
+        elif stage == "Menunggu autentikasi dan kembali ke FASIH":
+            message = (
+                "Login SSO belum kembali ke FASIH (" + safe_kind + "). "
+                "Periksa apakah akun SSO Eksternal benar, diminta OTP/MFA, "
+                "atau tidak memiliki izin FASIH-SM."
+            )
+        else:
+            message = "Uji SSO gagal saat menyiapkan browser (" + safe_kind + ")."
+        report("Pemeriksaan SSO berhenti pada tahap: " + stage + ".")
+        raise SSOTestError(message) from None
     finally:
         sys.path[:] = original_path
         if driver is not None:
