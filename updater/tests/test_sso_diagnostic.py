@@ -40,6 +40,12 @@ def tunggu_login_berhasil(driver, timeout=90):
     assert timeout == 120
     driver.current_url = "https://fasih-sm.bps.go.id/app"
     return True
+def buat_session_dari_chrome(driver):
+    import requests
+    session = requests.Session()
+    session.verify = False
+    session.cookies.set("FASIH_SESSION", "mock-cookie-only", domain="fasih-sm.bps.go.id")
+    return session
 def main():
     raise AssertionError("main() SCRAPER MUST NEVER RUN")
 ''',
@@ -58,6 +64,36 @@ def main():
         self.assertTrue(any("Tidak ada scraping" in x for x in logs))
         self.assertFalse(any("SECRET_TEST_VALUE" in x for x in logs))
         self.assertFalse(any("test@example.invalid" in x for x in logs))
+
+    def test_firefox_and_edge_cookie_session_is_verified_without_api_calls(self):
+        for browser in ("Mozilla Firefox", "Microsoft Edge", "Google Chrome"):
+            fake = FakeDriver()
+            logs = []
+            test_sso_login(
+                self.script, browser, "test@example.invalid", "SECRET_TEST_VALUE",
+                logs.append, browser_factory=lambda _: fake,
+            )
+            self.assertTrue(fake.closed)
+            self.assertTrue(any("Cookie sesi FASIH ditemukan" in line for line in logs))
+            self.assertTrue(any("tanpa" in line.lower() for line in logs))
+            self.assertFalse(any("mock-cookie-only" in line for line in logs))
+
+    def test_empty_cookie_jar_does_not_pass_api_session_check(self):
+        source = self.script.read_text(encoding="utf-8")
+        self.script.write_text(
+            source.replace(
+                '    session.cookies.set("FASIH_SESSION", "mock-cookie-only", domain="fasih-sm.bps.go.id")',
+                '    # Cookie login is missing in this regression test.',
+            ), encoding="utf-8",
+        )
+        fake = FakeDriver()
+        with self.assertRaisesRegex(SSOTestError, "cookie sesi FASIH"):
+            test_sso_login(
+                self.script, "Mozilla Firefox",
+                "test@example.invalid", "SECRET_TEST_VALUE",
+                lambda _: None, browser_factory=lambda _: fake,
+            )
+        self.assertTrue(fake.closed)
 
     def test_wrong_credential_rejected_without_logging(self):
         fake = FakeDriver()
