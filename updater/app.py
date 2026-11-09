@@ -18,6 +18,7 @@ from legacy_bridge import check_files, run_legacy_scraper
 from cloud_config import synchronize_online, read_public_settings, read_desktop_oauth_client
 from preflight import preflight_google_sheets, verify_google_sheets_client, read_shared_sso_setup, read_local_setup, PreflightError
 from operator_google import login_operator
+from google_diagnostic import run_read_only_google_test
 from run_lock import local_update_lock
 from fasih_access import verify_fasih_access, FasihAccessError, fasih_failure_notice
 
@@ -116,6 +117,8 @@ class Updater(tk.Tk):
                                      style="Primary.TButton", command=self.start_update)
         self.run_button.pack(side="left")
         ttk.Button(controls, text="Periksa Persiapan", command=self.check_preparation,
+                   style="Normal.TButton").pack(side="left", padx=(8, 0))
+        ttk.Button(controls, text="Uji Login Google", command=self.start_google_diagnostic,
                    style="Normal.TButton").pack(side="left", padx=(8, 0))
         ttk.Button(controls, text="Buka Dashboard", command=lambda: webbrowser.open(DASHBOARD_URL),
                    style="Normal.TButton").pack(side="left", padx=9)
@@ -217,6 +220,39 @@ class Updater(tk.Tk):
             target=self._run, args=(script, self.online_mode.get()), daemon=True
         ).start()
 
+    def start_google_diagnostic(self):
+        """Tombol aman: login Google + cek akses baca saja, tanpa VPN dan .env."""
+        if self.running:
+            return
+        oauth_path = filedialog.askopenfilename(
+            title="Pilih OAuth Desktop JSON dari Google Cloud (misalnya di Downloads)",
+            initialdir=str(Path.home() / "Downloads"),
+            filetypes=[("OAuth Desktop JSON", "*.json")],
+        )
+        if not oauth_path:
+            return
+        self.running = True
+        self.update_status()
+        self.status.set("Memeriksa Google")
+        self._append_log("Memulai uji Google: hanya akses baca; tidak menjalankan FASIH atau scraping.")
+        threading.Thread(
+            target=self._google_diagnostic_worker,
+            args=(Path(oauth_path),), daemon=True,
+        ).start()
+
+    def _google_diagnostic_worker(self, oauth_file: Path):
+        try:
+            run_read_only_google_test(
+                oauth_file, lambda line: self.events.put(("log", str(line)))
+            )
+            self.events.put((
+                "google_test_done",
+                "Login Google, Firebase, dan dua Google Sheets berhasil diuji. "
+                "Tidak ada data yang diubah."
+            ))
+        except BaseException as error:
+            self.events.put(("failed", type(error).__name__ + ": " + str(error)))
+
     def check_preparation(self):
         """Diagnostik tanpa menjalankan scraping atau mengubah spreadsheet."""
         if self.running:
@@ -316,9 +352,13 @@ class Updater(tk.Tk):
                 break
             if kind == "log":
                 self._append_log(text)
-            elif kind in ("done", "failed", "fasih_unreachable"):
+            elif kind in ("done", "failed", "fasih_unreachable", "google_test_done"):
                 self.running = False
-                if kind == "fasih_unreachable":
+                if kind == "google_test_done":
+                    self._append_log("[✓] " + text)
+                    self.update_status()
+                    messagebox.showinfo("Uji Login Google Berhasil", text)
+                elif kind == "fasih_unreachable":
                     notice = fasih_failure_notice(text)
                     self._append_log("[!] " + notice.replace("\n", " "))
                     self.update_status()
