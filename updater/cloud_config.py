@@ -77,9 +77,17 @@ def read_public_settings(script_dir: Path, request_get=requests.get) -> dict:
     return settings
 
 
-def read_desktop_oauth_client(script_dir: Path, expected_client_id: str) -> dict:
-    """Muat OAuth Desktop client JSON resmi dari PC (bukan dari repo publik)."""
-    path = Path(script_dir) / "updater-oauth-desktop.json"
+def read_desktop_oauth_client(
+    script_dir: Path, expected_client_id: str, *, client_path: Path | None = None
+) -> dict:
+    """Muat OAuth Desktop client JSON resmi dari PC (bukan dari repo publik).
+
+    Untuk diagnostik saja, operator dapat memilih JSON di folder Unduhan,
+    tanpa memindahkan berkas atau menyalin client secret ke GitHub.
+    """
+    path = Path(client_path) if client_path is not None else (
+        Path(script_dir) / "updater-oauth-desktop.json"
+    )
     if not path.is_file():
         raise OnlineConfigError(
             "File updater-oauth-desktop.json belum disiapkan di PC. "
