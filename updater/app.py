@@ -15,7 +15,7 @@ from tkinter import filedialog, messagebox, scrolledtext, ttk
 import webbrowser
 
 from legacy_bridge import check_files, run_legacy_scraper
-from cloud_config import synchronize_online, read_public_settings, read_desktop_oauth_client
+from cloud_config import synchronize_online, read_public_settings, read_desktop_oauth_client, find_desktop_oauth_file
 from preflight import preflight_google_sheets, verify_google_sheets_client, read_shared_sso_setup, read_local_setup, PreflightError
 from operator_google import login_operator
 from google_diagnostic import run_read_only_google_test
@@ -233,13 +233,18 @@ class Updater(tk.Tk):
         """Tombol aman: login Google + cek akses baca saja, tanpa VPN dan .env."""
         if self.running:
             return
-        oauth_path = filedialog.askopenfilename(
-            title="Pilih OAuth Desktop JSON dari Google Cloud (misalnya di Downloads)",
-            initialdir=str(Path.home() / "Downloads"),
-            filetypes=[("OAuth Desktop JSON", "*.json")],
-        )
-        if not oauth_path:
-            return
+        found = find_desktop_oauth_file(application_directory())
+        if found is not None:
+            oauth_path = str(found)
+            self._append_log("File OAuth Desktop resmi ditemukan otomatis: " + str(found))
+        else:
+            oauth_path = filedialog.askopenfilename(
+                title="Pilih updater-oauth-desktop.json resmi dari Google Cloud",
+                initialdir=str(Path.home() / "Downloads"),
+                filetypes=[("OAuth Desktop JSON", "*.json")],
+            )
+            if not oauth_path:
+                return
         self.running = True
         self.update_status()
         self.status.set("Memeriksa Google")
