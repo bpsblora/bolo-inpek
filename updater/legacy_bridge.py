@@ -104,7 +104,8 @@ def _load_safe_environment(script_dir: Path) -> None:
 def run_legacy_scraper(
     script: Path, log: Callable[[str], None], *,
     authorized_client=None, spreadsheet_targets: dict | None = None,
-    sso_credentials: tuple[str, str] | None = None
+    sso_credentials: tuple[str, str] | None = None,
+    browser: str | None = None
 ) -> None:
     """Menjalankan fungsi main() dari scraper asli dengan akun SSO bersama.
 
@@ -248,9 +249,18 @@ def run_legacy_scraper(
         # Pengguna tetap menghubungkan VPN sendiri, dan dapat menyelesaikan
         # MFA/OTP jika sistem SSO memintanya.
 
-        # Versi lama mengunci ChromeDriver ke versi tertentu.
-        # Pada PC lain, biarkan undetected-chromedriver mendeteksi versi Chrome.
-        if hasattr(module, "uc"):
+        # Pertahankan kontrak scraper lama (buka_chrome), tetapi WebDriver
+        # dapat memakai Edge atau Firefox tanpa mengubah script internal.
+        # Default browser dipilih pada EXE. Mode bridge lama tetap kompatibel.
+        if browser is not None:
+            from browser_driver import open_fasih_browser
+            def buka_browser_operator():
+                print("[*] Membuka " + browser + " untuk login FASIH...")
+                driver = open_fasih_browser(browser)
+                driver.set_page_load_timeout(90)
+                return driver
+            module.buka_chrome = buka_browser_operator
+        elif hasattr(module, "uc"):
             def buka_chrome_otomatis():
                 print("[*] Membuka Chrome sesuai versi yang terpasang...")
                 options = module.uc.ChromeOptions()
@@ -292,7 +302,11 @@ def run_legacy_scraper(
                 raise RuntimeError("Domain FASIH pada script tidak sesuai domain resmi.")
             def strict_fasih_check():
                 print("[*] Pemeriksaan ulang portal FASIH sebelum login SSO...")
-                verify_fasih_access(url=original_url)
+                if browser is not None:
+                    from browser_driver import verify_fasih_in_browser
+                    verify_fasih_in_browser(browser)
+                else:
+                    verify_fasih_access(url=original_url)
                 print("[✓] Portal FASIH terjangkau melalui koneksi saat ini.")
                 return True
             module.cek_koneksi_fasih = strict_fasih_check
