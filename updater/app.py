@@ -20,7 +20,8 @@ from preflight import preflight_google_sheets, verify_google_sheets_client, read
 from operator_google import login_operator
 from google_diagnostic import run_read_only_google_test, load_diagnostic_settings
 from run_lock import local_update_lock
-from fasih_access import verify_fasih_access, FasihAccessError, fasih_failure_notice
+from fasih_access import FasihAccessError, fasih_failure_notice
+from browser_driver import BROWSER_CHOICES, FasihBrowserError, verify_fasih_in_browser
 
 DASHBOARD_URL = "https://bpsblora.github.io/bolo-inpek/"
 APP_TITLE = "BOLO INPEK Updater"
@@ -45,6 +46,7 @@ class Updater(tk.Tk):
         self._missing_local_script = False
         self.selected_script = tk.StringVar()
         self.vpn_confirmed = tk.BooleanVar(value=False)
+        self.fasih_browser = tk.StringVar(value="Microsoft Edge")
         self.sso_username = tk.StringVar()
         self.sso_password = tk.StringVar()
         self.online_mode = tk.BooleanVar(value=True)
@@ -90,8 +92,13 @@ class Updater(tk.Tk):
                   style="Body.TLabel").pack(anchor="w", pady=(6, 8))
         ttk.Checkbutton(panel, text="Saya sudah terhubung ke VPN BPS dan berwenang mengakses FASIH",
                         variable=self.vpn_confirmed, command=self.update_status).pack(anchor="w")
-        ttk.Label(panel, text="Sebelum login SSO, Updater akan memastikan portal FASIH dapat diakses melalui jaringan.",
-                  style="Body.TLabel").pack(anchor="w", pady=(3, 0))
+        browser_row = ttk.Frame(panel, style="Card.TFrame")
+        browser_row.pack(fill="x", pady=(10, 0))
+        ttk.Label(browser_row, text="Browser untuk FASIH:", style="Body.TLabel").pack(side="left")
+        ttk.Combobox(browser_row, textvariable=self.fasih_browser,
+                     values=BROWSER_CHOICES, state="readonly", width=20).pack(side="left", padx=(10, 0))
+        ttk.Label(panel, text="Pemeriksaan portal dan login FASIH mengikuti browser yang dipilih.",
+                  style="Body.TLabel").pack(anchor="w", pady=(5, 0))
 
         account = ttk.Frame(root, style="Card.TFrame", padding=17)
         account.pack(fill="x", pady=(12, 0))
@@ -256,10 +263,11 @@ class Updater(tk.Tk):
         self.running = True
         self.update_status()
         self.current_operation = "update"
-        self._append_log("Mulai pembaruan manual dari " + script.name)
+        self._append_log("Mulai pembaruan manual dari " + script.name
+                         + " dengan browser " + self.fasih_browser.get())
         threading.Thread(
             target=self._run,
-            args=(script, self.online_mode.get(), sso_credentials),
+            args=(script, self.online_mode.get(), sso_credentials, self.fasih_browser.get()),
             daemon=True,
         ).start()
 
@@ -318,20 +326,23 @@ class Updater(tk.Tk):
         self.running = True
         self.update_status()
         self.current_operation = "preflight"
-        self._append_log("Memulai audit persiapan tanpa scraping atau login SSO...")
+        browser = self.fasih_browser.get()
+        self._append_log("Memulai audit akses FASIH melalui " + browser
+                         + " tanpa scraping atau login SSO...")
         threading.Thread(
             target=self._check_preparation_worker,
-            args=(script.parent, self.online_mode.get()), daemon=True
+            args=(script.parent, self.online_mode.get(), browser), daemon=True
         ).start()
 
-    def _check_preparation_worker(self, script_dir, online):
+    def _check_preparation_worker(self, script_dir, online, browser):
         try:
             def report(line):
                 self.events.put(("log", str(line)))
             if self.vpn_confirmed.get():
-                report("Memeriksa apakah portal FASIH dapat diakses setelah VPN BPS tersambung...")
-                verify_fasih_access()
-                report("Portal FASIH dapat diakses. Belum melakukan login SSO.")
+                report("Membuka " + browser + " untuk menguji portal FASIH setelah VPN BPS tersambung...")
+                verify_fasih_in_browser(browser)
+                report("Portal FASIH berhasil dibuka lewat " + browser
+                       + ". Belum melakukan login SSO atau panggilan API FASIH.")
             else:
                 report("Pemeriksaan FASIH dilewati: operator belum mengonfirmasi VPN BPS.")
             if online:
@@ -347,21 +358,23 @@ class Updater(tk.Tk):
                 "done",
                 "Prajalankan selesai. Tidak ada scraping atau perubahan data."
             ))
-        except FasihAccessError as error:
+        except (FasihAccessError, FasihBrowserError) as error:
             self.events.put(("fasih_unreachable", str(error)))
         except BaseException as error:
             self.events.put((
                 "failed", type(error).__name__ + ": " + str(error)
             ))
 
-    def _run(self, script, use_online, sso_credentials: tuple[str, str]):
+    def _run(self, script, use_online, sso_credentials: tuple[str, str], browser: str):
         try:
             def report(line):
                 self.events.put(("log", str(line)))
             with local_update_lock(script.parent):
-                report("Memastikan portal FASIH dapat dibuka setelah VPN BPS tersambung...")
-                verify_fasih_access()
-                report("Portal FASIH terjangkau. Lanjut memeriksa persiapan.")
+                report("Memastikan portal FASIH dapat dibuka dengan " + browser
+                       + " setelah VPN BPS tersambung...")
+                verify_fasih_in_browser(browser)
+                report("Portal FASIH terbuka melalui " + browser
+                       + ". Lanjut memeriksa persiapan.")
                 if use_online:
                     settings = read_public_settings(script.parent)
                     desktop_config = read_desktop_oauth_client(
@@ -384,13 +397,15 @@ class Updater(tk.Tk):
                         authorized_client=session.spreadsheet_client,
                         spreadsheet_targets=targets,
                         sso_credentials=sso_credentials,
+                        browser=browser,
                     )
                 else:
                     report("Mode uji lokal: tidak menarik konfigurasi online.")
                     preflight_google_sheets(script.parent, report)
-                    run_legacy_scraper(script, report, sso_credentials=sso_credentials)
+                    run_legacy_scraper(script, report, sso_credentials=sso_credentials,
+                                       browser=browser)
             self.events.put(("done", "Proses selesai. Buka dashboard untuk memuat data terbaru."))
-        except FasihAccessError as error:
+        except (FasihAccessError, FasihBrowserError) as error:
             self.events.put(("fasih_unreachable", str(error)))
         except BaseException as error:
             message = type(error).__name__ + ": " + str(error)
