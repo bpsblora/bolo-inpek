@@ -168,7 +168,7 @@ class FASIHBrowserReadinessTests(unittest.TestCase):
         )
         self.assertTrue(any("Browser terbuka" in line for line in progress))
         self.assertTrue(any("berhasil dimuat" in line for line in progress))
-        self.assertTrue(any("Menutup sesi" in line for line in progress))
+        self.assertTrue(any("Menutup tab" in line for line in progress))
 
     def test_navigation_error_does_not_bypass_check(self):
         driver = FakeBrowser()
