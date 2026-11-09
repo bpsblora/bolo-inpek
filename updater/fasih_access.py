@@ -23,7 +23,7 @@ def fasih_failure_notice(reason: str = "") -> str:
     """Pesan untuk ditampilkan setelah cek portal FASIH gagal."""
     main = (
         "FASIH belum dapat dijangkau.\n\n"
-        "Periksa sambungan VPN FortiClient dan koneksi internet "
+        "Periksa sambungan VPN BPS dan koneksi internet "
         "komputer yang digunakan.\n\n"
         "Setelah koneksi normal, silakan ulangi pemeriksaan atau "
         "pembaruan data."
@@ -57,14 +57,14 @@ def verify_fasih_access(*, get=requests.get, url=FASIH_URL) -> None:
         ) from exc
     except requests.exceptions.RequestException as exc:
         raise FasihAccessError(
-            "Portal FASIH belum dapat dijangkau. Pastikan VPN FortiClient "
+            "Portal FASIH belum dapat dijangkau. Pastikan VPN BPS "
             "berstatus Connected, lalu ulangi pemeriksaan."
         ) from exc
 
     if response.status_code not in ACCESSIBLE:
         raise FasihAccessError(
             "Akses portal FASIH belum siap (HTTP " + str(response.status_code)
-            + "). Periksa koneksi FortiClient/VPN dan portal."
+            + "). Periksa koneksi VPN BPS dan portal."
         )
     if response.status_code in {301, 302, 303, 307, 308}:
         location = response.headers.get("Location", "")
