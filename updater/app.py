@@ -22,10 +22,7 @@ from google_diagnostic import run_read_only_google_test, load_diagnostic_setting
 from sso_diagnostic import test_sso_login, SSOTestError
 from run_lock import local_update_lock
 from fasih_access import FasihAccessError, fasih_failure_notice
-from browser_driver import (
-    AUTO_BROWSER, BROWSER_CHOICES, FasihBrowserError,
-    resolve_browser, verify_fasih_in_browser,
-)
+from browser_driver import CHROME_BROWSER, FasihBrowserError, verify_fasih_in_browser
 
 DASHBOARD_URL = "https://bpsblora.github.io/bolo-inpek/"
 APP_TITLE = "BOLO INPEK Updater"
@@ -50,7 +47,6 @@ class Updater(tk.Tk):
         self._missing_local_script = False
         self.selected_script = tk.StringVar()
         self.vpn_confirmed = tk.BooleanVar(value=False)
-        self.fasih_browser = tk.StringVar(value=AUTO_BROWSER)
         self.sso_username = tk.StringVar()
         self.sso_password = tk.StringVar()
         self.online_mode = tk.BooleanVar(value=True)
@@ -96,17 +92,10 @@ class Updater(tk.Tk):
                   style="Body.TLabel").pack(anchor="w", pady=(6, 8))
         ttk.Checkbutton(panel, text="Saya sudah terhubung ke VPN BPS dan berwenang mengakses FASIH",
                         variable=self.vpn_confirmed, command=self.update_status).pack(anchor="w")
-        browser_row = ttk.Frame(panel, style="Card.TFrame")
-        browser_row.pack(fill="x", pady=(10, 0))
-        ttk.Label(browser_row, text="Browser untuk FASIH:", style="Body.TLabel").pack(side="left")
-        ttk.Combobox(browser_row, textvariable=self.fasih_browser,
-                     values=BROWSER_CHOICES, state="readonly", width=27).pack(side="left", padx=(10, 0))
-        self.browser_hint = ttk.Label(
-            panel, text="", style="Body.TLabel",
-        )
-        self.browser_hint.pack(anchor="w", pady=(5, 0))
-        self.fasih_browser.trace_add("write", lambda *_: self._update_browser_hint())
-        self.after(80, self._update_browser_hint)
+        ttk.Label(
+            panel, text="Browser FASIH: Google Chrome + UC ChromeDriver (wajib)",
+            style="Body.TLabel",
+        ).pack(anchor="w", pady=(10, 0))
 
         account = ttk.Frame(root, style="Card.TFrame", padding=17)
         account.pack(fill="x", pady=(12, 0))
@@ -182,32 +171,9 @@ class Updater(tk.Tk):
                   text="Mode online: login Google untuk Sheets tanpa service-account key. SSO FASIH tetap privat.",
                   style="Subtitle.TLabel").pack(anchor="w", pady=(11, 0))
 
-    def _update_browser_hint(self):
-        try:
-            chosen = resolve_browser(self.fasih_browser.get())
-        except FasihBrowserError:
-            chosen = None
-        if chosen:
-            driver_name = {
-                "Google Chrome": "UC ChromeDriver",
-                "Mozilla Firefox": "Selenium GeckoDriver",
-                "Microsoft Edge": "Selenium EdgeDriver",
-            }.get(chosen, "WebDriver")
-            self.browser_hint.configure(
-                text=("Browser default Windows: " if self.fasih_browser.get() == AUTO_BROWSER
-                      else "Browser pilihan manual: ") + chosen + " • " + driver_name,
-            )
-        else:
-            self.browser_hint.configure(
-                text="Browser default belum dapat dikenali. Pilih browser manual untuk FASIH.",
-            )
-
-    def _chosen_browser(self) -> str | None:
-        try:
-            return resolve_browser(self.fasih_browser.get())
-        except FasihBrowserError as exc:
-            messagebox.showwarning("Browser FASIH", str(exc))
-            return None
+    def _chosen_browser(self) -> str:
+        """FASIH selalu Chrome UC; tidak mengikuti browser default Windows."""
+        return CHROME_BROWSER
 
     def pick_script(self):
         path = filedialog.askopenfilename(
