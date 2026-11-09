@@ -157,6 +157,33 @@ def test_sso_login(
         current = urlsplit(str(driver.current_url or ""))
         if current.scheme != "https" or current.hostname != FASIH_HOST:
             raise SSOTestError("Login belum kembali ke alamat HTTPS FASIH resmi.")
+        report("Login SSO FASIH berhasil. Memeriksa cookie sesi untuk API (tanpa jaringan)...")
+        session_builder = getattr(mod, "buat_session_dari_chrome", None)
+        if callable(session_builder):
+            api_session = None
+            try:
+                with redirect_stdout(output), redirect_stderr(output):
+                    api_session = session_builder(driver)
+                api_session.verify = True
+                cookie_jar = getattr(api_session, "cookies", None)
+                if cookie_jar is None or not len(cookie_jar):
+                    raise SSOTestError(
+                        "Login SSO berhasil, tetapi cookie sesi FASIH belum "
+                        "tersedia di browser. Akses API belum siap."
+                    )
+                report(
+                    "Cookie sesi FASIH ditemukan lewat " + browser
+                    + ". Pemeriksaan API hanya sampai persiapan sesi; "
+                    "tidak ada permintaan API atau scraping."
+                )
+            finally:
+                if api_session is not None:
+                    try:
+                        api_session.close()
+                    except Exception:
+                        pass
+        else:
+            report("Versi scraper belum menyediakan pembuat sesi API; pemeriksaan cookie dilewati.")
         report("Login SSO FASIH berhasil. Tidak ada scraping atau perubahan Sheets.")
     except Exception as exc:
         # Do not show raw exception text or URL: they could include
