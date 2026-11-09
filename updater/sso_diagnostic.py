@@ -88,11 +88,15 @@ def test_sso_login(
     report: Callable[[str], None],
     *,
     browser_factory: Callable[[str], object] | None = None,
+    after_login: Callable[[object], None] | None = None,
 ) -> None:
     """Login once to authorized SSO, confirm FASIH, close ephemeral browser.
 
     Password is held only while the test runs; it is never written to .env,
     logs, ZIP, Google Sheets, Firebase, or the scraper module.
+    Optional after_login uses the verified in-memory cookie session before
+    closing it, for the dedicated read-only assignment diagnostic only.
+    Normal SSO test makes no API request.
     """
     script = Path(script).expanduser().resolve()
     errors = check_files(
@@ -173,11 +177,16 @@ def test_sso_login(
                         "Login SSO berhasil, tetapi cookie sesi FASIH belum "
                         "tersedia di browser. Akses API belum siap."
                     )
-                report(
-                    "Cookie sesi FASIH ditemukan lewat " + browser
-                    + ". Pemeriksaan API hanya sampai persiapan sesi; "
-                    "tidak ada permintaan API atau scraping."
-                )
+                if after_login is not None:
+                    stage = "Menguji baca assignment tanpa perubahan data"
+                    report("Cookie sesi terverifikasi. Memulai satu permintaan baca assignment...")
+                    after_login(api_session)
+                else:
+                    report(
+                        "Cookie sesi FASIH ditemukan lewat " + browser
+                        + ". Pemeriksaan API hanya sampai persiapan sesi; "
+                        "tidak ada permintaan API atau scraping."
+                    )
             finally:
                 if api_session is not None:
                     try:
@@ -185,8 +194,15 @@ def test_sso_login(
                     except Exception:
                         pass
         else:
+            if after_login is not None:
+                raise SSOTestError(
+                    "Scraper internal belum memiliki pembuat sesi API FASIH."
+                )
             report("Versi scraper belum menyediakan pembuat sesi API; pemeriksaan cookie dilewati.")
-        report("Login SSO FASIH berhasil. Tidak ada scraping atau perubahan Sheets.")
+        if after_login is None:
+            report("Login SSO FASIH berhasil. Tidak ada scraping atau perubahan Sheets.")
+        else:
+            report("Uji baca assignment selesai. Tidak ada proses penulisan Google Sheets.")
     except Exception as exc:
         # Do not show raw exception text or URL: they could include
         # username, password, authorization codes, or proxy credentials.
@@ -209,6 +225,12 @@ def test_sso_login(
                 "Formulir SSO Eksternal tidak dapat diisi atau dikirim otomatis "
                 "(" + safe_kind + "). Periksa apakah muncul CAPTCHA/MFA "
                 "atau halaman login berubah."
+            )
+        elif stage == "Menguji baca assignment tanpa perubahan data":
+            message = (
+                "Uji baca assignment FASIH tidak berhasil ("
+                + safe_kind + "). Periksa sesi API, konfigurasi survei, "
+                "dan sambungan VPN BPS."
             )
         elif stage == "Menunggu autentikasi dan kembali ke FASIH":
             message = (
