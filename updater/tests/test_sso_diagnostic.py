@@ -78,6 +78,33 @@ def main():
             self.assertTrue(any("tanpa" in line.lower() for line in logs))
             self.assertFalse(any("mock-cookie-only" in line for line in logs))
 
+    def test_read_only_callback_receives_verified_cookie_session(self):
+        fake = FakeDriver()
+        calls = []
+        def read_test(session):
+            self.assertIs(session.verify, True)
+            self.assertTrue(len(session.cookies))
+            calls.append("read")
+        test_sso_login(
+            self.script, "Google Chrome", "test@example.invalid",
+            "SECRET_TEST_VALUE", lambda _: None,
+            browser_factory=lambda _: fake, after_login=read_test,
+        )
+        self.assertEqual(calls, ["read"])
+        self.assertTrue(fake.closed)
+
+    def test_read_only_callback_failure_closes_chrome(self):
+        fake = FakeDriver()
+        def bad_read(session):
+            raise SSOTestError("Contoh uji API dibatalkan dengan aman")
+        with self.assertRaisesRegex(SSOTestError, "uji API dibatalkan"):
+            test_sso_login(
+                self.script, "Google Chrome", "test@example.invalid",
+                "SECRET_TEST_VALUE", lambda _: None,
+                browser_factory=lambda _: fake, after_login=bad_read,
+            )
+        self.assertTrue(fake.closed)
+
     def test_empty_cookie_jar_does_not_pass_api_session_check(self):
         source = self.script.read_text(encoding="utf-8")
         self.script.write_text(
