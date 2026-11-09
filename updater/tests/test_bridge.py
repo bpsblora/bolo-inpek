@@ -133,7 +133,7 @@ def main():
         self.assertFalse(any("operator@example.invalid" in line for line in logs))
         self.assertTrue(any("[RAHASIA]" in line for line in logs))
 
-    def test_edge_browser_replaces_legacy_chrome_and_rechecks_portal(self):
+    def test_chrome_uc_replaces_legacy_launcher_and_rechecks_portal(self):
         self.script.write_text('''
 FASIH_URL = "https://fasih-sm.bps.go.id/app"
 def baca_pengaturan():
@@ -145,26 +145,42 @@ def tunggu_login_berhasil(driver, timeout=90):
 def cek_koneksi_fasih():
     raise AssertionError("Legacy requests check should not be invoked")
 def buka_chrome():
-    raise AssertionError("Legacy hard-coded Chrome should not be invoked")
+    raise AssertionError("Legacy hard-coded launcher should not be invoked")
 def main():
     assert cek_koneksi_fasih() is True
     driver = buka_chrome()
     assert driver is not None
 ''', encoding="utf8")
         with patch("browser_driver.verify_fasih_in_browser",
-                   return_value="Microsoft Edge") as checker, patch(
+                   return_value="Google Chrome") as checker, patch(
                    "browser_driver.open_fasih_browser"
                    ) as factory:
             run_legacy_scraper(
                 self.script, lambda line: None,
                 sso_credentials=("sso@example.invalid", "TEST_PASSWORD"),
-                browser="Microsoft Edge",
+                browser="Google Chrome",
             )
-        checker.assert_called_once_with("Microsoft Edge")
+        checker.assert_called_once_with("Google Chrome")
         factory.assert_called_once()
-        self.assertEqual(factory.call_args.args[0], "Microsoft Edge")
+        self.assertEqual(factory.call_args.args[0], "Google Chrome")
         self.assertIn("on_progress", factory.call_args.kwargs)
-        self.assertTrue(factory.call_args.kwargs["diagnostic"])
+
+    def test_rejects_non_chrome_browser_before_launching_scraper(self):
+        self.script.write_text('''
+FASIH_URL = "https://fasih-sm.bps.go.id/app"
+def baca_pengaturan(): return "", ""
+def login_sso_eksternal(driver, username, password): pass
+def tunggu_login_berhasil(driver, timeout=90): pass
+def main(): raise AssertionError("Must not run scraper")
+''', encoding="utf8")
+        for choice in ("Mozilla Firefox", "Microsoft Edge", "Otomatis (Default Windows)"):
+            with self.subTest(browser=choice):
+                with self.assertRaisesRegex(Exception, "hanya mendukung Google Chrome"):
+                    run_legacy_scraper(
+                        self.script, lambda line: None,
+                        sso_credentials=("sso@example.invalid", "TEST_PASSWORD"),
+                        browser=choice,
+                    )
 
     def test_shared_sso_credentials_required(self):
         self.script.write_text("pass\n", encoding="utf8")
