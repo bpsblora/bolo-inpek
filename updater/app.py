@@ -41,6 +41,7 @@ class Updater(tk.Tk):
         self.configure(bg="#edf4ff")
         self.events: Queue[tuple[str, str]] = Queue()
         self.running = False
+        self.current_operation = None
         self._missing_local_script = False
         self.selected_script = tk.StringVar()
         self.vpn_confirmed = tk.BooleanVar(value=False)
@@ -254,6 +255,7 @@ class Updater(tk.Tk):
         password = None  # Tidak disimpan pada UI/form atau file lokal.
         self.running = True
         self.update_status()
+        self.current_operation = "update"
         self._append_log("Mulai pembaruan manual dari " + script.name)
         threading.Thread(
             target=self._run,
@@ -280,6 +282,7 @@ class Updater(tk.Tk):
         self.running = True
         self.update_status()
         self.status.set("Memeriksa Google")
+        self.current_operation = "google_test"
         self._append_log("Memulai uji Google: hanya akses baca; tidak menjalankan FASIH atau scraping.")
         threading.Thread(
             target=self._google_diagnostic_worker,
@@ -314,6 +317,7 @@ class Updater(tk.Tk):
             return
         self.running = True
         self.update_status()
+        self.current_operation = "preflight"
         self._append_log("Memulai audit persiapan tanpa scraping atau login SSO...")
         threading.Thread(
             target=self._check_preparation_worker,
@@ -406,6 +410,8 @@ class Updater(tk.Tk):
                 self._append_log(text)
             elif kind in ("done", "failed", "fasih_unreachable", "google_test_done"):
                 self.running = False
+                operation = self.current_operation
+                self.current_operation = None
                 if kind == "google_test_done":
                     self._append_log("[✓] " + text)
                     self.update_status()
@@ -419,7 +425,10 @@ class Updater(tk.Tk):
                     self._append_log(("[✓] " if kind == "done" else "[X] ") + text)
                     self.update_status()
                     if kind == "failed":
-                        messagebox.showerror(APP_TITLE, "Pembaruan gagal.\n\n" + text[:1200])
+                        title = ("Uji Login Google Belum Berhasil" if operation == "google_test"
+                                 else "Pemeriksaan Persiapan Belum Berhasil" if operation == "preflight"
+                                 else "Pembaruan Data Belum Berhasil")
+                        messagebox.showerror(title, text[:1200])
         self.after(120, self.drain_events)
 
 
