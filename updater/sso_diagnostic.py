@@ -39,7 +39,26 @@ SSO_LOGIN_HOSTS = frozenset(("sso.bps.go.id", "sso-eksternal.bps.go.id"))
 def _wait_for_official_sso_redirect(driver, *, timeout_seconds: float = 45.0) -> None:
     """Never send credentials to an unapproved or non-HTTPS login page."""
     deadline = monotonic() + timeout_seconds
+    last_official_host = None
     while monotonic() < deadline:
+        # SSO is sometimes opened in a new tab. Check each existing tab
+        # while preserving a single chosen WebDriver session.
+        try:
+            handles = list(driver.window_handles)
+        except (AttributeError, TypeError):
+            handles = []
+        if len(handles) > 1:
+            for handle in reversed(handles):
+                try:
+                    driver.switch_to.window(handle)
+                    active = urlsplit(str(driver.current_url or ""))
+                    if (
+                        active.scheme == "https"
+                        and (active.hostname or "").lower() in SSO_LOGIN_HOSTS
+                    ):
+                        return
+                except Exception:
+                    continue
         location = urlsplit(str(driver.current_url or ""))
         host = (location.hostname or "").lower()
         if location.scheme == "https" and host in SSO_LOGIN_HOSTS:
@@ -47,6 +66,12 @@ def _wait_for_official_sso_redirect(driver, *, timeout_seconds: float = 45.0) ->
         if location.scheme and location.scheme != "https":
             raise SSOTestError("SSO tidak menggunakan HTTPS. Login dihentikan.")
         if host and host != FASIH_HOST and host not in SSO_LOGIN_HOSTS:
+            if host.endswith(".bps.go.id"):
+                raise SSOTestError(
+                    "Halaman SSO memakai subdomain BPS yang belum dikenali "
+                    "oleh aplikasi (" + host + "). Pengiriman password "
+                    "dihentikan sampai domain dikonfirmasi."
+                )
             raise SSOTestError(
                 "Browser keluar dari domain login SSO resmi BPS. "
                 "Akun tidak dikirim ke halaman tersebut."
