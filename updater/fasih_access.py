@@ -28,9 +28,9 @@ def fasih_failure_notice(reason: str = "") -> str:
     main = (
         "Pemeriksaan akses FASIH belum berhasil.\n\n"
         + (reason or "Penyebab belum diketahui. Periksa koneksi VPN BPS.")
-        + "\n\nUji juga melalui Chrome pada PC yang sama: "
+        + "\n\nUji juga lewat Microsoft Edge atau Mozilla Firefox pada PC yang sama: "
         + "https://fasih-sm.bps.go.id/app"
-        + "\nJika Chrome berhasil membuka FASIH tetapi Updater gagal, "
+        + "\nJika browser biasa berhasil membuka FASIH tetapi Updater gagal, "
         + "kemungkinan ada perbedaan konfigurasi sertifikat, proxy, "
         + "atau pembatasan permintaan Python."
     )
