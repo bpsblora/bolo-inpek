@@ -1,0 +1,87 @@
+name: BOLO INPEK Updater Portable (Windows)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [dev-admin-v2]
+    paths:
+      - 'updater/**'
+      - '.github/workflows/build-updater.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  windows-portable:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install build dependencies
+        run: python -m pip install -r updater/requirements-build.txt
+      - name: Test manual SSO bridge
+        run: python -m unittest discover -s updater/tests -p "test_*.py"
+        env:
+          PYTHONPATH: updater
+      - name: Package standalone executable
+        shell: pwsh
+        run: |
+          python -m PyInstaller --clean --noconfirm --onefile --windowed `
+            --name "BOLO-INPEK-Updater" --paths updater `
+            --add-data "updater-settings.json;." `
+            --collect-all undetected_chromedriver `
+            --collect-all selenium `
+            --collect-all gspread `
+            --collect-all dotenv `
+            --collect-all requests `
+            --collect-all urllib3 `
+            --collect-all google_auth_oauthlib `
+            --collect-all google.auth `
+            --collect-all requests_oauthlib `
+            --collect-all oauthlib `
+            updater/app.py
+      - name: Assemble one safe ZIP for website download
+        shell: pwsh
+        run: |
+          $folder = "dist/BOLO-INPEK-Updater-Windows"
+          New-Item -ItemType Directory -Path $folder -Force | Out-Null
+          Copy-Item "dist/BOLO-INPEK-Updater.exe" "$folder/BOLO-INPEK-Updater.exe"
+          Copy-Item "updater/PANDUAN_UPDATER.html" "$folder/PANDUAN_UPDATER.html"
+          Copy-Item "updater/CONTOH_ENV.txt" "$folder/CONTOH_ENV.txt"
+          "BOLO INPEK Updater - Paket publik tanpa script FASIH internal dan tanpa kredensial." | Set-Content -Path "$folder/BACA_DULU.txt" -Encoding UTF8
+          "Buka PANDUAN_UPDATER.html sebelum menjalankan. Hubungi pengelola untuk script FASIH internal dan file OAuth resmi." | Add-Content -Path "$folder/BACA_DULU.txt" -Encoding UTF8
+          "Git commit: ${{ github.sha }}" | Add-Content -Path "$folder/BACA_DULU.txt" -Encoding UTF8
+          Compress-Archive -Path "$folder/*" -DestinationPath "dist/BOLO-INPEK-Updater-Windows.zip" -Force
+      - name: Upload one-ZIP website package
+        uses: actions/upload-artifact@v4
+        with:
+          name: BOLO-INPEK-Updater-Paket-ZIP
+          path: dist/BOLO-INPEK-Updater-Windows.zip
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publish safe preview ZIP as GitHub release asset
+        uses: softprops/action-gh-release@v2
+        continue-on-error: true
+        with:
+          tag_name: updater-v2-preview
+          target_commitish: dev-admin-v2
+          name: BOLO INPEK Updater Windows - Paket Uji
+          prerelease: true
+          make_latest: false
+          overwrite_files: true
+          files: dist/BOLO-INPEK-Updater-Windows.zip
+          body: |
+            Paket publik BOLO INPEK Updater untuk Windows (versi uji).
+            Berisi aplikasi EXE, panduan HTML, dan contoh .env TANPA kredensial.
+            Tidak menyertakan script FASIH internal, JSON OAuth Desktop, maupun password SSO.
+            Sinkronisasi produksi masih dinonaktifkan. Gunakan tombol Uji Login Google saja
+            sampai pengujian dan persetujuan operasional selesai.
+      - name: Upload portable preview (no source credentials)
+        uses: actions/upload-artifact@v4
+        with:
+          name: BOLO-INPEK-Updater-Windows-preview
+          path: dist/BOLO-INPEK-Updater.exe
+          if-no-files-found: error
+          retention-days: 14

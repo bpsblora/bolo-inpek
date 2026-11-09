@@ -1,0 +1,13 @@
+# BOLO INPEK Updater — salin menjadi .env di folder scraper pada PC berwenang.
+# Jangan kirim .env lewat chat, GitHub, atau paket publik.
+# Gunakan akun SSO bersama yang sudah disetujui pengelola FASIH.
+FASIH_USERNAME=ISI_USERNAME_AKUN_SSO_BERSAMA
+FASIH_PASSWORD=ISI_PASSWORD_AKUN_SSO_BERSAMA
+GOOGLE_SPREADSHEET_ID=ISI_ID_SPREADSHEET_MONITORING
+TINDAK_LANJUT_SPREADSHEET_ID=ISI_ID_SPREADSHEET_TINDAK_LANJUT
+GOOGLE_CREDENTIALS_FILE=credentials.json
+# Bila jaringan instansi menggunakan CA internal yang sah, mintakan PEM dari IT.
+# REQUESTS_CA_BUNDLE=C:\\path\\to\\bps-ca-bundle.pem
+
+# HANYA UNTUK PENGEMBANGAN (branch belum live): aktifkan file updater-settings.json lokal
+# BOLO_UPDATER_USE_LOCAL_SETTINGS=1

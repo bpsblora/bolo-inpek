@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BOLO INPEK — Monitoring Pendataan</title>
   <link rel="icon" type="image/jpeg" href="./favicon.png?v=1">
+  <link rel="stylesheet" href="./admin.css">
   <meta name="description" content="Monitoring Survei INPEK BPS Blora by BOLO INPEK.">
   <style>
     :root{font-family:Segoe UI,Arial,sans-serif;color:#172c40;background:#eff5ff;font-size:16px;--navy:#153c78;--accent:#185abd}
@@ -491,6 +492,8 @@
   </main>
   <footer>BOLO INPEK · Sumber: Google Sheets · Persentase dihitung dari seluruh assignment pada kelompok yang sedang dibuka. Data pendataan diperbarui setelah operator menjalankan Python. · <a href="./kebijakan-privasi.html">Kebijakan Privasi</a></footer>
   <noscript>Aktifkan JavaScript untuk menggunakan dashboard ini.</noscript>
+  <script src="./firebase-config.js"></script>
+  <script src="./admin.js" defer></script>
   <script>
     // ========================================================
     // STATUS DASHBOARD: setiap assignment dihitung satu kali.
@@ -537,6 +540,8 @@
   );
 }
     function surveiMasihAktif(survey) {
+      const setting = adminRegistry?.find(s => s && s.name === survey);
+      if (setting?.active === false) return false;
       const p=PERIODE_SURVEI.find(p=>p&&p.survei===survey);
       return !p?.survey_period_id || !PERIODE_DITUTUP.has(p.survey_period_id);
     }
@@ -590,7 +595,8 @@
   }
 }
 
-    const SURVEYS = ['MINERBA','MIGAS','STPIM','SKTH','SIBSTR II','CAPTIVE POWER'];
+    let SURVEYS = ['MINERBA','MIGAS','STPIM','SKTH','SIBSTR II','CAPTIVE POWER'];
+    let adminRegistry = null;
     const UNASSIGNED = 'Belum dialokasikan';
     const state = {survey:null,pml:null,ppl:null,status:null};
     const format = new Intl.NumberFormat('id-ID',{maximumFractionDigits:1});
@@ -603,9 +609,66 @@
     // ========================================================
     const API_URL = 'https://script.google.com/macros/s/AKfycbzW6DV2EcCoaFwHsXcyfBWMqDJ7aqPgNsUrnepn-UsD6EI7Xf9k1ecirrBZt8Gx9Nzu1A/exec';
     let DATA = [];
+    let RAW_DATA = [];
     let PERIODE_SURVEI = [];
     let lastFetched = null;
     let loading = false;
+    let monitoringReady = false;
+
+    // Sumber survei yang tampil mengikuti API monitoring + konfigurasi admin.
+    // Daftar hard-coded di atas hanya cadangan sampai API pertama berhasil dimuat.
+    function hitungDaftarSurvei() {
+      const observed = [
+        ...RAW_DATA.map(r => r.survei),
+        ...PERIODE_SURVEI.map(p => p?.survei),
+        ...(adminRegistry || []).map(p => p?.name)
+      ].filter(Boolean);
+      const unique = [...new Set(observed)];
+      if (unique.length) {
+        SURVEYS = unique.filter(name =>
+          adminRegistry?.find(p => p.name === name)?.active !== false
+        );
+      }
+    }
+    function periodeEfektif(survey) {
+      const fromApi = PERIODE_SURVEI.find(p => p && p.survei === survey);
+      const fromAdmin = adminRegistry?.find(p => p && p.name === survey);
+      if (!fromApi && !fromAdmin) return null;
+      return {
+        ...(fromApi || {}),
+        tanggal_mulai: fromAdmin?.startDate || fromApi?.tanggal_mulai || '',
+        tanggal_selesai: fromAdmin?.endDate || fromApi?.tanggal_selesai || ''
+      };
+    }
+    function kirimDataKeAdmin() {
+      const byName = new Map();
+      for (const r of RAW_DATA) {
+        for (const role of ['ppl','pml']) {
+          const person = (r[role] || '').trim();
+          if (!person || person === UNASSIGNED) continue;
+          const key = person.toLocaleUpperCase('id-ID');
+          const existing = byName.get(key);
+          if (existing && existing.role !== role.toUpperCase()) existing.role = 'PPL/PML';
+          else if (!existing) byName.set(key, {name:person, role:role.toUpperCase()});
+        }
+      }
+      const surveys = [...new Set([...RAW_DATA.map(r => r.survei), ...PERIODE_SURVEI.map(p => p?.survei)].filter(Boolean))].map(name => {
+        const p = PERIODE_SURVEI.find(x => x && x.survei === name);
+        return {name, startDate: p?.tanggal_mulai || '', endDate: p?.tanggal_selesai || ''};
+      });
+      window.BOLO_MONITORING_CONTEXT = {surveys, employees:[...byName.values()]};
+      window.dispatchEvent(new CustomEvent('bolo:monitoring-loaded', {
+        detail: window.BOLO_MONITORING_CONTEXT
+      }));
+    }
+    window.addEventListener('bolo:survey-registry', event => {
+      adminRegistry = Array.isArray(event.detail?.surveys) ? event.detail.surveys : null;
+      hitungDaftarSurvei();
+      if (monitoringReady && !loading) {
+        DATA = RAW_DATA.filter(r => surveiMasihAktif(r.survei));
+        render(false);
+      }
+    });
 
     function validatePayload(payload){
       if(!payload || payload.success!==true || !Array.isArray(payload.data)){
@@ -621,8 +684,8 @@
           if(typeof row[key]!=='string')throw new Error('Kolom '+key+' tidak valid pada baris '+(index+2)+'.');
           clean[key]=row[key].trim();
         }
-        if(!SURVEYS.includes(clean.survei) || !clean.nama_assignment || !STATUS.some(s=>s.code===clean.status)){
-          throw new Error('Survei, nama assignment, atau status belum dikenali pada baris '+(index+2)+'. Periksa tab monitoring.');
+        if(!clean.survei || !clean.nama_assignment || !STATUS.some(s=>s.code===clean.status)){
+          throw new Error('Nama survei, assignment, atau status tidak valid pada baris '+(index+2)+'. Periksa tab monitoring.');
         }
         return clean;
       });
@@ -686,20 +749,26 @@
         if(!response.ok)throw new Error('Server merespons HTTP '+response.status+'.');
         let payload;
         try{payload=await response.json()}catch{throw new Error('Respons bukan JSON. Pastikan akses web app adalah Siapa saja dan URL /exec benar.');}
-        DATA=validatePayload(payload);
+        RAW_DATA=validatePayload(payload);
+        DATA=RAW_DATA;
         PERIODE_SURVEI = Array.isArray(payload.periode_survei)
           ? payload.periode_survei
           : [];
+        kirimDataKeAdmin();
+        hitungDaftarSurvei();
 
         await ambilStatusPenutupan(controller.signal);
-        DATA=DATA.filter(r=>surveiMasihAktif(r.survei));
+        DATA=RAW_DATA.filter(r=>surveiMasihAktif(r.survei));
         tampilkanWaktuPengambilan(payload.data_terakhir_diambil);
         Object.assign(state,{survey:null,pml:null,ppl:null,status:null});
+        monitoringReady = true;
         render(false);
         // Sembunyikan banner setelah data berhasil dimuat.
         connection.hidden = true;
       }catch(error){
         DATA=[];
+        RAW_DATA=[];
+        monitoringReady = false;
         tampilkanWaktuPengambilan(null);
         connection.hidden = false;
         connection.textContent = "Data belum berhasil dimuat. Silakan coba lagi.";
@@ -768,11 +837,9 @@
 
     // Menampilkan rentang tanggal pelaksanaan saja.
   function periodeHtml(survey) {
-    const periode = PERIODE_SURVEI.find(
-      item => item && item.survei === survey
-    );
+    const periode = periodeEfektif(survey);
 
-    if (!periode) return "";
+    if (!periode || (!periode.tanggal_mulai && !periode.tanggal_selesai)) return "";
 
     return (
       '<div class="survey-period">' +
@@ -875,9 +942,7 @@
     // Survei tanpa tanggal yang valid ditempatkan terakhir.
     function surveiUrutDeadline() {
       function deadline(survey) {
-        const periode = PERIODE_SURVEI.find(
-          item => item && item.survei === survey
-        );
+        const periode = periodeEfektif(survey);
 
         const teks = String(periode?.tanggal_selesai || "").trim();
 
@@ -904,9 +969,7 @@
         // Jika deadline sama, dahulukan survei yang mulai lebih awal.
         if (tanggalA === tanggalB) {
           function tanggalMulai(survey) {
-            const periode = PERIODE_SURVEI.find(
-              item => item && item.survei === survey
-            );
+            const periode = periodeEfektif(survey);
 
             const teks = String(periode?.tanggal_mulai || "").trim();
 

@@ -1,0 +1,32 @@
+BOLO INPEK — CONTOH FILE .env (BUKAN KREDENSIAL ASLI)
+================================================
+
+Untuk mode Online pembaruan FASIH, administrator internal perlu menyiapkan
+file dengan nama persis: .env (bukan .env.txt), di folder yang sama dengan
+ambil_data_monitoring_inpek_v2.py dan BOLO-INPEK-Updater.exe.
+
+Contoh ISI file .env:
+
+FASIH_USERNAME=
+FASIH_PASSWORD=
+
+Masukkan username dan password akun SSO bersama hanya melalui prosedur
+internal BPS yang disetujui. JANGAN masukkan password ke paket ZIP publik,
+GitHub, Google Sites, chat umum, atau spreadsheet.
+
+File updater-oauth-desktop.json resmi juga harus tersedia di folder script
+untuk mode pembaruan online. Pada fitur "Uji Login Google" saja, pengguna
+bisa memilih JSON tersebut langsung dari lokasi unduhan di PC.
+
+GOOGLE_SPREADSHEET_ID, TINDAK_LANJUT_SPREADSHEET_ID, dan credentials.json
+TIDAK diperlukan pada mode Online karena tujuan dua spreadsheet dibaca dari
+Firebase dan diakses menggunakan login Google operator.
+
+Urutan wajib: FortiClient VPN Connected -> FASIH dapat dibuka -> login
+Google operator -> SSO FASIH -> scraping -> upload dua Sheets.
+
+PERINGATAN: Mode sinkronisasi produksi masih NONAKTIF sampai selesai
+pengujian dan disetujui administrator. Uji Login Google dapat dijalankan
+terpisah tanpa VPN, FASIH atau kredensial SSO.
+
+Pengelola: BPS Kabupaten Blora | BOLO INPEK 2.0

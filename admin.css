@@ -1,0 +1,107 @@
+/* BOLO INPEK 2.0 — lapisan UI admin, tidak mengubah gaya dashboard lama. */
+#bolo-admin-launch{
+  margin-left:auto;flex:0 0 auto;border:1px solid #aacaf5;border-radius:10px;
+  padding:10px 15px;color:#123c72;background:#f4f8ff;font-weight:700;
+  box-shadow:0 3px 10px #00182b1c;transition:transform .15s,background .15s
+}
+#bolo-admin-launch:hover{background:#dfedff;transform:translateY(-1px)}
+#bolo-admin-dialog,#bolo-entry-dialog{
+  border:1px solid #cbd8eb;border-radius:20px;padding:0;color:#172c40;
+  background:#f7faff;box-shadow:0 22px 80px #0e284257;
+  max-height:calc(100dvh - 35px);width:min(960px,calc(100vw - 28px))
+}
+#bolo-entry-dialog{width:min(590px,calc(100vw - 28px))}
+#bolo-admin-dialog::backdrop,#bolo-entry-dialog::backdrop{background:#071f39aa;backdrop-filter:blur(4px)}
+.bolo-admin-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;
+  padding:24px 28px;background:linear-gradient(105deg,#133766,#1855a3);color:white}
+.bolo-admin-head h2{font-size:1.4rem;margin:0 0 9px;font-weight:800;letter-spacing:-.015em}
+.bolo-admin-head p{margin:0;font-size:.8rem;line-height:1.5;color:#d9e8ff}
+.bolo-admin-head p.bolo-preview{color:#fff3bc}
+.bolo-close{border:0!important;border-radius:10px!important;background:#ffffff2b!important;
+  color:inherit!important;font-size:26px!important;line-height:1!important;padding:5px 12px!important}
+#bolo-admin-content{padding:20px 28px 32px;max-height:calc(100dvh - 175px);overflow-y:auto}
+.bolo-admin-tabs{display:flex;gap:8px;border-bottom:1px solid #dbe4f2;padding-bottom:14px;margin-bottom:20px}
+.bolo-admin-tabs button{border:1px solid #ccd9e9;background:#fff;border-radius:10px;
+  padding:10px 15px;color:#245078;font-size:.9rem;font-weight:700}
+.bolo-admin-tabs button.selected{background:#dbeaff;color:#143b74;border-color:#90b7ed}
+.bolo-admin-section-title{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:15px}
+.bolo-admin-section-title h3{margin:0 0 5px;font-size:1.1rem}
+.bolo-admin-section-title p{margin:0;color:#526578;font-size:.85rem;max-width:550px}
+.bolo-admin-section-title>button,.bolo-actionbar{flex:0 0 auto}
+.bolo-actionbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#bolo-admin-dialog button,#bolo-entry-dialog button{font:inherit;cursor:pointer}
+#bolo-admin-dialog button:disabled,#bolo-entry-dialog button:disabled{opacity:.5;cursor:wait}
+.bolo-primary{border:1px solid #174b91!important;border-radius:9px;background:#185abd!important;
+  padding:10px 14px;color:white!important;font-size:.85rem!important;font-weight:700!important}
+.bolo-primary:hover{background:#154994!important}
+.bolo-minor{border:1px solid #d3ddec!important;border-radius:9px;background:white!important;
+  padding:8px 12px;color:#335375!important;font-size:.8rem!important;font-weight:600!important}
+.bolo-minor:hover{background:#edf5ff!important}
+.bolo-admin-table-wrap{border:1px solid #d6e2ee;border-radius:12px;overflow:auto;background:white}
+.bolo-admin-table{border-collapse:collapse;min-width:640px;width:100%}
+.bolo-admin-table th{background:#edf4fd;font-size:.8rem;white-space:nowrap}
+.bolo-admin-table th,.bolo-admin-table td{padding:14px 12px;border-bottom:1px solid #e7edf6;text-align:left;vertical-align:middle}
+.bolo-admin-table td{font-size:.87rem}
+.bolo-admin-table td strong{display:block;color:#183e70}
+.bolo-admin-table td small{display:block;color:#62778c;font-size:.74rem;max-width:290px;margin-top:4px}
+.bolo-admin-table tr:last-child td{border-bottom:0}
+.bolo-admin-table .bolo-actions{white-space:nowrap}
+.bolo-actions button{padding:7px 10px!important;font-size:.8rem!important;border-radius:8px;border:1px solid #c7d8f0;background:#eef5ff;color:#174b87;font-weight:700}
+.bolo-actions button+button{margin-left:7px}
+.bolo-state{border-radius:100px;padding:5px 9px;background:#dff5e4;color:#166332;font-size:.75rem;font-weight:700}
+.bolo-state.off{background:#f0f2f5;color:#67717c}
+.bolo-empty{background:white;border:1px dashed #c4d4e8;border-radius:12px;padding:28px;
+  text-align:center;color:#66798b;font-size:.9rem}
+.bolo-success,.bolo-error{padding:11px 13px;border-radius:10px;font-size:.85rem;margin:0 0 15px}
+.bolo-success{color:#135f33;background:#e6f8eb;border:1px solid #b7e4c5}
+.bolo-error{color:#9f2330;background:#fff0f1;border:1px solid #f2c7ca}
+.bolo-admin-user{display:flex;align-items:center;justify-content:flex-end;gap:10px;
+  font-size:.8rem;color:#617388;margin-bottom:16px}
+.bolo-admin-gate{text-align:center;background:white;border:1px solid #e1e9f1;
+  border-radius:14px;padding:35px 25px;margin:auto;max-width:510px}
+.bolo-admin-gate h3{margin:0 0 8px}.bolo-admin-gate p{color:#586b7e;font-size:.9rem}
+.bolo-entry-head{display:flex;align-items:center;justify-content:space-between;
+  padding:18px 23px;background:#17467f;color:#fff}
+.bolo-entry-head h3{margin:0;font-size:1.15rem}
+#bolo-entry-form{background:#fff;border-radius:20px}
+#bolo-entry-fields{padding:20px 24px 4px;display:grid;gap:13px;max-height:60dvh;overflow:auto}
+#bolo-entry-fields label{display:grid;gap:5px;font-size:.85rem;font-weight:700;color:#354b60}
+#bolo-entry-fields input,#bolo-entry-fields textarea,#bolo-entry-fields select{
+  width:100%;min-width:0;border:1px solid #cbd8e7;border-radius:9px;padding:10px 12px;
+  background:#fff;color:#24394d;font:inherit;font-weight:400
+}
+#bolo-entry-fields input[readonly]{background:#edf1f7;color:#506174}
+#bolo-entry-fields input:focus,#bolo-entry-fields textarea:focus,#bolo-entry-fields select:focus{
+  outline:2px solid #8bb8ff;outline-offset:1px
+}
+.bolo-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.bolo-check{display:flex;align-items:center;gap:8px;padding:12px 24px;font-size:.86rem;font-weight:700}
+#bolo-entry-error{margin:0 24px;min-height:0}
+#bolo-entry-error:empty{display:none}
+.bolo-form-buttons{display:flex;justify-content:flex-end;gap:9px;padding:17px 24px 22px}
+@media(max-width:700px){
+  #bolo-admin-launch{margin-left:0;flex:0 0 auto;padding:8px 11px;font-size:.8rem}
+  .header-inner{flex-wrap:wrap}
+  #bolo-admin-content{padding:15px}
+  .bolo-admin-head{padding:18px}
+  .bolo-admin-section-title{flex-wrap:wrap}
+  .bolo-admin-section-title>button{width:100%}
+  .bolo-actionbar{width:100%}
+  .bolo-actionbar button{flex:1 1 150px}
+  .bolo-admin-tabs button{flex:1}
+  .bolo-form-grid{grid-template-columns:1fr}
+  #bolo-entry-fields{padding:15px}
+}
+@media(prefers-reduced-motion:reduce){#bolo-admin-launch{transition:none}}
+
+/* Konfigurasi dua sumber Google Sheets — hanya untuk admin yang login */
+.bolo-sheet-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:12px}
+.bolo-sheet-summary>div{padding:15px 16px;border:1px solid #dae7f5;background:#f3f8ff;border-radius:14px;display:grid;gap:6px}
+.bolo-sheet-summary strong{color:#174a7d;font-size:14px}
+.bolo-sheet-summary small{color:#4b6888;font-size:12px}
+#bolo-sheets-dialog{border:0;border-radius:18px;padding:0;max-width:540px;width:min(92vw,540px);box-shadow:0 22px 75px #09274545}
+#bolo-sheets-dialog::backdrop{background:#062f59a8;backdrop-filter:blur(3px)}
+#bolo-sheets-form{padding:20px;display:grid;gap:14px}
+#bolo-sheets-form label{display:grid;gap:7px;font-weight:600;color:#20486e}
+#bolo-sheets-form input{width:100%;box-sizing:border-box;border:1px solid #cbd9eb;border-radius:10px;padding:10px 12px;font-size:14px;background:#fff;color:#152e48}
+#bolo-sheets-form input:focus{outline:2px solid #6ba9ed;outline-offset:1px}
