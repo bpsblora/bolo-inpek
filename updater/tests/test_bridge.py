@@ -89,6 +89,50 @@ def main():
         )
         self.assertTrue(any("selesai" in item.lower() for item in log))
 
+    def test_sso_username_and_password_from_form_without_env_file(self):
+        (self.root / ".env").unlink()
+        self.script.write_text('''
+from types import SimpleNamespace
+gspread = SimpleNamespace(service_account=lambda filename=None: None)
+def baca_pengaturan():
+    raise AssertionError("Must not read .env for SSO")
+def login_sso_eksternal(driver, username, password):
+    assert username == "operator@example.invalid"
+    assert password == "TEST_PASSWORD_DO_NOT_LOG"
+    print("SSO=" + username + " pw=" + password)
+def tunggu_login_berhasil(driver, timeout=90):
+    return None
+def main():
+    username, password = baca_pengaturan()
+    login_sso_eksternal(None, username, password)
+''', encoding="utf8")
+        class FakeSheet:
+            def get_all_records(self):
+                return [{"email": "staff@example.invalid", "nama": "Test Staff"}]
+        class FakeWorkbook:
+            def worksheet(self, name):
+                return FakeSheet()
+        class FakeGspread:
+            def open_by_key(self, key):
+                return FakeWorkbook()
+        logs = []
+        self.assertEqual(check_files(
+            self.script, require_google_credentials=False, require_sso_env=False
+        ), [])
+        run_legacy_scraper(
+            self.script, logs.append,
+            authorized_client=FakeGspread(),
+            spreadsheet_targets={
+                "monitoring_id": "SHEET_EXAMPLE_MONITORING",
+                "tindak_lanjut_id": "SHEET_EXAMPLE_INTERNAL",
+            },
+            sso_credentials=("operator@example.invalid", "TEST_PASSWORD_DO_NOT_LOG"),
+        )
+        self.assertTrue(any("Scraping selesai" in line for line in logs))
+        self.assertFalse(any("TEST_PASSWORD_DO_NOT_LOG" in line for line in logs))
+        self.assertFalse(any("operator@example.invalid" in line for line in logs))
+        self.assertTrue(any("[RAHASIA]" in line for line in logs))
+
     def test_shared_sso_credentials_required(self):
         self.script.write_text("pass\n", encoding="utf8")
         (self.root / ".env").write_text(
