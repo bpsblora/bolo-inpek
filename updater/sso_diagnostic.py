@@ -223,7 +223,7 @@ def test_sso_login(
     finally:
         sys.path[:] = original_path
         if driver is not None:
-            report("Menutup sesi Firefox/Edge/Chrome untuk uji login SSO...")
+            report("Menutup sesi Google Chrome UC untuk uji login SSO...")
             try:
                 driver.quit()
             except Exception:
