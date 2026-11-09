@@ -20,19 +20,20 @@ class FasihAccessError(RuntimeError):
 
 
 def fasih_failure_notice(reason: str = "") -> str:
-    """Pesan untuk ditampilkan setelah cek portal FASIH gagal."""
+    """Tunjukkan kategori masalah yang aman tanpa menebak VPN telah mati.
+
+    Alasan selalu dibuat dari string internal di verify_fasih_access;
+    jangan mengutip exception mentah yang mungkin berisi kredensial proxy.
+    """
     main = (
-        "FASIH belum dapat dijangkau.\n\n"
-        "Periksa sambungan VPN BPS dan koneksi internet "
-        "komputer yang digunakan.\n\n"
-        "Setelah koneksi normal, silakan ulangi pemeriksaan atau "
-        "pembaruan data."
+        "Pemeriksaan akses FASIH belum berhasil.\n\n"
+        + (reason or "Penyebab belum diketahui. Periksa koneksi VPN BPS.")
+        + "\n\nUji juga melalui Chrome pada PC yang sama: "
+        + "https://fasih-sm.bps.go.id/app"
+        + "\nJika Chrome berhasil membuka FASIH tetapi Updater gagal, "
+        + "kemungkinan ada perbedaan konfigurasi sertifikat, proxy, "
+        + "atau pembatasan permintaan Python."
     )
-    if "sertifikat" in reason.lower():
-        main += (
-            "\n\nJika VPN sudah terhubung tetapi masalah sertifikat "
-            "tetap muncul, hubungi pengelola jaringan BPS."
-        )
     return main
 
 
@@ -52,19 +53,43 @@ def verify_fasih_access(*, get=requests.get, url=FASIH_URL) -> None:
         )
     except requests.exceptions.SSLError as exc:
         raise FasihAccessError(
-            "Portal FASIH terhubung, tetapi sertifikat HTTPS tidak dapat "
-            "diverifikasi. Minta sertifikat CA resmi kepada TI BPS."
+            "Sertifikat HTTPS FASIH tidak dapat diverifikasi oleh Python. "
+            "Jika Chrome dapat membukanya, periksa CA Windows/proxy "
+            "bersama pengelola TI BPS; jangan menonaktifkan verifikasi HTTPS."
+        ) from exc
+    except requests.exceptions.ProxyError as exc:
+        raise FasihAccessError(
+            "Koneksi HTTPS Python tertahan atau ditolak oleh proxy. "
+            "Periksa pengaturan proxy jaringan BPS."
+        ) from exc
+    except requests.exceptions.ConnectTimeout as exc:
+        raise FasihAccessError(
+            "Koneksi TCP ke portal FASIH melewati batas waktu. "
+            "Periksa rute jaringan VPN BPS atau firewall."
+        ) from exc
+    except requests.exceptions.ReadTimeout as exc:
+        raise FasihAccessError(
+            "Portal FASIH tidak menjawab tepat waktu setelah koneksi dibuat. "
+            "Periksa kondisi server dan jaringan BPS."
+        ) from exc
+    except requests.exceptions.ConnectionError as exc:
+        raise FasihAccessError(
+            "Koneksi ke fasih-sm.bps.go.id gagal pada lapisan DNS/TCP/TLS. "
+            "Periksa DNS dan rute VPN BPS; lihat apakah Chrome dapat membuka portal."
         ) from exc
     except requests.exceptions.RequestException as exc:
         raise FasihAccessError(
-            "Portal FASIH belum dapat dijangkau. Pastikan VPN BPS "
-            "berstatus Connected, lalu ulangi pemeriksaan."
+            "Permintaan HTTPS ke portal FASIH gagal (" +
+            type(exc).__name__ + "). Periksa koneksi dan kebijakan jaringan."
         ) from exc
 
     if response.status_code not in ACCESSIBLE:
         raise FasihAccessError(
-            "Akses portal FASIH belum siap (HTTP " + str(response.status_code)
-            + "). Periksa koneksi VPN BPS dan portal."
+            "Server FASIH dapat dijangkau, tetapi membalas HTTP "
+            + str(response.status_code) + ". "
+            + ("Akses ditolak atau dibatasi; tanyakan kebijakan keamanan portal."
+               if response.status_code in (403, 429)
+               else "Periksa status layanan dan path portal, bukan hanya VPN.")
         )
     if response.status_code in {301, 302, 303, 307, 308}:
         location = response.headers.get("Location", "")
