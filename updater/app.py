@@ -188,9 +188,14 @@ class Updater(tk.Tk):
         except FasihBrowserError:
             chosen = None
         if chosen:
+            driver_name = {
+                "Google Chrome": "UC ChromeDriver",
+                "Mozilla Firefox": "Selenium GeckoDriver",
+                "Microsoft Edge": "Selenium EdgeDriver",
+            }.get(chosen, "WebDriver")
             self.browser_hint.configure(
                 text=("Browser default Windows: " if self.fasih_browser.get() == AUTO_BROWSER
-                      else "Browser pilihan manual: ") + chosen,
+                      else "Browser pilihan manual: ") + chosen + " • " + driver_name,
             )
         else:
             self.browser_hint.configure(
