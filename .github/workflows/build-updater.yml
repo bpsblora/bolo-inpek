@@ -30,6 +30,7 @@ jobs:
         run: |
           python -m PyInstaller --clean --noconfirm --onefile --windowed `
             --name "BOLO-INPEK-Updater" --paths updater `
+            --add-data "updater-settings.json;." `
             --collect-all undetected_chromedriver `
             --collect-all selenium `
             --collect-all gspread `
