@@ -643,24 +643,35 @@
     // Tidak menggunakan kredensial Google atau data demo cadangan.
     // ========================================================
     const API_URL = 'https://script.google.com/macros/s/AKfycbzW6DV2EcCoaFwHsXcyfBWMqDJ7aqPgNsUrnepn-UsD6EI7Xf9k1ecirrBZt8Gx9Nzu1A/exec';
+    // Daftar publik survei dibaca dari Apps Script/Sheets, bukan JSON GitHub.
     async function bacaRegistrySurvei(signal){
       try {
-        const response = await fetch('./survei-publik.json?t='+Date.now(), {cache:'no-store',signal});
-        if (!response.ok) throw new Error('Registry belum tersedia');
+        const r=await fetch('./kelola-survei-link.json?t='+Date.now(),{cache:'no-store',signal});
+        if(!r.ok)throw new Error('Pengaturan registry belum tersedia');
+        const cfg=await r.json();
+        const url=String(cfg.public_config_url||'').trim();
+        if(!url.startsWith('https://script.google.com/macros/s/') || !url.includes('/exec')){
+          return null;
+        }
+        const endpoint=new URL(url);
+        endpoint.searchParams.set('action','public');
+        endpoint.searchParams.set('t',Date.now());
+        const response=await fetch(endpoint.href,{method:'GET',credentials:'omit',redirect:'follow',signal});
+        if(!response.ok)throw new Error('Registry Sheets tidak merespons');
         const body=await response.json();
-        if (!body || !Array.isArray(body.surveys)) throw new Error('Registry tidak valid');
+        if(body.success!==true||!Array.isArray(body.surveys))throw new Error('Registry Sheets tidak valid');
         const list=body.surveys.map(s=>({
           code:String(s.code||'').trim(),name:String(s.name||'').trim(),
-          aktif:s.aktif===true || String(s.aktif).toUpperCase()==='TRUE',
+          aktif:s.aktif===true||String(s.aktif).toUpperCase()==='TRUE',
           tanggal_mulai:String(s.tanggal_mulai||'').trim(),
           tanggal_selesai:String(s.tanggal_selesai||'').trim(),
           urutan:Number(s.urutan)||999
         })).filter(s=>s.name&&s.name.length<=120);
-        if(!list.length)throw new Error('Registry kosong');
+        if(!list.length)throw new Error('Registry tidak memiliki survei');
         return list;
-      } catch(err) {
+      }catch(err){
         if(err.name==='AbortError')throw err;
-        console.warn('Registry publik fallback:',err.message);
+        console.warn('Registry Sheets fallback ke API periode:',err.message);
         return null;
       }
     }
@@ -766,7 +777,14 @@
           for(const sv of REGISTRY)if(!PERIODE_SURVEI.some(p=>p?.survei===sv.name)){
             PERIODE_SURVEI.push({survei:sv.name,tanggal_mulai:sv.tanggal_mulai,tanggal_selesai:sv.tanggal_selesai});
           }
-        }else SURVEYS = susunDaftarSurvei(DATA, PERIODE_SURVEI);
+        }else{
+          const all=susunDaftarSurvei(DATA,PERIODE_SURVEI);
+          const flags=new Map(PERIODE_SURVEI.filter(p=>p&&p.survei).map(p=>[
+            String(p.survei).trim().toLowerCase(),
+            p.aktif===false||String(p.aktif).toLowerCase()==='false'?false:true
+          ]));
+          SURVEYS=all.filter(name=>flags.get(name.toLowerCase())!==false);
+        }
 
         await ambilStatusPenutupan(controller.signal);
         DATA=DATA.filter(r=>SURVEYS.includes(r.survei)&&surveiMasihAktif(r.survei));
