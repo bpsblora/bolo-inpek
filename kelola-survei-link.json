@@ -1,7 +1,6 @@
 {
   "admin_webapp_url": "https://script.google.com/macros/s/AKfycbzaJXnPpOg1h7fnlwXlrkMR7pVAspSXknf9sW1vbRq-Z3sW7i0sm7sYUoPDjF7wP-gy/exec",
-  "setup_required": true,
-  "public_config_url": "",
-  "source": "google_sheets",
-  "note": "URL ADMIN sudah dipasang. URL PUBLIK masih memerlukan URL deployment /macros/s/.../exec (bukan redirect googleusercontent atau URL library). Setelah valid, isi public_config_url dan set setup_required=false."
+  "setup_required": false,
+  "public_config_url": "https://script.google.com/macros/s/AKfycbx8Xizhkh6mNZzPg9t_pscYnfBMV89sTJeMJ6kFPCI0ZhWtC4WYFjwHDfWNzeflKxii/exec",
+  "source": "google_sheets"
 }
