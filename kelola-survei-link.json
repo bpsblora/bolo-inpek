@@ -1,6 +1,6 @@
 {
-  "admin_webapp_url": "https://script.google.com/macros/library/d/19_Tx9xxjTkJfhgbBC6Bk3xuMlI-NgE2O9TD-n51Lp814mJaktlTtE2Gm/1",
+  "admin_webapp_url": "https://script.google.com/macros/s/AKfycbzaJXnPpOg1h7fnlwXlrkMR7pVAspSXknf9sW1vbRq-Z3sW7i0sm7sYUoPDjF7wP-gy/exec",
   "setup_required": false,
-  "public_config_url": "https://script.google.com/macros/library/d/19_Tx9xxjTkJfhgbBC6Bk3xuMlI-NgE2O9TD-n51Lp814mJaktlTtE2Gm/2",
+  "public_config_url": "https://script.google.com/macros/s/AKfycbx8Xizhkh6mNZzPg9t_pscYnfBMV89sTJeMJ6kFPClOZhWtC4WYFjwHDfWNzeflKxiJ/exec",
   "source": "google_sheets"
 }
