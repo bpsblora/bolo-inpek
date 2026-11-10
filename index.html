@@ -597,7 +597,22 @@
   }
 }
 
-    const SURVEYS = ['MINERBA','MIGAS','STPIM','SKTH','SIBSTR II','CAPTIVE POWER'];
+    // Nama survei diturunkan dari daftar periode dan assignment API.
+    // Tambah survei pada sumber data tidak lagi memerlukan edit HTML.
+    let SURVEYS = [];
+    function susunDaftarSurvei(rows, periods){
+      const names=[], seen=new Set();
+      function add(value){
+        if(typeof value!=='string')return;
+        const name=value.trim();
+        if(!name || name.length>120)return;
+        const key=name.toLocaleLowerCase('id-ID');
+        if(!seen.has(key)){seen.add(key);names.push(name);}
+      }
+      for(const p of periods)if(p && typeof p==='object')add(p.survei);
+      for(const r of rows)if(r && typeof r==='object')add(r.survei);
+      return names;
+    }
     const UNASSIGNED = 'Belum dialokasikan';
     const state = {survey:null,pml:null,ppl:null,status:null};
     const format = new Intl.NumberFormat('id-ID',{maximumFractionDigits:1});
@@ -636,7 +651,7 @@
           if(!clean.status_asli)clean.status_asli=clean.status;
           clean.status='LAINNYA';
         }
-        if(!SURVEYS.includes(clean.survei) || !clean.nama_assignment || !STATUS.some(s=>s.code===clean.status)){
+        if(!clean.survei || clean.survei.length>120 || !clean.nama_assignment || !STATUS.some(s=>s.code===clean.status)){
           throw new Error('Survei, nama assignment, atau status tidak valid pada baris '+(index+2)+'. Periksa tab monitoring.');
         }
         return clean;
@@ -705,6 +720,7 @@
         PERIODE_SURVEI = Array.isArray(payload.periode_survei)
           ? payload.periode_survei
           : [];
+        SURVEYS = susunDaftarSurvei(DATA, PERIODE_SURVEI);
 
         await ambilStatusPenutupan(controller.signal);
         DATA=DATA.filter(r=>surveiMasihAktif(r.survei));
@@ -985,7 +1001,7 @@
             DATA.length
           ) +
           '<div class="grid">' +
-          surveiUrutDeadline().filter(surveiMasihAktif).map(surveyCard).join('') +
+          (SURVEYS.length ? surveiUrutDeadline().filter(surveiMasihAktif).map(surveyCard).join('') : '<p class="empty">Belum ada survei pada sumber data.</p>') +
           '</div>';
 
         // Cetak miring keterangan pada halaman utama saja.
