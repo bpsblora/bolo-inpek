@@ -760,10 +760,16 @@
         PERIODE_SURVEI = Array.isArray(payload.periode_survei)
           ? payload.periode_survei
           : [];
-        SURVEYS = susunDaftarSurvei(DATA, PERIODE_SURVEI);
+        REGISTRY = await bacaRegistrySurvei(controller.signal);
+        if(REGISTRY){
+          SURVEYS = REGISTRY.filter(s=>s.aktif).sort((a,b)=>a.urutan-b.urutan).map(s=>s.name);
+          for(const sv of REGISTRY)if(!PERIODE_SURVEI.some(p=>p?.survei===sv.name)){
+            PERIODE_SURVEI.push({survei:sv.name,tanggal_mulai:sv.tanggal_mulai,tanggal_selesai:sv.tanggal_selesai});
+          }
+        }else SURVEYS = susunDaftarSurvei(DATA, PERIODE_SURVEI);
 
         await ambilStatusPenutupan(controller.signal);
-        DATA=DATA.filter(r=>surveiMasihAktif(r.survei));
+        DATA=DATA.filter(r=>SURVEYS.includes(r.survei)&&surveiMasihAktif(r.survei));
         tampilkanWaktuPengambilan(payload.data_terakhir_diambil);
         Object.assign(state,{survey:null,pml:null,ppl:null,status:null});
         render(false);
