@@ -1,5 +1,7 @@
 {
   "admin_webapp_url": "",
   "setup_required": true,
-  "note": "Isi URL deployment Apps Script Kelola Survei setelah setup sekali; jangan pernah menaruh GitHub token atau kredensial di file ini."
+  "note": "Dua URL deployment Apps Script: admin_webapp_url (khusus admin) dan public_config_url (hanya action=public, metadata tanpa ID FASIH). GitHub token tidak diperlukan.",
+  "public_config_url": "",
+  "source": "google_sheets"
 }
