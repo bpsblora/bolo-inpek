@@ -440,7 +440,7 @@
   </div>
 </header>
 <dialog id="surveyAdminModal" aria-labelledby="surveyAdminTitle">
-  <div class="survey-admin-bar"><strong id="surveyAdminTitle">Kelola Survei — BOLO INPEK</strong><button type="button" class="survey-admin-close" id="closeSurveyAdmin">Tutup ×</button></div>
+  <div class="survey-admin-bar"><strong id="surveyAdminTitle">Kelola Survei — BOLO INPEK</strong><span><a id="surveyAdminExternal" href="#" target="_blank" rel="noopener noreferrer" style="display:none;color:#fff;font-size:12px;margin-right:12px">Buka di Tab Baru</a><button type="button" class="survey-admin-close" id="closeSurveyAdmin">Tutup ×</button></span></div>
   <div id="surveyAdminSetup" class="survey-admin-help" hidden><strong>Panel Admin Belum Disambungkan</strong><p>Pasang backend Apps Script Kelola Survei satu kali, kemudian isikan URL deployment di berkas <code>kelola-survei-link.json</code>. Setelah itu survei dapat ditambah, diedit, atau dinonaktifkan dari sini.</p></div>
   <iframe id="surveyAdminFrame" title="Form Kelola Survei BOLO INPEK" referrerpolicy="strict-origin-when-cross-origin"></iframe>
 </dialog>
@@ -1065,6 +1065,7 @@
       const frame=document.getElementById('surveyAdminFrame');
       const setup=document.getElementById('surveyAdminSetup');
       frame.hidden=true;setup.hidden=false;
+      document.getElementById('surveyAdminExternal').style.display='none';
       modal.showModal();
       try{
         const r=await fetch('./kelola-survei-link.json?t='+Date.now(),{cache:'no-store'});
@@ -1074,6 +1075,7 @@
         const ok=url.startsWith('https://script.google.com/macros/s/') && /\/exec([?].*)?$/.test(url);
         if(!ok)return;
         setup.hidden=true;frame.hidden=false;frame.src=url;
+        const external=document.getElementById('surveyAdminExternal');external.href=url;external.style.display='inline';
       }catch(e){console.warn('Panel admin belum terhubung:',e.message)}
     });
     document.getElementById('closeSurveyAdmin').addEventListener('click',()=>document.getElementById('surveyAdminModal').close());
