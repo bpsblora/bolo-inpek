@@ -393,6 +393,18 @@
   box-shadow: 0 2px 5px #0002;
 }
 </style>
+<style>
+.survey-admin-top{margin-left:auto;display:flex;align-items:center;gap:8px}
+.survey-admin-btn{border:1px solid #a8c8f1;background:#e8f2ff;color:#174478;border-radius:10px;padding:10px 15px;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap}
+.survey-admin-btn:hover{background:#d6e8ff}
+#surveyAdminModal{border:0;border-radius:16px;width:min(1150px,96vw);height:min(850px,92vh);padding:0;box-shadow:0 24px 90px #092f5666;overflow:hidden}
+#surveyAdminModal::backdrop{background:#0e2b4d99}
+.survey-admin-bar{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#174478;padding:13px 18px;color:#fff}
+.survey-admin-bar strong{font-size:15px}.survey-admin-close{background:#ffffff22;border:0;border-radius:8px;color:white;padding:6px 12px;cursor:pointer}
+#surveyAdminFrame{width:100%;height:calc(100% - 58px);border:0;background:#f4f8fd}
+.survey-admin-help{padding:28px;line-height:1.7;color:#3b516b}
+@media(max-width:780px){.header-inner{flex-wrap:wrap}.survey-admin-top{margin:0;width:100%}.survey-admin-btn{width:100%}}
+</style>
 
 </head>
 <body>
@@ -424,8 +436,14 @@
         Monitoring Survei Statistik INPEK - Blora Pengelolaan Statistik INPEK
       </p>
     </div>
+    <div class="survey-admin-top"><button type="button" class="survey-admin-btn" id="openSurveyAdmin">⚙ Kelola Survei</button></div>
   </div>
 </header>
+<dialog id="surveyAdminModal" aria-labelledby="surveyAdminTitle">
+  <div class="survey-admin-bar"><strong id="surveyAdminTitle">Kelola Survei — BOLO INPEK</strong><button type="button" class="survey-admin-close" id="closeSurveyAdmin">Tutup ×</button></div>
+  <div id="surveyAdminSetup" class="survey-admin-help" hidden><strong>Panel Admin Belum Disambungkan</strong><p>Pasang backend Apps Script Kelola Survei satu kali, kemudian isikan URL deployment di berkas <code>kelola-survei-link.json</code>. Setelah itu survei dapat ditambah, diedit, atau dinonaktifkan dari sini.</p></div>
+  <iframe id="surveyAdminFrame" title="Form Kelola Survei BOLO INPEK" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+</dialog>
   <main>
     <div class="notice" id="connection" role="status" aria-live="polite">Memuat data monitoring dari spreadsheet…</div>
     <!-- Dua kotak sejajar: waktu dan keterangan status -->
