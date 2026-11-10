@@ -1060,6 +1060,27 @@
       if(focus)view.querySelector('h1').focus({preventScroll:true});
     }
 
+    document.getElementById('openSurveyAdmin').addEventListener('click',async()=>{
+      const modal=document.getElementById('surveyAdminModal');
+      const frame=document.getElementById('surveyAdminFrame');
+      const setup=document.getElementById('surveyAdminSetup');
+      frame.hidden=true;setup.hidden=false;
+      modal.showModal();
+      try{
+        const r=await fetch('./kelola-survei-link.json?t='+Date.now(),{cache:'no-store'});
+        if(!r.ok)throw new Error('URL admin belum tersedia');
+        const cfg=await r.json();
+        const url=String(cfg.admin_webapp_url||'').trim();
+        const ok=url.startsWith('https://script.google.com/macros/s/') && /\/exec([?].*)?$/.test(url);
+        if(!ok)return;
+        setup.hidden=true;frame.hidden=false;frame.src=url;
+      }catch(e){console.warn('Panel admin belum terhubung:',e.message)}
+    });
+    document.getElementById('closeSurveyAdmin').addEventListener('click',()=>document.getElementById('surveyAdminModal').close());
+    document.getElementById('surveyAdminModal').addEventListener('close',()=>{
+      document.getElementById('surveyAdminFrame').src='about:blank';
+      loadData();
+    });
     document.addEventListener('click',event=>{
       const exportButton=event.target.closest('button[data-export]');
       if(exportButton){if(!exportButton.disabled)handleExport(exportButton);return;}
