@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "updated_at": "",
+  "surveys": [
+    {
+      "code": "STPIM",
+      "name": "STPIM",
+      "aktif": true,
+      "urutan": 1
+    },
+    {
+      "code": "SKTH",
+      "name": "SKTH",
+      "aktif": true,
+      "urutan": 2
+    },
+    {
+      "code": "SIBSTR",
+      "name": "SIBSTR II",
+      "aktif": true,
+      "urutan": 3
+    },
+    {
+      "code": "CAPTIVE_POWER",
+      "name": "CAPTIVE POWER",
+      "aktif": true,
+      "urutan": 4
+    },
+    {
+      "code": "MINERBA",
+      "name": "MINERBA",
+      "aktif": true,
+      "urutan": 5
+    },
+    {
+      "code": "MIGAS",
+      "name": "MIGAS",
+      "aktif": true,
+      "urutan": 6
+    }
+  ]
+}
