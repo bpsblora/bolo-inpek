@@ -1,7 +1,6 @@
 {
-  "admin_webapp_url": "",
-  "setup_required": true,
-  "note": "Dua URL deployment Apps Script: admin_webapp_url (khusus admin) dan public_config_url (hanya action=public, metadata tanpa ID FASIH). GitHub token tidak diperlukan.",
-  "public_config_url": "",
+  "admin_webapp_url": "https://script.google.com/macros/library/d/19_Tx9xxjTkJfhgbBC6Bk3xuMlI-NgE2O9TD-n51Lp814mJaktlTtE2Gm/1",
+  "setup_required": false,
+  "public_config_url": "https://script.google.com/macros/library/d/19_Tx9xxjTkJfhgbBC6Bk3xuMlI-NgE2O9TD-n51Lp814mJaktlTtE2Gm/2",
   "source": "google_sheets"
 }
