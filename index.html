@@ -618,6 +618,7 @@
     // Nama survei diturunkan dari daftar periode dan assignment API.
     // Tambah survei pada sumber data tidak lagi memerlukan edit HTML.
     let SURVEYS = [];
+    let REGISTRY = null;
     function susunDaftarSurvei(rows, periods){
       const names=[], seen=new Set();
       function add(value){
@@ -642,6 +643,27 @@
     // Tidak menggunakan kredensial Google atau data demo cadangan.
     // ========================================================
     const API_URL = 'https://script.google.com/macros/s/AKfycbzW6DV2EcCoaFwHsXcyfBWMqDJ7aqPgNsUrnepn-UsD6EI7Xf9k1ecirrBZt8Gx9Nzu1A/exec';
+    async function bacaRegistrySurvei(signal){
+      try {
+        const response = await fetch('./survei-publik.json?t='+Date.now(), {cache:'no-store',signal});
+        if (!response.ok) throw new Error('Registry belum tersedia');
+        const body=await response.json();
+        if (!body || !Array.isArray(body.surveys)) throw new Error('Registry tidak valid');
+        const list=body.surveys.map(s=>({
+          code:String(s.code||'').trim(),name:String(s.name||'').trim(),
+          aktif:s.aktif===true || String(s.aktif).toUpperCase()==='TRUE',
+          tanggal_mulai:String(s.tanggal_mulai||'').trim(),
+          tanggal_selesai:String(s.tanggal_selesai||'').trim(),
+          urutan:Number(s.urutan)||999
+        })).filter(s=>s.name&&s.name.length<=120);
+        if(!list.length)throw new Error('Registry kosong');
+        return list;
+      } catch(err) {
+        if(err.name==='AbortError')throw err;
+        console.warn('Registry publik fallback:',err.message);
+        return null;
+      }
+    }
     let DATA = [];
     let PERIODE_SURVEI = [];
     let lastFetched = null;
