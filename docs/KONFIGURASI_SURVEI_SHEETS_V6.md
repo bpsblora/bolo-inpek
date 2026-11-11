@@ -49,3 +49,22 @@ Setelah deployment, isi `kelola-survei-link.json` sekali dengan:
 Langkah operasional: **Kelola Survei → Simpan → Perbarui Survei (EXE) → Sinkronkan Periode FASIH (EXE) → Muat Ulang dashboard**. Pelaksanaan perlu akun VPN/SSO berizin serta izin tulis ke Spreadsheet Monitoring yang sama. Jika salah satu periode tidak dapat dibaca dengan valid, updater membatalkan penulisan.
 
 **Pengujian:** parser/penulis tanggal lulus simulasi; kode Apps Script lulus simulasi pelestarian data historis, pergantian ID periode, dan deteksi duplikasi. Belum diuji langsung terhadap FASIH/Google Sheets produksi. Versi Apps Script belum dapat dideploy langsung melalui akses percakapan ini; deployment perlu dilakukan oleh pengelola proyek yang memiliki izin.
+
+## V6.4 — Sinkronkan Semua Assignment dari FASIH ke monitoring
+
+Updater Portable V6.4 menambahkan **Sinkronkan Semua Assignment**. Fitur ini berjalan sesudah **Perbarui Survei**, menggunakan daftar survei aktif dari `konfigurasi_survei` (Sheets yang sama) dan Chrome + UC/SOO FASIH yang sudah berjalan pada V6.3.
+
+- Membaca seluruh assignment dari API FASIH dengan pagination terverifikasi, beserta daftar PPL/PML dan riwayat tanggung jawab.
+- Membangun kolom `monitoring` **A:F**: `survei`, `nama_assignment`, `status`, `ppl`, `pml`, `status_asli`.
+- Baris lama yang identitasnya cocok diperbarui **pada baris yang sama**. Assignment baru ditambahkan di bagian paling bawah rentang terpakai. Kolom **G dan seterusnya** tidak disentuh.
+- Assignment dari survei yang telah diarsipkan dipertahankan; tidak ada penghapusan otomatis.
+- Bila ada assignment lama survei aktif yang hilang pada hasil FASIH, nama assignment ganda, konflik perubahan Google Sheets, atau formula A:F, program **membatalkan** penulisan untuk mencegah kerusakan data.
+- Jika FASIH tidak mengembalikan nama petugas yang dapat dipastikan untuk assignment yang sudah ada, nama lama dipertahankan dan jumlahnya dijelaskan dalam pratinjau.
+- Membuat backup privat monitoring dan info_update di folder `%LOCALAPPDATA%\\BOLO_INPEK\\backup_monitoring_penuh`, menampilkan **pratinjau serta konfirmasi kedua**, lalu menulis dalam satu permintaan nilai batch dan membaca balik hasilnya untuk verifikasi.
+- Waktu `info_update!B2` dan jumlah `info_update!B4` diperbarui setelah penulisan. **Tidak** memodifikasi tab `konfigurasi_survei`, `periode_survei`, `db_petugas`, atau basis data tindak lanjut.
+- Spreadsheet ID paket V6.4 menggunakan ID yang telah diverifikasi oleh operator setelah memperbaiki kekeliruan satu karakter pada V6.3.
+- Tombol **Uji Baca**, **Sinkronkan Status Asli**, dan **Sinkronkan Periode FASIH** tetap tersedia.
+
+**Tidak memerlukan redeploy Apps Script Kelola Survei** untuk fitur penulisan assignment ke tab monitoring. Setelah verifikasi sukses, muat ulang dashboard BOLO INPEK.
+
+**Status validasi:** 17 pengujian logika lokal lulus, tampilan GUI diuji dengan virtual display pada lebar 760 dan 1130 px, ZIP diperiksa, dan hash EXE/runtime dipertahankan dari V6.3. **Belum diuji end-to-end pada Windows/VPN/Sheets produksi**, sehingga operator harus memeriksa hasil pratinjau sebelum klik YA dan mengonfirmasi nilai monitoring setelah sinkronisasi pertama.
