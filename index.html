@@ -395,7 +395,7 @@
 </style>
 <style>
 .survey-admin-top{margin-left:auto;display:flex;align-items:center;gap:8px}
-.survey-admin-btn{border:1px solid #a8c8f1;background:#e8f2ff;color:#174478;border-radius:10px;padding:10px 15px;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap}
+.survey-admin-btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;border:1px solid #a8c8f1;background:#e8f2ff;color:#174478;border-radius:10px;padding:10px 15px;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap}
 .survey-admin-btn:hover{background:#d6e8ff}
 #surveyAdminModal{border:0;border-radius:16px;width:min(1150px,96vw);height:min(850px,92vh);padding:0;box-shadow:0 24px 90px #092f5666;overflow:hidden}
 #surveyAdminModal::backdrop{background:#0e2b4d99}
@@ -436,7 +436,7 @@
         Monitoring Survei Statistik INPEK - Blora Pengelolaan Statistik INPEK
       </p>
     </div>
-    <div class="survey-admin-top"><button type="button" class="survey-admin-btn" id="refreshSurveys" title="Muat ulang daftar survei aktif dan kondisi dashboard terbaru tanpa mengunduh file">↻ Muat Ulang Dashboard</button><button type="button" class="survey-admin-btn" id="openSurveyAdmin">⚙ Kelola Survei</button></div>
+    <div class="survey-admin-top"><a class="survey-admin-btn" id="downloadUpdater" href="https://drive.google.com/uc?export=download&amp;id=17lI4fCIGEwv6KLIA7LRQQwsMaj980lEX" target="_blank" rel="noopener noreferrer" title="Unduh ZIP portable lengkap BOLO INPEK Updater V6.13 dari Google Drive (memerlukan izin akses)">⬇ Unduh Updater V6.13</a><button type="button" class="survey-admin-btn" id="openSurveyAdmin">⚙ Kelola Survei</button></div>
   </div>
 </header>
 <dialog id="surveyAdminModal" aria-labelledby="surveyAdminTitle">
@@ -669,35 +669,75 @@
     // ========================================================
     const API_URL = 'https://script.google.com/macros/s/AKfycbzW6DV2EcCoaFwHsXcyfBWMqDJ7aqPgNsUrnepn-UsD6EI7Xf9k1ecirrBZt8Gx9Nzu1A/exec';
     // Daftar publik survei dibaca dari Apps Script/Sheets, bukan JSON GitHub.
+    // Apps Script ContentService dapat menolak fetch lintas-origin. JSONP tetap
+    // memvalidasi identitas deployment, callback statis, dan daftar survei asli.
+    function registryViaJSONP(endpoint,signal){
+      return new Promise((resolve,reject)=>{
+        const callback='boloRegistryCallbackV614';
+        const url=new URL(endpoint);
+        url.searchParams.set('callback',callback);
+        const script=document.createElement('script');
+        let finished=false;
+        let timerId;
+        function cleanup(){
+          clearTimeout(timerId);
+          script.remove();
+          if(window[callback]===receive)delete window[callback];
+          if(signal)signal.removeEventListener('abort',abort);
+        }
+        function done(error,result){
+          if(finished)return;
+          finished=true;
+          cleanup();
+          if(error)reject(error);else resolve(result);
+        }
+        function receive(result){done(null,result);}
+        function abort(){done(new DOMException('Proses dibatalkan','AbortError'));}
+        if(signal?.aborted){reject(new DOMException('Proses dibatalkan','AbortError'));return;}
+        window[callback]=receive;
+        script.onerror=()=>done(new Error('Endpoint publik JSONP tidak dapat dimuat. Pastikan deployment PUBLIK sudah versi terbaru.'));
+        if(signal)signal.addEventListener('abort',abort,{once:true});
+        timerId=setTimeout(()=>done(new Error('Endpoint publik tidak mendukung JSONP. Perbarui deployment Apps Script PUBLIK.')),12000);
+        script.src=url.href;
+        document.head.appendChild(script);
+      });
+    }
     async function bacaRegistrySurvei(signal){
-      try {
+      try{
         const r=await fetch('./kelola-survei-link.json?t='+Date.now(),{cache:'no-store',signal});
-        if(!r.ok)throw new Error('Pengaturan registry belum tersedia');
+        if(!r.ok)throw new Error('Pengaturan registry belum tersedia di GitHub');
         const cfg=await r.json();
         const url=String(cfg.public_config_url||'').trim();
-        if(!url.startsWith('https://script.google.com/macros/s/') || !url.includes('/exec')){
-          return null;
+        if(!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec(?:\?.*)?$/.test(url)){
+          throw new Error('Alamat deployment PUBLIK Kelola Survei tidak valid');
         }
         const endpoint=new URL(url);
         endpoint.searchParams.set('action','public');
         endpoint.searchParams.set('t',Date.now());
-        const response=await fetch(endpoint.href,{method:'GET',credentials:'omit',redirect:'follow',signal});
-        if(!response.ok)throw new Error('Registry Sheets tidak merespons');
-        const body=await response.json();
-        if(body.success!==true||!Array.isArray(body.surveys))throw new Error('Registry Sheets tidak valid');
-        const list=body.surveys.map(s=>({
-          code:String(s.code||'').trim(),name:String(s.name||'').trim(),
+        let body;
+        try{
+          const response=await fetch(endpoint.href,{method:'GET',credentials:'omit',redirect:'follow',signal});
+          if(!response.ok)throw new Error('Registry publik merespons HTTP '+response.status);
+          body=await response.json();
+        }catch(networkError){
+          if(networkError.name==='AbortError')throw networkError;
+          console.info('Mencoba registry publik lewat JSONP karena akses fetch gagal:',networkError.message);
+          body=await registryViaJSONP(endpoint.href,signal);
+        }
+        if(body?.success!==true||!Array.isArray(body.surveys)){
+          throw new Error('Respons Apps Script PUBLIK tidak valid atau belum dapat membaca Google Sheets');
+        }
+        return body.surveys.map(s=>({
+          code:String(s.code||'').trim(),
+          name:String(s.name||'').trim(),
           aktif:s.aktif===true||String(s.aktif).toUpperCase()==='TRUE',
           tanggal_mulai:String(s.tanggal_mulai||'').trim(),
           tanggal_selesai:String(s.tanggal_selesai||'').trim(),
           urutan:Number(s.urutan)||999
         })).filter(s=>s.name&&s.name.length<=120);
-        // Nol survei adalah keadaan sah: survei bisa seluruhnya nonaktif
-        // atau dihapus dari admin. Jangan membangkitkannya lewat API lama.
-        return list;
       }catch(err){
-        console.error('Gagal mengambil filter aktif/nonaktif survei:',err);
-        throw new Error('Daftar survei aktif belum dapat diverifikasi. Demi keamanan, dashboard tidak menampilkan konfigurasi lama. Coba Perbarui Survei.');
+        console.error('Daftar survei aktif belum dapat diverifikasi:',err);
+        throw new Error('Daftar survei aktif belum dapat dimuat ('+err.message+'). Periksa deployment Apps Script PUBLIK, lalu coba lagi.');
       }
     }
     let DATA = [];
@@ -1126,15 +1166,6 @@
       if(focus)view.querySelector('h1').focus({preventScroll:true});
     }
 
-    document.getElementById('refreshSurveys').addEventListener('click',()=>{
-      const button=document.getElementById('refreshSurveys');
-      button.disabled=true;
-      button.textContent='Memperbarui…';
-      Promise.resolve(loadData()).finally(()=>{
-        button.disabled=false;
-        button.textContent='↻ Muat Ulang Dashboard';
-      });
-    });
     document.getElementById('openSurveyAdmin').addEventListener('click',async()=>{
       const modal=document.getElementById('surveyAdminModal');
       const frame=document.getElementById('surveyAdminFrame');
