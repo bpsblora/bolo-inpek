@@ -149,3 +149,15 @@ Penyempurnaan UI berdasarkan evaluasi operator setelah V6.8. Tanpa mengubah logi
 **Distribusi**: `Patch_Bolo_V6_9.zip` (mengganti `bolo_updater_gui.py` pada folder V6.8) atau `Bolo_Inpek_V6_9.zip` (portable lengkap). EXE identik dengan V6.8, runtime Chrome + UC tidak diubah; status rinci FASIH V6.7 dan cakupan otomatis V6.8 tetap aktif.
 
 **Validasi**: sintaks Python, GUI virtual display lebar 1130/760, label survei 6→7 dan transisi baru→sebelumnya, arsip ZIP/CRC, serta hash EXE identik; belum diuji di Windows/FASIH produksi untuk versi V6.9.
+
+## V6.10 — Hilangkan bagian Login SSO permanen
+
+Atas masukan pengguna, seluruh **Bagian 2. Login SSO FASIH** pada halaman utama Updater **dihapus**, bukan sekadar disembunyikan. Bagian selanjutnya bernomor ulang: **1 Akses FASIH, 2 Survei Aktif, 3 Spreadsheet Monitoring, 4 Ringkasan Hasil, 5 Riwayat Proses**.
+
+- Kredensial SSO tersimpan tetap dibaca dari DPAPI Windows yang sama (`credential_store.py` **tidak berubah**). Login Chrome + undetected_chromedriver, sinkronisasi dan autentikasi FASIH juga **tidak berubah**.
+- Dalam kartu **Akses FASIH**, hanya ada indikator **Akun SSO siap** dan tombol kecil **Ganti Akun SSO**, tanpa menampilkan username atau password di halaman utama.
+- Saat akun belum tersedia, klik Uji Baca / Sinkronkan memunculkan **pop-up pengaturan akun**; jika dibatalkan, operasi tidak dimulai. Pop-up menyembunyikan password dengan karakter pengganti dan menyediakan opsi simpan terenkripsi untuk akun Windows tersebut.
+- Penggantian akun tidak dapat dilakukan saat pembaruan berlangsung; penyimpanan gagal tidak akan ditandai berhasil.
+- Pilih `Patch_Bolo_V6_10.zip` untuk mengganti **satu** file `bolo_updater_gui.py` pada folder Updater V6.9, atau `Bolo_Inpek_V6_10.zip` untuk paket lengkap. EXE dan modul sinkronisasi Google Sheets/FASIH identik dengan V6.9.
+- Validasi: GUI virtual 1130 px dan 760 px, konfigurasi akun tidak tersimpan → pop-up, penyimpanan dan pemulihan akun, cancel → tanpa perubahan, versi dan struktur ZIP/CRC, hash EXE dan modul inti.
+- **Belum diuji pada Windows/FASIH produksi**. Jika akun pernah difoto ketika password terlihat, lakukan rotasi password melalui mekanisme resmi dan perbarui melalui tombol Ganti Akun SSO.
