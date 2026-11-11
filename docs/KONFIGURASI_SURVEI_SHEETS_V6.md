@@ -161,3 +161,18 @@ Atas masukan pengguna, seluruh **Bagian 2. Login SSO FASIH** pada halaman utama 
 - Pilih `Patch_Bolo_V6_10.zip` untuk mengganti **satu** file `bolo_updater_gui.py` pada folder Updater V6.9, atau `Bolo_Inpek_V6_10.zip` untuk paket lengkap. EXE dan modul sinkronisasi Google Sheets/FASIH identik dengan V6.9.
 - Validasi: GUI virtual 1130 px dan 760 px, konfigurasi akun tidak tersimpan → pop-up, penyimpanan dan pemulihan akun, cancel → tanpa perubahan, versi dan struktur ZIP/CRC, hash EXE dan modul inti.
 - **Belum diuji pada Windows/FASIH produksi**. Jika akun pernah difoto ketika password terlihat, lakukan rotasi password melalui mekanisme resmi dan perbarui melalui tombol Ganti Akun SSO.
+
+## V6.11 — Satu tombol Perbarui Kondisi Dashboard dan ringkasan yang diperlukan
+
+Tampilan updater disederhanakan berdasarkan masukan operator:
+- **Perbarui Kondisi Dashboard** adalah satu-satunya tombol utama; menjalankan pembacaan seluruh survei aktif, pratinjau, backup, penulisan dan verifikasi assignment FASIH seperti V6.10.
+- Tombol **Hentikan** baru ditampilkan selama proses bekerja; setelah berhasil, gagal, atau dibatalkan, tombol disembunyikan. Ketika pembatalan telah diminta, tombol tersebut dinonaktifkan hingga proses berakhir.
+- **Uji Baca Assignment** tidak tampil lagi. **Sinkronkan Status Asli** dan **Sinkronkan Periode FASIH** masih dapat ditemukan lewat menu **Opsi Lanjutan**, agar fungsi yang sudah berfungsi tidak hilang.
+- Bagian *Ringkasan Hasil* berulang (jumlah halaman API, tabel panjang per survei) dihapus. Ringkasan utama hanya menampilkan empat hal: **Total Assignment**, **Survei Diperbarui**, **Assignment Baru**, **Status Berubah**. Dua rincian di bawahnya menunjukkan jumlah penambahan dan perubahan status **per survei** (hanya survei dengan nilai positif).
+- **Perubahan status** dihitung untuk assignment lama berdasarkan nilai `status_asli` FASIH dari kolom F saat tersedia (normalisasi kapital/spasi); perubahan label `COMPLETE` menjadi `COMPLETED BY ADMIN PROVINSI` yang sebenarnya mewakili tahap FASIH yang sama **bukan** perubahan status faktual. Pembaruan nama PPL/PML saja juga tidak termasuk perubahan status. Assignment baru dihitung tersendiri.
+- Ringkasan hanya disimpan setelah `TERVERIFIKASI` ke `%LOCALAPPDATA%\\BOLO_INPEK\\ringkasan_pembaruan_dashboard.json` untuk ditampilkan kembali saat aplikasi dibuka. Ini hanya angka agregat dan nama survei; **tidak menyimpan kata sandi, token, identitas assignment, atau nama petugas**. Saat proses gagal, ringkasan terakhir tetap tampil dengan peringatan bahwa percobaan terbaru belum berhasil.
+- Riwayat log panjang dipindahkan ke pop-up **Lihat Riwayat Proses**, tetap tersedia untuk investigasi jika terjadi masalah.
+
+**Distribusi:** `Patch_Bolo_V6_11.zip` (~25 KB) menggantikan `bolo_updater_gui.py` **dan** `assignment_sheet_sync.py` dalam folder V6.10 yang sama dengan EXE. Atau gunakan `Bolo_Inpek_V6_11.zip` (~45 MB) portable lengkap. EXE dan runtime Chrome+UC sama persis; **tidak memerlukan redeploy Apps Script atau penggantian ID spreadsheet**.
+
+**Validasi:** uji parser Python, simulasi perubahan status yang asli vs perubahan label, tambahan per survei, assignment bernama ganda dengan ID berbeda, sinkronisasi kedua tanpa duplikasi, data PPL/PML yang berubah tanpa progres status, penyimpanan riwayat, screenshot GUI pada lebar 760/1130, verifikasi CRC kedua ZIP, dan hash EXE asli lulus. Sinkronisasi V6.11 langsung di Windows/FASIH/Google Sheets produksi **belum** dilakukan.
