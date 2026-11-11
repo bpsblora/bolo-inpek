@@ -80,3 +80,21 @@ Updater Portable V6.4 menambahkan **Sinkronkan Semua Assignment**. Fitur ini ber
 - Setelah pemetaan, **Sinkronkan Semua Assignment** memakai ID, mempertahankan nama aslinya dan kolom `G+`; baris baru ditambah tanpa menghapus baris lama. **Sinkronkan Status Asli** (F) juga memakai peta ID bila tersedia.
 - Backup, pratinjau operator, pemeriksaan perubahan saat pratinjau, dan verifikasi pascatulis tetap wajib. **Tidak ada perubahan Apps Script atau URL deployment**.
 - **Pengujian:** 23 tes simulasi lulus, ZIP CRC dan berkas executable diverifikasi; **belum diuji end-to-end** terhadap Google Sheets produksi/VPN pada komputer Windows pengguna.
+
+## V6.6 — Normalisasi status FASIH Admin Provinsi
+
+Bug yang teridentifikasi dari `monitoring` produksi, 11 November 2026:
+- `COMPLETED BY Admin Provinsi` (dua MIGAS dan satu MINERBA) masuk `LAINNYA`, karena tidak ada di kamus status Updater V6.5.
+- `REJECTED BY Admin Provinsi` keliru dimasukkan `COMPLETE`.
+
+Updater V6.6 memperbaiki **dua jalur pemetaan** pada `reader_core.py` dan `ambil_data_monitoring_inpek_v2.py`:
+- `COMPLETED BY Admin Provinsi` (termasuk variasi `COMPLETE BY`) → `COMPLETE`.
+- `REJECTED BY Admin Provinsi` → `REJECT`.
+- `APPROVED BY Admin Provinsi` tetap `COMPLETE`.
+- Variasi kapital dan spasi berlebih ditoleransi.
+
+**Kolom F `status_asli` tetap mempertahankan teks asli FASIH**; kolom C `status` diperbarui melalui **Sinkronkan Semua Assignment** menggunakan peta ID unik V6.5. Tidak perlu mengubah Apps Script Kelola Survei atau menambah kategori visual.
+
+**Distribusi:** `Bolo_Inpek_V6_6.zip` portable lengkap dan `Patch_Bolo_V6_6.zip` untuk mengganti tiga berkas sumber `.py` pada folder V6.5 yang ditutup. Keduanya memelihara runtime Chrome+UC lama.
+
+**Pengujian:** 38 kasus normalisasi untuk dua jalur fungsi lulus; ZIP/CRC sukses. Belum diuji ulang langsung pada FASIH/Google Sheets produksi, jadi verifikasi pratinjau dan log penulisan terlebih dahulu.
