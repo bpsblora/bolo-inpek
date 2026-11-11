@@ -176,3 +176,17 @@ Tampilan updater disederhanakan berdasarkan masukan operator:
 **Distribusi:** `Patch_Bolo_V6_11.zip` (~25 KB) menggantikan `bolo_updater_gui.py` **dan** `assignment_sheet_sync.py` dalam folder V6.10 yang sama dengan EXE. Atau gunakan `Bolo_Inpek_V6_11.zip` (~45 MB) portable lengkap. EXE dan runtime Chrome+UC sama persis; **tidak memerlukan redeploy Apps Script atau penggantian ID spreadsheet**.
 
 **Validasi:** uji parser Python, simulasi perubahan status yang asli vs perubahan label, tambahan per survei, assignment bernama ganda dengan ID berbeda, sinkronisasi kedua tanpa duplikasi, data PPL/PML yang berubah tanpa progres status, penyimpanan riwayat, screenshot GUI pada lebar 760/1130, verifikasi CRC kedua ZIP, dan hash EXE asli lulus. Sinkronisasi V6.11 langsung di Windows/FASIH/Google Sheets produksi **belum** dilakukan.
+
+## V6.12 — Rincian status per survei dipertahankan di bawah ringkasan
+
+Klarifikasi dari pengguna: tabel **Survei · Total · Halaman · Status** pada versi lama **harus tetap tersedia**, meskipun V6.11 sudah memiliki empat ringkasan angka. Versi V6.11 tanpa sengaja menghapus tabel dari halaman utama. **V6.12 mengembalikan tabel**, bukan mengganti ringkasan.
+
+- **4. Hasil Pembaruan Dashboard**: Total Assignment, Survei Diperbarui, Assignment Baru beserta rincian per survei, Status Berubah beserta rincian per survei.
+- **5. Rincian Status per Survei**: tabel terbuka secara default; tiap baris memuat nama survei, jumlah assignment, jumlah halaman API, kemudian kolom **status FASIH sebenarnya dalam HURUF KAPITAL**. Nama tahapan Admin Kabupaten/Provinsi tetap dibedakan; tidak kembali memakai `COMPLETE` generik.
+- Kolom tabel disusun **dinamis dari status yang benar-benar ada**. Tabel mendukung scroll horizontal/vertikal dan tombol **Sembunyikan Rincian / Lihat Rincian**.
+- Rincian agregat tersimpan bersama laporan pembaruan terverifikasi di `%LOCALAPPDATA%\\BOLO_INPEK\\ringkasan_pembaruan_dashboard.json`. Tidak menyimpan identitas assignment/petugas, password, maupun token.
+- Laporan V6.11 yang tersimpan sebelum perubahan belum memiliki isi tabel; lakukan satu kali **Perbarui Kondisi Dashboard** dan tunggu status **TERVERIFIKASI** agar tabel terisi. Kegagalan proses tidak menimpa hasil valid sebelumnya.
+
+**Distribusi:** `Patch_Bolo_V6_12.zip` mengganti hanya **`bolo_updater_gui.py`** pada folder V6.11; `Bolo_Inpek_V6_12.zip` paket lengkap Windows. Tidak memerlukan perubahan Apps Script atau konfigurasi Google Sheets. Modul Chrome + UC dan prosedur sinkronisasi tetap sama.
+
+**Pengujian:** validitas sintaks Python, simulasi laporan rinci 4 dan 1 survei, normalisasi status FASIH kapital, penyimpanan ringkasan, kompatibilitas arsip V6.11, tabel responsif lebar 1130/760, tombol buka/tutup, pemeriksaan CRC ZIP, dan hash EXE identik lulus. Belum diuji langsung dengan FASIH/Sheets produksi pada Windows.
