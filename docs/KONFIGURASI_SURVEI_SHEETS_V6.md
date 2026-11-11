@@ -190,3 +190,24 @@ Klarifikasi dari pengguna: tabel **Survei · Total · Halaman · Status** pada v
 **Distribusi:** `Patch_Bolo_V6_12.zip` mengganti hanya **`bolo_updater_gui.py`** pada folder V6.11; `Bolo_Inpek_V6_12.zip` paket lengkap Windows. Tidak memerlukan perubahan Apps Script atau konfigurasi Google Sheets. Modul Chrome + UC dan prosedur sinkronisasi tetap sama.
 
 **Pengujian:** validitas sintaks Python, simulasi laporan rinci 4 dan 1 survei, normalisasi status FASIH kapital, penyimpanan ringkasan, kompatibilitas arsip V6.11, tabel responsif lebar 1130/760, tombol buka/tutup, pemeriksaan CRC ZIP, dan hash EXE identik lulus. Belum diuji langsung dengan FASIH/Sheets produksi pada Windows.
+
+## V6.13 — Filter aktif/nonaktif, pemulihan, hapus permanen, dan tombol refresh dashboard
+
+**Sumber kebenaran tetap satu:** Google Spreadsheet Monitoring dengan tab privat `konfigurasi_survei` dan `periode_survei`, serta tab assignment `monitoring` + peta ID internal `assignment_identitas`.
+
+**Kelola Survei (Apps Script ADMIN, kode V6.13):**
+- Filter **Semua**, **Aktif**, dan **Nonaktif / Pulihkan**. Seluruh survei disimpan di `konfigurasi_survei`, termasuk yang tidak aktif. Survei nonaktif **tidak tampil** di dashboard dan **tidak diambil dari FASIH** ketika updater berjalan.
+- Tindakan **Tambah**, **Edit**, **Nonaktifkan**, **Aktifkan Kembali**, dan **Hapus**. Status aktif/nonaktif adalah atribut `aktif` pada sumber data, bukan sekadar filter visual.
+- Hapus hanya diperbolehkan untuk survei **nonaktif**, setelah operator mengetik nama survei yang sama persis dan menyetujui konfirmasi kedua. Penghapusan menghilangkan baris survei pada `konfigurasi_survei`, periode terkait di `periode_survei`, semua assignment terkait di `monitoring` (seluruh kolom pada baris tersebut), dan identitas terkait di `assignment_identitas`. Nomor baris peta ID survei tersisa **dihitung ulang**, supaya sinkronisasi selanjutnya tidak tertukar.
+- **Audit `riwayat_konfigurasi` tetap disimpan** sebagai bukti penghapusan. Database petugas bersama (`db_petugas`) serta spreadsheet tindak lanjut eksternal **tidak dihapus**, sebab data tersebut dapat dipakai survei lain atau diatur pada sistem tersendiri. Penghapusan survei tidak memiliki tombol *Undo*; jangan menghapus saat updater berjalan.
+
+**Updater Windows V6.13:**
+- Saat menekan **Perbarui Survei**, updater menarik semua record termasuk yang nonaktif, tapi daftar scraping hanya berisi survei `aktif=true`.
+- Saat menekan **Perbarui Kondisi Dashboard** (atau sinkronisasi tambahan), updater **memeriksa ulang registry online sebelum membuka Chrome**, **sebelum masing-masing survei diproses**, dan **sebelum mengirim hasil ke Google Sheets**. Bila filter berubah saat login/scraping, sinkronisasi dibatalkan untuk menghindari penulisan data nonaktif. Bila semua survei nonaktif atau semua telah dihapus, cache kosong sah dan **Chrome tidak dibuka**.
+- Setelah pratinjau penulisan semua assignment disetujui, modul assignment memeriksa sekali lagi survei masih aktif sebelum batch write. Tidak ada perubahan pada password DPAPI, mekanisme Chrome + UC, sumber FASIH, status lengkap V6.7, atau tabel rincian V6.12.
+
+**Website GitHub:** tombol **Perbarui Survei** sudah terpasang di sebelah **Kelola Survei**; tombol ini hanya memuat ulang **konfigurasi aktif + data dashboard**. Scraping FASIH tetap harus dijalankan lewat **Updater Windows yang memakai VPN/SSO**. Jika registry publik tidak dapat dibaca, website **tidak lagi jatuh kembali ke konfigurasi survei lama** sehingga survei nonaktif tidak mendadak muncul.
+
+**Pemasangan:** `Patch_Bolo_V6_13.zip` (~42 KB) menggantikan tiga modul `bolo_updater_gui.py`, `config_sync_online.py`, dan `assignment_sheet_sync.py` di folder Updater V6.12. `Bolo_Inpek_V6_13.zip` (~45 MB) adalah paket lengkap. `Kelola_Survei_V6_13.zip` (~13 KB) berisi `Code.gs` dan `Admin.html` untuk menggantikan file pada **proyek Apps Script Kelola Survei yang sudah ada**. Perbarui deployment **ADMIN** dan **PUBLIK** dengan **Manage deployments → Edit → New version** (URL tetap sama). Tidak perlu Apps Script/Spreadsheet baru.
+
+**Pengujian:** mock Google Sheets untuk delete (dua assignment tersebar di baris berbeda), penyesuaian peta ID, pemertahanan kolom G+ milik survei lain, penghapusan periode, pembaruan versi, penolakan hapus survei aktif, penolakan nama konfirmasi keliru, kondisi seluruh survei nonaktif dan aktivasi kembali, serta parser JS/Python lulus; ZIP CRC dan hash EXE sama dengan V6.12. **Belum dieksekusi pada Apps Script/Spreadsheet/FASIH produksi**. Sebaiknya uji nonaktif→aktif lebih dulu sebelum menghapus permanen, dan cadangkan Spreadsheet Monitoring untuk penghapusan pertama.
