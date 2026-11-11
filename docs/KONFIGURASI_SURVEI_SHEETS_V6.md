@@ -98,3 +98,25 @@ Updater V6.6 memperbaiki **dua jalur pemetaan** pada `reader_core.py` dan `ambil
 **Distribusi:** `Bolo_Inpek_V6_6.zip` portable lengkap dan `Patch_Bolo_V6_6.zip` untuk mengganti tiga berkas sumber `.py` pada folder V6.5 yang ditutup. Keduanya memelihara runtime Chrome+UC lama.
 
 **Pengujian:** 38 kasus normalisasi untuk dua jalur fungsi lulus; ZIP/CRC sukses. Belum diuji ulang langsung pada FASIH/Google Sheets produksi, jadi verifikasi pratinjau dan log penulisan terlebih dahulu.
+
+## V6.7 — **Status FASIH apa adanya, kapital semua** (menggantikan kebijakan V6.6)
+
+Permintaan pengguna 11 November 2026: **JANGAN** gabungkan status Kabupaten dan Provinsi pada kode `COMPLETE` atau `REJECT` generik. Satu status FASIH = satu status BOLO INPEK, semuanya dirapikan dengan kapital dan spasi tunggal.
+
+| Tahap dari FASIH | `monitoring!C` / dashboard |
+|---|---|
+| `Completed by Admin Kabupaten` | `COMPLETED BY ADMIN KABUPATEN` |
+| `Completed by Admin Provinsi` | `COMPLETED BY ADMIN PROVINSI` |
+| `Approved by Admin Provinsi` | `APPROVED BY ADMIN PROVINSI` |
+| `Rejected by Admin Provinsi` | `REJECTED BY ADMIN PROVINSI` |
+| `Rejected by Pengawas` | `REJECTED BY PENGAWAS` |
+| `Submitted by Pencacah` | `SUBMITTED BY PENCACAH` |
+| `Open` / `Draft` | `OPEN` / `DRAFT` |
+
+Tidak ada lagi kategori ringkas `COMPLETE` pada data baru. Status lain yang resmi dikembalikan FASIH tetap tampil menggunakan nama status asli (kapital semua); status kosong menjadi `STATUS TIDAK TERSEDIA`, bukan COMPLETE. `status_asli` kolom F **tetap menyimpan string asli FASIH**, untuk jejak audit (boleh mengandung kapitalisasi sumber yang berbeda).
+
+**Pelaksanaan:** Dashboard `index.html` sudah diperbarui pada GitHub agar membaca status dinamis yang ada di tiap survei (kartu, donat, tabel PPL/PML, rincian, Excel, PNG). Selanjutnya pasang Updater V6.7 (paket lengkap `Bolo_Inpek_V6_7.zip` atau patch `Patch_Bolo_V6_7.zip`) lalu **Perbarui Survei → Sinkronkan Semua Assignment**. Operator harus memeriksa pratinjau dan log `TERVERIFIKASI`. Proses ini mengubah kolom C berdasarkan FASIH; kolom F tidak ditimpa oleh normalisasi dan peta ID assignment dipertahankan. **Tidak perlu Apps Script Kelola Survei baru.** Namun, API Apps Script **Monitoring** yang dibaca dashboard wajib mengirim kolom C tanpa memaksa enam kode lama; jika API punya whitelist status lama, kode API tersebut juga harus disesuaikan.
+
+**Penting:** Kebijakan di bagian V6.6 di atas berlaku untuk updater V6.6 saja dan **tidak digunakan lagi** pada V6.7. Jangan jalankan V6.6 setelah mulai menggunakan V6.7, sebab status rinci dapat berubah kembali menjadi kategori ringkas.
+
+**Validasi:** 34 pemeriksaan normalisasi Python pada dua jalur, uji idempotensi peta ID, pemeriksaan CRC ZIP, parser JavaScript kedua script dashboard, dan simulasi empat status yang berbeda telah lulus. Belum dilakukan uji langsung end-to-end terhadap FASIH atau Google Sheets produksi menggunakan V6.7.
