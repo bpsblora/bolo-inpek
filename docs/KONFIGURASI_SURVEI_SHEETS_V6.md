@@ -68,3 +68,15 @@ Updater Portable V6.4 menambahkan **Sinkronkan Semua Assignment**. Fitur ini ber
 **Tidak memerlukan redeploy Apps Script Kelola Survei** untuk fitur penulisan assignment ke tab monitoring. Setelah verifikasi sukses, muat ulang dashboard BOLO INPEK.
 
 **Status validasi:** 17 pengujian logika lokal lulus, tampilan GUI diuji dengan virtual display pada lebar 760 dan 1130 px, ZIP diperiksa, dan hash EXE/runtime dipertahankan dari V6.3. **Belum diuji end-to-end pada Windows/VPN/Sheets produksi**, sehingga operator harus memeriksa hasil pratinjau sebelum klik YA dan mengonfirmasi nilai monitoring setelah sinkronisasi pertama.
+
+## V6.5 — Perbaikan nama assignment ganda memakai ID FASIH
+
+**Masalah nyata 11 November 2026:** V6.4 membaca tujuh survei dan total **391 assignment** (STPIM 65, SKTH 27, SIBSTR II 19, CAPTIVE POWER 4, MINERBA 1, MIGAS 2, VIMK_TH26 264). Penulisan dibatalkan sebelum pratinjau karena beberapa assignment STPIM mempunyai nama sama, misalnya `JP DECAL FACTORY STICKER`.
+
+**Perbaikan Updater Portable V6.5:**
+- Gunakan identitas **`(survey_period_id, assignment_id)` dari FASIH**, bukan kombinasi nama survei dan nama usaha. Duplikat nama dengan ID berbeda merupakan assignment sah.
+- Sesudah pratinjau disetujui, buat tab internal tersembunyi **`assignment_identitas`** pada **Spreadsheet Monitoring yang sama**, berisi `survei`, `survey_period_id`, `assignment_id`, `nama_assignment`, dan `monitoring_row`. **Jangan mengurutkan/menyisipkan baris `monitoring` secara manual** setelah pemetaan, karena nomor baris dipakai sebagai rujukan dan akan divalidasi.
+- Saat migrasi pertama dari `monitoring!A:F` yang belum memiliki ID, cocokkan dengan nama/status/status asli/PPL/PML; bila beberapa ID masih ambigu dan nilainya berbeda, **blokir penulisan** untuk mencegah tertukarnya status/petugas. Jika kandidat identik pada A:F, ID dapat dipasangkan deterministik, lalu disimpan untuk sinkronisasi berikutnya.
+- Setelah pemetaan, **Sinkronkan Semua Assignment** memakai ID, mempertahankan nama aslinya dan kolom `G+`; baris baru ditambah tanpa menghapus baris lama. **Sinkronkan Status Asli** (F) juga memakai peta ID bila tersedia.
+- Backup, pratinjau operator, pemeriksaan perubahan saat pratinjau, dan verifikasi pascatulis tetap wajib. **Tidak ada perubahan Apps Script atau URL deployment**.
+- **Pengujian:** 23 tes simulasi lulus, ZIP CRC dan berkas executable diverifikasi; **belum diuji end-to-end** terhadap Google Sheets produksi/VPN pada komputer Windows pengguna.
