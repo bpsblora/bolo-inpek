@@ -211,3 +211,17 @@ Klarifikasi dari pengguna: tabel **Survei · Total · Halaman · Status** pada v
 **Pemasangan:** `Patch_Bolo_V6_13.zip` (~42 KB) menggantikan tiga modul `bolo_updater_gui.py`, `config_sync_online.py`, dan `assignment_sheet_sync.py` di folder Updater V6.12. `Bolo_Inpek_V6_13.zip` (~45 MB) adalah paket lengkap. `Kelola_Survei_V6_13.zip` (~13 KB) berisi `Code.gs` dan `Admin.html` untuk menggantikan file pada **proyek Apps Script Kelola Survei yang sudah ada**. Perbarui deployment **ADMIN** dan **PUBLIK** dengan **Manage deployments → Edit → New version** (URL tetap sama). Tidak perlu Apps Script/Spreadsheet baru.
 
 **Pengujian:** mock Google Sheets untuk delete (dua assignment tersebar di baris berbeda), penyesuaian peta ID, pemertahanan kolom G+ milik survei lain, penghapusan periode, pembaruan versi, penolakan hapus survei aktif, penolakan nama konfirmasi keliru, kondisi seluruh survei nonaktif dan aktivasi kembali, serta parser JS/Python lulus; ZIP CRC dan hash EXE sama dengan V6.12. **Belum dieksekusi pada Apps Script/Spreadsheet/FASIH produksi**. Sebaiknya uji nonaktif→aktif lebih dulu sebelum menghapus permanen, dan cadangkan Spreadsheet Monitoring untuk penghapusan pertama.
+
+## V6.14 — Tombol unduh paket asli & perbaikan registry publik cross-origin
+
+Laporan operator: tombol website `Muat Ulang Dashboard` disalahartikan sebagai unduhan aplikasi; setelah registry dijadikan *fail-closed*, dashboard menampilkan `Daftar survei aktif belum dapat diverifikasi` jika akses publik Apps Script gagal.
+
+**Perbaikan website**:
+- Tombol di header menjadi **Unduh Paket Updater**, berupa tautan ke berkas ZIP sesungguhnya di Google Drive. Tidak lagi menjalankan `loadData()`.
+- Paket Drive berjudul `BOLO_INPEK_PAKET_LENGKAP_V6_14.zip` memuat **Updater Windows V6.13** (EXE, runtime Chrome+UC, script pengambilan/pembaruan FASIH, konfigurasi) dan **Apps Script registry V6.14** (`backend_google_sheets/Code.gs`). File disimpan sebagai **Drive privat** sehingga hanya akun yang berizin yang bisa mengunduhnya. Pengguna lain harus diberi akses oleh pemilik; jangan menyebarluaskan file internal tanpa persetujuan.
+- Website tetap membaca `?action=public` memakai `fetch`. Jika terjadi masalah cross-origin, website mencoba **JSONP callback tetap** `boloRegistryCallbackV614`. Endpoint HTTPS tetap divalidasi, hanya versi callback yang diizinkan oleh Apps Script, dan filter aktif/nonaktif tetap gagal-aman: tidak kembali menayangkan survei yang tidak dapat diverifikasi.
+- Kesalahan jaringan/izin ditampilkan lebih spesifik agar dapat dibedakan dari masalah API Monitoring.
+
+**Langkah wajib pemasangan Apps Script**: pada **proyek Kelola Survei yang lama**, ganti `Code.gs` dari paket V6.14; `Admin.html` tidak berubah. Simpan dan perbarui kedua deployment lama (**ADMIN** dan **PUBLIK**) dengan **Manage deployments → Edit → New version**, tanpa membuat deployment baru. Pastikan `/exec?action=public` mengembalikan JSON dengan `success:true`, dan `/exec?action=public&callback=boloRegistryCallbackV614` menghasilkan fungsi JavaScript callback. Kemudian muat ulang dashboard dengan Ctrl+F5.
+
+**Validasi**: sintaks kedua script website (JavaScript), sintaks `Code.gs` via Node, validitas CRC dan struktur ZIP lengkap, ukuran Google Drive setelah upload dan metadata Drive dari layanan yang terhubung berhasil. **Belum dapat membuktikan JSONP terhadap deployment PUBLIK produksi karena izin deploy tidak tersedia di percakapan ini.** Jangan menyatakan dashboard pulih sebelum pengguna menguji setelah redeploy.
