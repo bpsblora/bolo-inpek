@@ -436,7 +436,7 @@
         Monitoring Survei Statistik INPEK - Blora Pengelolaan Statistik INPEK
       </p>
     </div>
-    <div class="survey-admin-top"><button type="button" class="survey-admin-btn" id="openSurveyAdmin">⚙ Kelola Survei</button></div>
+    <div class="survey-admin-top"><button type="button" class="survey-admin-btn" id="refreshSurveys" title="Ambil kembali daftar survei aktif dan data monitoring terbaru dari Google Sheets">↻ Perbarui Survei</button><button type="button" class="survey-admin-btn" id="openSurveyAdmin">⚙ Kelola Survei</button></div>
   </div>
 </header>
 <dialog id="surveyAdminModal" aria-labelledby="surveyAdminTitle">
@@ -692,12 +692,12 @@
           tanggal_selesai:String(s.tanggal_selesai||'').trim(),
           urutan:Number(s.urutan)||999
         })).filter(s=>s.name&&s.name.length<=120);
-        if(!list.length)throw new Error('Registry tidak memiliki survei');
+        // Nol survei adalah keadaan sah: survei bisa seluruhnya nonaktif
+        // atau dihapus dari admin. Jangan membangkitkannya lewat API lama.
         return list;
       }catch(err){
-        if(err.name==='AbortError')throw err;
-        console.warn('Registry Sheets fallback ke API periode:',err.message);
-        return null;
+        console.error('Gagal mengambil filter aktif/nonaktif survei:',err);
+        throw new Error('Daftar survei aktif belum dapat diverifikasi. Demi keamanan, dashboard tidak menampilkan konfigurasi lama. Coba Perbarui Survei.');
       }
     }
     let DATA = [];
@@ -818,12 +818,8 @@
             }
           }
         }else{
-          const all=susunDaftarSurvei(DATA,PERIODE_SURVEI);
-          const flags=new Map(PERIODE_SURVEI.filter(p=>p&&p.survei).map(p=>[
-            String(p.survei).trim().toLowerCase(),
-            p.aktif===false||String(p.aktif).toLowerCase()==='false'?false:true
-          ]));
-          SURVEYS=all.filter(name=>flags.get(name.toLowerCase())!==false);
+          // Registry publik wajib tersedia; tidak memakai fallback API lama.
+          throw new Error('Filter survei belum tersedia. Silakan perbarui daftar survei.');
         }
 
         await ambilStatusPenutupan(controller.signal);
@@ -1130,6 +1126,15 @@
       if(focus)view.querySelector('h1').focus({preventScroll:true});
     }
 
+    document.getElementById('refreshSurveys').addEventListener('click',()=>{
+      const button=document.getElementById('refreshSurveys');
+      button.disabled=true;
+      button.textContent='Memperbarui…';
+      Promise.resolve(loadData()).finally(()=>{
+        button.disabled=false;
+        button.textContent='↻ Perbarui Survei';
+      });
+    });
     document.getElementById('openSurveyAdmin').addEventListener('click',async()=>{
       const modal=document.getElementById('surveyAdminModal');
       const frame=document.getElementById('surveyAdminFrame');
