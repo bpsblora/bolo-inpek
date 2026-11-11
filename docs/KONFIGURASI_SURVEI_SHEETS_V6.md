@@ -120,3 +120,17 @@ Tidak ada lagi kategori ringkas `COMPLETE` pada data baru. Status lain yang resm
 **Penting:** Kebijakan di bagian V6.6 di atas berlaku untuk updater V6.6 saja dan **tidak digunakan lagi** pada V6.7. Jangan jalankan V6.6 setelah mulai menggunakan V6.7, sebab status rinci dapat berubah kembali menjadi kategori ringkas.
 
 **Validasi:** 34 pemeriksaan normalisasi Python pada dua jalur, uji idempotensi peta ID, pemeriksaan CRC ZIP, parser JavaScript kedua script dashboard, dan simulasi empat status yang berbeda telah lulus. Belum dilakukan uji langsung end-to-end terhadap FASIH atau Google Sheets produksi menggunakan V6.7.
+
+## V6.8 — Cakupan survei otomatis tanpa dropdown
+
+Updater V6.8 menghapus pemilihan survei manual dari bagian **3. Cakupan Pembaruan Otomatis**. **Semua operasi** (Uji Baca, Sinkronkan Semua Assignment, Sinkronkan Status Asli, dan Sinkronkan Periode FASIH) selalu menyertakan **seluruh survei aktif** dari registry `konfigurasi_survei`. Perbarui Survei secara manual atau saat startup tetap membaca konfigurasi online dan memperbarui cache `config_survei.json`.
+
+Bagian cakupan sekarang menunjukkan daftar seluruh survei aktif, jumlah survei dan dua kelompok:
+- **Baru Ditambahkan**: identitas `code + survey_period_id` yang baru ditemukan relatif terhadap riwayat lokal dan belum berhasil disinkronkan penuh.
+- **Sudah Terdaftar Sebelumnya**: identitas yang ada pada cache awal atau yang sudah menjalani satu sinkronisasi assignment penuh dan diverifikasi.
+
+Riwayat cakupan disimpan privat pada `%LOCALAPPDATA%\\BOLO_INPEK\\riwayat_cakupan_survei.json`, bukan di spreadsheet baru. Isinya hanya identitas teknis survei tanpa password/assignment. Status *baru* bertahan saat aplikasi ditutup atau konfigurasi diperbarui berulang kali. Sesudah sinkronisasi penuh berhasil, status berubah menjadi *sebelumnya*. Survei baru untuk periode berbeda tetap terdeteksi meskipun kodenya sama.
+
+**Distribusi:** `Patch_Bolo_V6_8.zip` cukup menimpa **`bolo_updater_gui.py`** di folder V6.7 (bukan `_runtime`), atau gunakan `Bolo_Inpek_V6_8.zip` sebagai folder baru. **V6.7 status FASIH rinci kapital dipertahankan** tanpa perubahan backend, Apps Script, maupun Chrome + UC.
+
+**Pengujian:** pemeriksaan sintaks Python, 15 skenario logika riwayat, dan smoke-test antarmuka pada resolusi 1130 serta 760 piksel lulus; CRC ZIP dan hash EXE dari V6.7 berhasil diverifikasi. Pengujian FASIH/Sheets produksi pada Windows untuk versi V6.8 belum dijalankan.
