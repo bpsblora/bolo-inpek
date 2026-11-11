@@ -134,3 +134,18 @@ Riwayat cakupan disimpan privat pada `%LOCALAPPDATA%\\BOLO_INPEK\\riwayat_cakupa
 **Distribusi:** `Patch_Bolo_V6_8.zip` cukup menimpa **`bolo_updater_gui.py`** di folder V6.7 (bukan `_runtime`), atau gunakan `Bolo_Inpek_V6_8.zip` sebagai folder baru. **V6.7 status FASIH rinci kapital dipertahankan** tanpa perubahan backend, Apps Script, maupun Chrome + UC.
 
 **Pengujian:** pemeriksaan sintaks Python, 15 skenario logika riwayat, dan smoke-test antarmuka pada resolusi 1130 serta 760 piksel lulus; CRC ZIP dan hash EXE dari V6.7 berhasil diverifikasi. Pengujian FASIH/Sheets produksi pada Windows untuk versi V6.8 belum dijalankan.
+
+## V6.9 — Sederhanakan teks antarmuka updater
+
+Penyempurnaan UI berdasarkan evaluasi operator setelah V6.8. Tanpa mengubah logika bisnis, pengambilan status, ID FASIH, sinkronisasi, autentikasi, maupun backup.
+
+- Hapus banner panjang "MODE TERKONTROL" karena pratinjau/backup sudah ditegaskan ketika tindakan penulisan dimulai.
+- Ringkas bagian **Akses FASIH** menjadi checkbox akses VPN, tanpa mengulang Chrome + UC.
+- Ringkas bagian **Login SSO FASIH** dengan opsi password terenkripsi tetap eksplisit.
+- Bagian **Survei Aktif** tetap memperlihatkan seluruh survei dan kelompok **Baru Ditambahkan** / **Sudah Terdaftar Sebelumnya**; hapus keterangan panjang dan teknis pagination.
+- Bagian **Spreadsheet Monitoring** cukup menyatakan ID tersedia dan akses diverifikasi saat operasi; **ID tersimpan tidak dianggap bukti berhasil login**.
+- Pendekkan label ringkasan dan hapus penjelasan redundan di Riwayat Proses dan footer.
+
+**Distribusi**: `Patch_Bolo_V6_9.zip` (mengganti `bolo_updater_gui.py` pada folder V6.8) atau `Bolo_Inpek_V6_9.zip` (portable lengkap). EXE identik dengan V6.8, runtime Chrome + UC tidak diubah; status rinci FASIH V6.7 dan cakupan otomatis V6.8 tetap aktif.
+
+**Validasi**: sintaks Python, GUI virtual display lebar 1130/760, label survei 6→7 dan transisi baru→sebelumnya, arsip ZIP/CRC, serta hash EXE identik; belum diuji di Windows/FASIH produksi untuk versi V6.9.
