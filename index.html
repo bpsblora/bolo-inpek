@@ -436,7 +436,7 @@
         Monitoring Survei Statistik INPEK - Blora Pengelolaan Statistik INPEK
       </p>
     </div>
-    <div class="survey-admin-top"><button type="button" class="survey-admin-btn" id="refreshSurveys" title="Ambil kembali daftar survei aktif dan data monitoring terbaru dari Google Sheets">↻ Perbarui Survei</button><button type="button" class="survey-admin-btn" id="openSurveyAdmin">⚙ Kelola Survei</button></div>
+    <div class="survey-admin-top"><button type="button" class="survey-admin-btn" id="refreshSurveys" title="Muat ulang daftar survei aktif dan kondisi dashboard terbaru tanpa mengunduh file">↻ Muat Ulang Dashboard</button><button type="button" class="survey-admin-btn" id="openSurveyAdmin">⚙ Kelola Survei</button></div>
   </div>
 </header>
 <dialog id="surveyAdminModal" aria-labelledby="surveyAdminTitle">
@@ -1132,7 +1132,7 @@
       button.textContent='Memperbarui…';
       Promise.resolve(loadData()).finally(()=>{
         button.disabled=false;
-        button.textContent='↻ Perbarui Survei';
+        button.textContent='↻ Muat Ulang Dashboard';
       });
     });
     document.getElementById('openSurveyAdmin').addEventListener('click',async()=>{
