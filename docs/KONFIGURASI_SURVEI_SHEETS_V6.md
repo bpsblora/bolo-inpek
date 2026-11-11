@@ -35,3 +35,17 @@ Setelah deployment, isi `kelola-survei-link.json` sekali dengan:
 - Tidak menaruh token GitHub, password SSO, atau ID teknis FASIH di HTML publik.
 - Tombol sinkronisasi `status_asli` V4.2/V6 hanya menulis monitoring kolom F; pembaruan assignment baru A:E memerlukan proses sinkronisasi data penuh yang terpisah.
 - **Status saat ini:** kode dashboard dan updater telah disiapkan. Deployment Apps Script, pengujian SSO/VPN di Windows dan verifikasi data Google Sheets asli masih diperlukan dengan akses kantor.
+
+## Penyempurnaan V6.3 — Periode FASIH dan Kelola Survei dalam satu Apps Script
+
+**Tidak ada Apps Script atau Spreadsheet baru.** Perbarui `Code.gs` pada proyek Apps Script Kelola Survei yang sudah dipakai. Paket V6.3 memuat `backend_google_sheets/Code.gs` yang tetap kompatibel dengan dua deployment ADMIN dan PUBLIK lama. Sesudah menyimpan kode, perbarui **New version** pada masing-masing deployment (jangan membuat URL baru).
+
+- Updater membuka Chrome + UC melalui VPN/SSO FASIH yang sah dan mengambil `startDate`, `endDate`, serta nama periode berdasarkan `survey_period_id` dari FASIH.
+- Google Sheets `konfigurasi_survei` hanya memperoleh pembaruan `tanggal_mulai` dan `tanggal_selesai`; `periode_survei` hanya pembaruan tanggal dan `nama_periode`. Kolom `monitoring` **tidak disentuh** oleh sinkronisasi periode.
+- Apps Script yang direvisi tidak mengembalikan tanggal atau `nama_periode` FASIH menjadi nilai lama ketika administrator menyimpan edit survei. Kode juga menjaga formula dan kolom tambahan pada tab `periode_survei` agar tidak ditulis ulang.
+- Bila admin mengganti `survey_period_id`, tanggal lama tidak boleh mengikuti periode baru. Tanggal periode baru masih kosong sampai proses sinkronisasi FASIH berhasil.
+- Dashboard memperoleh nama survei dan tanggal lewat `public_config_url` Apps Script dan mengurutkan kartu berdasarkan deadline terdekat (tanggal mulai sebagai penentu kedua; survei tanpa tanggal akhir berada di belakang).
+
+Langkah operasional: **Kelola Survei → Simpan → Perbarui Survei (EXE) → Sinkronkan Periode FASIH (EXE) → Muat Ulang dashboard**. Pelaksanaan perlu akun VPN/SSO berizin serta izin tulis ke Spreadsheet Monitoring yang sama. Jika salah satu periode tidak dapat dibaca dengan valid, updater membatalkan penulisan.
+
+**Pengujian:** parser/penulis tanggal lulus simulasi; kode Apps Script lulus simulasi pelestarian data historis, pergantian ID periode, dan deteksi duplikasi. Belum diuji langsung terhadap FASIH/Google Sheets produksi. Versi Apps Script belum dapat dideploy langsung melalui akses percakapan ini; deployment perlu dilakukan oleh pengelola proyek yang memiliki izin.
