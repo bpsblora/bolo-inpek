@@ -774,8 +774,16 @@
         REGISTRY = await bacaRegistrySurvei(controller.signal);
         if(REGISTRY){
           SURVEYS = REGISTRY.filter(s=>s.aktif).sort((a,b)=>a.urutan-b.urutan).map(s=>s.name);
-          for(const sv of REGISTRY)if(!PERIODE_SURVEI.some(p=>p?.survei===sv.name)){
-            PERIODE_SURVEI.push({survei:sv.name,tanggal_mulai:sv.tanggal_mulai,tanggal_selesai:sv.tanggal_selesai});
+          for(const sv of REGISTRY){
+            const period=PERIODE_SURVEI.find(p=>p?.survei===sv.name);
+            if(period){
+              // Tanggal resmi yang sudah disinkronkan dari FASIH ke registry Sheets
+              // memiliki prioritas terhadap data API monitoring yang belum diperbarui.
+              if(sv.tanggal_mulai)period.tanggal_mulai=sv.tanggal_mulai;
+              if(sv.tanggal_selesai)period.tanggal_selesai=sv.tanggal_selesai;
+            }else{
+              PERIODE_SURVEI.push({survei:sv.name,tanggal_mulai:sv.tanggal_mulai,tanggal_selesai:sv.tanggal_selesai});
+            }
           }
         }else{
           const all=susunDaftarSurvei(DATA,PERIODE_SURVEI);
