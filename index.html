@@ -476,36 +476,7 @@
       <section class="monitoring-info-card">
         <h2 class="monitoring-info-title">Keterangan Status</h2>
 
-        <dl class="monitoring-status-list">
-          <div>
-            <dt><span style="background:#9ca3af"></span>Open</dt>
-            <dd>Dokumen belum dikirim, termasuk yang belum dikerjakan atau masih dalam pengisian.</dd>
-          </div>
-
-          <div>
-            <dt><span style="background:#60a5fa"></span>Submit</dt>
-            <dd>Dokumen sudah dikirim pencacah dan menunggu pemeriksaan pengawas.</dd>
-          </div>
-
-          <div>
-            <dt><span style="background:#dc2626"></span>Reject</dt>
-            <dd>Dokumen dikembalikan untuk diperbaiki.</dd>
-          </div>
-
-          <div>
-            <dt><span style="background:#86d96b"></span>Approve</dt>
-            <dd>Dokumen disetujui pengawas.</dd>
-          </div>
-
-          <div>
-            <dt><span style="background:#166534"></span>Complete</dt>
-            <dd>Dokumen mencapai status akhir: Approved atau Completed oleh admin kabupaten.</dd>
-          </div>
-          <div>
-            <dt><span style="background:#94a3b8"></span>Lainnya</dt>
-            <dd>Status di luar lima kategori. Status asli FASIH ditampilkan pada rincian assignment jika tersedia.</dd>
-          </div>
-        </dl>
+        <dl class="monitoring-status-list" id="statusLegend"><div><dt>Memuat status FASIH…</dt></div></dl>
       </section>
 
     </div>
@@ -820,6 +791,57 @@
       jamEl.textContent = jam + " WIB";
     }
 
+
+    // Jika API monitoring juga membawa atribut aktif untuk SEMUA survei
+    // yang memiliki assignment, metadata itu aman dipakai saat registry PUBLIK
+    // tidak terjangkau. Tidak boleh memakai daftar statis berpotensi kedaluwarsa.
+    function registryTerverifikasiDariPayload(payload){
+      const names=new Set((payload.data||[]).map(r=>String(r.survei||'').trim()).filter(Boolean));
+      const sources=['konfigurasi_survei','registry_survei','surveys','periode_survei'];
+      for(const key of sources){
+        const src=payload[key];
+        if(!Array.isArray(src))continue;
+        const found=new Map();let valid=true;
+        for(const rec of src){
+          if(!rec||typeof rec!=='object')continue;
+          const name=String(rec.name||rec.survei||rec.nama_survei||'').trim();
+          if(!name)continue;
+          const flag=rec.aktif!==undefined?rec.aktif:(rec.active!==undefined?rec.active:rec.is_active);
+          const normalized=String(flag).trim().toUpperCase();
+          const active=flag===true||['TRUE','1','YA','AKTIF','YES'].includes(normalized);
+          const inactive=flag===false||['FALSE','0','TIDAK','NONAKTIF','NO'].includes(normalized);
+          if(!active&&!inactive){valid=false;break;}
+          if(found.has(name)&&found.get(name).aktif!==active){valid=false;break;}
+          found.set(name,{
+            code:String(rec.code||name).trim(),name,aktif:active,
+            tanggal_mulai:String(rec.tanggal_mulai||'').trim(),
+            tanggal_selesai:String(rec.tanggal_selesai||'').trim(),
+            urutan:Number(rec.urutan)||999
+          });
+        }
+        if(valid&&[...names].every(name=>found.has(name))&&(found.size>0||names.size===0)){
+          return [...found.values()];
+        }
+      }
+      return null;
+    }
+    function renderKeteranganStatus(rows){
+      const target=document.getElementById('statusLegend');
+      if(!target)return;
+      const statuses=daftarStatus(rows);
+      if(!statuses.length){target.innerHTML='<div><dt>Belum ada assignment dari survei aktif.</dt></div>';return;}
+      target.innerHTML=statuses.map(s=>{
+        let meaning='Tahap status sesuai data FASIH.';
+        if(s.code==='OPEN'||s.code==='DRAFT')meaning='Dokumen belum dikirim.';
+        else if(s.code.startsWith('SUBMITTED'))meaning='Dokumen dikirim dan menunggu pemeriksaan.';
+        else if(s.code.startsWith('REJECTED'))meaning='Dokumen dikembalikan untuk diperbaiki.';
+        else if(s.code.startsWith('REVOKED'))meaning='Persetujuan ditarik atau dikembalikan.';
+        else if(s.code.startsWith('APPROVED'))meaning='Dokumen telah disetujui oleh '+s.code.replace('APPROVED BY ','')+'.';
+        else if(s.code.startsWith('COMPLETED'))meaning='Dokumen selesai pada tahap '+s.code.replace('COMPLETED BY ','')+'.';
+        return '<div><dt><span style="background:'+s.color+'"></span>'+esc(s.label)+'</dt><dd>'+esc(meaning)+'</dd></div>';
+      }).join('');
+    }
+
     async function loadData(){
       if(loading)return;
       loading=true;
@@ -843,7 +865,19 @@
         PERIODE_SURVEI = Array.isArray(payload.periode_survei)
           ? payload.periode_survei
           : [];
-        REGISTRY = await bacaRegistrySurvei(controller.signal);
+        let memakaiCadanganTerverifikasi=false;
+        try{
+          REGISTRY = await bacaRegistrySurvei(controller.signal);
+        }catch(registryError){
+          const candidate=registryTerverifikasiDariPayload(payload);
+          if(!candidate){
+            throw new Error('Data monitoring berhasil dibaca, tetapi FILTER AKTIF/NONAKTIF belum dapat diverifikasi. '+
+              registryError.message+' Terapkan Code.gs V6.14 pada deployment Apps Script PUBLIK.');
+          }
+          console.warn('Registry publik tidak tersedia; memakai status aktif yang diverifikasi dari API Monitoring.',registryError);
+          REGISTRY=candidate;
+          memakaiCadanganTerverifikasi=true;
+        }
         if(REGISTRY){
           SURVEYS = REGISTRY.filter(s=>s.aktif).sort((a,b)=>a.urutan-b.urutan).map(s=>s.name);
           for(const sv of REGISTRY){
@@ -866,16 +900,24 @@
         DATA=DATA.filter(r=>SURVEYS.includes(r.survei)&&surveiMasihAktif(r.survei));
         tampilkanWaktuPengambilan(payload.data_terakhir_diambil);
         Object.assign(state,{survey:null,pml:null,ppl:null,status:null});
+        renderKeteranganStatus(DATA);
         render(false);
-        // Sembunyikan banner setelah data berhasil dimuat.
-        connection.hidden = true;
+        connection.hidden = !memakaiCadanganTerverifikasi;
+        if(memakaiCadanganTerverifikasi){
+          connection.textContent='Mode cadangan: status survei aktif/nonaktif telah diverifikasi dari API Monitoring. Periksa Apps Script PUBLIK untuk mengaktifkan pembacaan langsung.';
+        }
       }catch(error){
         DATA=[];
+        renderKeteranganStatus([]);
         tampilkanWaktuPengambilan(null);
         connection.hidden = false;
-        connection.textContent = "Data belum berhasil dimuat. Silakan coba lagi.";
+        connection.textContent = String(error.message||'').includes('FILTER AKTIF/NONAKTIF')
+          ? 'Data assignment tersedia, tetapi daftar survei aktif belum berhasil diperiksa.'
+          : 'Data monitoring belum berhasil dimuat.';
         const message=error.name==='AbortError'?'Waktu tunggu habis. Coba lagi.':error instanceof TypeError?'Koneksi gagal. Periksa internet dan pastikan URL API dapat dibuka tanpa login.':error.message;
-        view.innerHTML='<div class="empty"><h1>Gagal memuat monitoring</h1><p>'+esc(message)+'</p><button class="statusbtn" id="retry">Coba lagi</button></div>';
+        const registryFail=String(message).includes('FILTER AKTIF/NONAKTIF');
+        const hint=registryFail?'<p>Perbarui deployment <strong>Apps Script PUBLIK</strong> memakai <strong>Code.gs V6.14</strong>. Tombol Kelola Survei tetap dapat dibuka; tidak perlu mengambil ulang assignment FASIH.</p>':'';
+        view.innerHTML='<div class="empty"><h1>'+(registryFail?'Konfigurasi Survei Belum Terhubung':'Gagal Memuat Monitoring')+'</h1><p>'+esc(message)+'</p>'+hint+'<button class="statusbtn" id="retry">Coba Lagi</button></div>';
       }finally{
         clearTimeout(timer);loading=false;view.setAttribute('aria-busy','false');
       }
