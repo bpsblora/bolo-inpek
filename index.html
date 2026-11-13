@@ -399,20 +399,6 @@
 .survey-admin-btn:hover{background:#d6e8ff}
 .bolo-updater-btn{background:#fff;color:#16457a;border-color:#fff}
 .bolo-updater-btn:hover{background:#e0efff}
-#boloUpdaterDialog{border:0;border-radius:16px;width:min(540px,94vw);max-height:90dvh;padding:0;overflow:auto;box-shadow:0 24px 90px #092f5666;color:#18334d}
-#boloUpdaterDialog::backdrop{background:#0e2b4d99}
-.bolo-updater-dialog-head{display:flex;justify-content:space-between;gap:12px;align-items:start;background:#174478;color:white;padding:18px 22px}
-.bolo-updater-dialog-head h2{margin:0;font-size:19px;color:white}
-.bolo-updater-dialog-head p{margin:5px 0 0;font-size:13px;color:#e0edff}
-.bolo-updater-dialog-close{border:0;border-radius:8px;background:#ffffff25;color:white;padding:5px 11px;font-weight:700}
-.bolo-updater-dialog-body{padding:20px 22px 24px}
-.bolo-updater-dialog-body p,.bolo-updater-dialog-body li{font-size:13px;line-height:1.6}
-.bolo-updater-dialog-body ol{padding-left:22px}
-.bolo-updater-status{background:#eef5ff;border:1px solid #bbd4f4;border-radius:9px;padding:12px 14px;margin:15px 0;line-height:1.5;font-size:13px}
-.bolo-updater-status[data-status="error"]{background:#fff4eb;border-color:#f5c58b;color:#7c390a}
-.bolo-updater-download{display:block;width:100%;border:0;border-radius:9px;background:#174478;color:#fff;padding:12px;text-align:center;font-size:14px;font-weight:700}
-.bolo-updater-download:disabled{background:#a8b8ca;cursor:not-allowed}
-.bolo-updater-safety{margin-bottom:0;color:#5a6f84}
 @media(max-width:780px){.survey-admin-top{flex-wrap:wrap}.bolo-updater-btn{width:100%}}
 
 #surveyAdminModal{border:0;border-radius:16px;width:min(1150px,96vw);height:min(850px,92vh);padding:0;box-shadow:0 24px 90px #092f5666;overflow:hidden}
@@ -454,7 +440,7 @@
         Monitoring Survei Statistik INPEK - Blora Pengelolaan Statistik INPEK
       </p>
     </div>
-    <div class="survey-admin-top"><button type="button" class="survey-admin-btn" id="openSurveyAdmin">⚙ Kelola Survei</button><button type="button" class="survey-admin-btn bolo-updater-btn" id="boloUpdaterOpen" aria-haspopup="dialog" aria-controls="boloUpdaterDialog">↓ Unduh Updater</button></div>
+    <div class="survey-admin-top"><button type="button" class="survey-admin-btn" id="openSurveyAdmin">⚙ Kelola Survei</button><a class="survey-admin-btn bolo-updater-btn" id="boloUpdaterOpen" href="https://github.com/bpsblora/bolo-inpek-appscript/releases/latest/download/BOLO-INPEK-Updater-Windows.zip" target="_blank" rel="noopener noreferrer" title="Unduh Updater Windows terbaru dari GitHub privat. Login GitHub diperlukan.">↻ Perbarui Survei</a></div>
   </div>
 </header>
 <dialog id="surveyAdminModal" aria-labelledby="surveyAdminTitle">
@@ -462,23 +448,7 @@
   <div id="surveyAdminSetup" class="survey-admin-help" hidden><strong>Panel Admin Belum Disambungkan</strong><p>Pasang backend Apps Script Kelola Survei satu kali, kemudian isikan URL deployment di berkas <code>kelola-survei-link.json</code>. Setelah itu survei dapat ditambah, diedit, atau dinonaktifkan dari sini.</p></div>
   <iframe id="surveyAdminFrame" title="Form Kelola Survei BOLO INPEK" referrerpolicy="strict-origin-when-cross-origin"></iframe>
 </dialog>
-<dialog id="boloUpdaterDialog" aria-labelledby="boloUpdaterTitle">
-  <div class="bolo-updater-dialog-head">
-    <div><h2 id="boloUpdaterTitle">Unduh Updater BOLO INPEK</h2><p>Updater Windows untuk memperbarui kondisi survei dari FASIH.</p></div>
-    <button type="button" class="bolo-updater-dialog-close" id="boloUpdaterClose" aria-label="Tutup">✕</button>
-  </div>
-  <div class="bolo-updater-dialog-body">
-    <p>Daftar survei yang diproses mengikuti <strong>status Aktif</strong> pada Kelola Survei. Survei nonaktif tidak ikut diperbarui. Perubahan konfigurasi dibaca kembali saat Updater dijalankan.</p>
-    <ol>
-      <li>Unduh paket resmi versi 6.13 atau lebih baru, lalu ekstrak ZIP di Windows.</li>
-      <li>Aktifkan VPN BPS dan gunakan Google Chrome dengan Selenium UC.</li>
-      <li>Login SSO FASIH dengan akun berwenang, lalu jalankan pembaruan melalui aplikasi.</li>
-    </ol>
-    <div id="boloUpdaterStatus" class="bolo-updater-status" role="status" aria-live="polite">Memeriksa ketersediaan paket resmi…</div>
-    <button type="button" class="bolo-updater-download" id="boloUpdaterDownload" disabled>Unduh Paket Updater (.zip)</button>
-    <p class="bolo-updater-safety">Lihat <a href="https://github.com/bpsblora/bolo-inpek-appscript/releases" target="_blank" rel="noopener noreferrer">semua rilis GitHub privat</a>. Paket hanya tersedia untuk operator berwenang di GitHub privat. Jika tautan tidak ditemukan, buka halaman Releases GitHub privat setelah login. Script internal tidak dipublikasikan di repository dashboard.</p>
-  </div>
-</dialog>
+
   <main>
     <div class="notice" id="connection" role="status" aria-live="polite">Memuat data monitoring dari spreadsheet…</div>
     <!-- Dua kotak sejajar: waktu dan keterangan status -->
@@ -1294,38 +1264,7 @@
 </script>
 
 
-<script>
-/* Distribusi Updater internal melalui GitHub Releases PRIVAT. */
-(() => {
-  'use strict';
-  const dialog = document.getElementById('boloUpdaterDialog');
-  const openButton = document.getElementById('boloUpdaterOpen');
-  const closeButton = document.getElementById('boloUpdaterClose');
-  const downloadButton = document.getElementById('boloUpdaterDownload');
-  const status = document.getElementById('boloUpdaterStatus');
 
-  // GitHub melakukan autentikasi akun operator; tidak ada token di halaman publik.
-  const releasesPage = 'https://github.com/bpsblora/bolo-inpek-appscript/releases/latest';
-  const latestZip = releasesPage + '/download/BOLO-INPEK-Updater-Windows.zip';
-
-  openButton.addEventListener('click', () => {
-    downloadButton.disabled = false;
-    downloadButton.textContent = 'Unduh Updater Terbaru lewat GitHub';
-    status.dataset.status = 'info';
-    status.textContent = 'Paket dipublikasikan melalui GitHub privat. Login menggunakan akun GitHub yang diberi akses. Jika halaman belum menemukan ZIP, paket versi terbaru belum selesai diterbitkan. Tidak ada password atau token yang diminta oleh website.';
-    dialog.showModal();
-  });
-  closeButton.addEventListener('click', () => dialog.close());
-  dialog.addEventListener('close', () => openButton.focus());
-  dialog.addEventListener('click', event => {
-    if (event.target === dialog) dialog.close();
-  });
-  downloadButton.addEventListener('click', () => {
-    // Nama aset tetap; GitHub latest memilih versi terbaru tanpa perlu edit website.
-    window.open(latestZip, '_blank', 'noopener,noreferrer');
-  });
-})();
-</script>
 
 </body>
 </html>
