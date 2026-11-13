@@ -476,7 +476,7 @@
     </ol>
     <div id="boloUpdaterStatus" class="bolo-updater-status" role="status" aria-live="polite">Memeriksa ketersediaan paket resmi…</div>
     <button type="button" class="bolo-updater-download" id="boloUpdaterDownload" disabled>Unduh Paket Updater (.zip)</button>
-    <p class="bolo-updater-safety">Hanya paket yang sudah dirilis resmi di GitHub BOLO INPEK yang dapat diunduh. Rilis V2 lama tidak digunakan. Paket internal berisi kode atau kredensial terbatas tidak boleh diunggah ke repository publik.</p>
+    <p class="bolo-updater-safety">Lihat <a href="https://github.com/bpsblora/bolo-inpek-appscript/releases" target="_blank" rel="noopener noreferrer">semua rilis GitHub privat</a>. Paket hanya tersedia untuk operator berwenang di GitHub privat. Jika tautan tidak ditemukan, buka halaman Releases GitHub privat setelah login. Script internal tidak dipublikasikan di repository dashboard.</p>
   </div>
 </dialog>
   <main>
@@ -1295,7 +1295,7 @@
 
 
 <script>
-/* Unduhan yang tervalidasi: rilis resmi V6.13+, bukan tautan pratinjau V2. */
+/* Distribusi Updater internal melalui GitHub Releases PRIVAT. */
 (() => {
   'use strict';
   const dialog = document.getElementById('boloUpdaterDialog');
@@ -1303,84 +1303,26 @@
   const closeButton = document.getElementById('boloUpdaterClose');
   const downloadButton = document.getElementById('boloUpdaterDownload');
   const status = document.getElementById('boloUpdaterStatus');
-  const releasesApi = 'https://api.github.com/repos/bpsblora/bolo-inpek/releases?per_page=50';
-  const assetPrefix = 'https://github.com/bpsblora/bolo-inpek/releases/download/';
-  let selected = null;
-  let requestId = 0;
 
-  function versionNumber(tag) {
-    const match = /^updater-v(\d+)[._-](\d+)(?:[._-](\d+))?$/i.exec(String(tag || ''));
-    if (!match) return null;
-    const version = [Number(match[1]), Number(match[2]), Number(match[3] || 0)];
-    if (version[0] < 6 || (version[0] === 6 && version[1] < 13)) return null;
-    return version;
-  }
-  function compareVersion(a, b) {
-    for (let index = 0; index < 3; index++) {
-      if (a[index] !== b[index]) return b[index] - a[index];
-    }
-    return 0;
-  }
-  function validAsset(asset) {
-    return asset && asset.state === 'uploaded' && asset.size > 2000000 &&
-      /^(?:bolo[-_ ]?inpek)[-_].+\.zip$/i.test(String(asset.name || '')) &&
-      String(asset.browser_download_url || '').startsWith(assetPrefix);
-  }
-  function setStatus(message, error = false) {
-    status.textContent = message;
-    status.dataset.status = error ? 'error' : 'info';
-  }
-  async function checkRelease(id) {
-    try {
-      const response = await fetch(releasesApi, {
-        cache: 'no-store', headers: {Accept: 'application/vnd.github+json'}
-      });
-      if (!response.ok) throw new Error('GitHub tidak dapat diakses (HTTP ' + response.status + ').');
-      const releases = await response.json();
-      if (!Array.isArray(releases)) throw new Error('Format daftar rilis GitHub tidak sesuai.');
-      const candidates = releases
-        .filter(item => !item.draft && versionNumber(item.tag_name))
-        .map(item => ({
-          item, version: versionNumber(item.tag_name),
-          asset: (item.assets || []).find(validAsset)
-        }))
-        .filter(entry => entry.asset)
-        .sort((a, b) => compareVersion(a.version, b.version));
-      if (id !== requestId || !dialog.open) return;
-      if (!candidates.length) {
-        setStatus('Paket Updater V6.13 atau lebih baru belum tersedia di GitHub Releases. Rilis V2 tidak akan diunduh. Pengelola perlu menerbitkan ZIP versi terbaru terlebih dahulu.', true);
-        return;
-      }
-      selected = candidates[0].asset;
-      const label = candidates[0].item.tag_name +
-        (candidates[0].item.prerelease ? ' (Versi Uji)' : '');
-      downloadButton.disabled = false;
-      downloadButton.textContent = '↓ Unduh ' + label + ' (.zip)';
-      setStatus('Paket tersedia: ' + label + ' · ' +
-        (selected.size / 1048576).toFixed(1) + ' MB. Klik tombol di bawah untuk mengunduh.');
-    } catch (error) {
-      if (id !== requestId || !dialog.open) return;
-      setStatus('Gagal memeriksa rilis resmi: ' + error.message +
-        ' Coba lagi saat koneksi internet tersedia.', true);
-    }
-  }
+  // GitHub melakukan autentikasi akun operator; tidak ada token di halaman publik.
+  const releasesPage = 'https://github.com/bpsblora/bolo-inpek-appscript/releases/latest';
+  const latestZip = releasesPage + '/download/BOLO-INPEK-Updater-Windows.zip';
+
   openButton.addEventListener('click', () => {
-    selected = null;
-    downloadButton.disabled = true;
-    downloadButton.textContent = 'Unduh Paket Updater (.zip)';
-    setStatus('Memeriksa ketersediaan paket resmi…');
+    downloadButton.disabled = false;
+    downloadButton.textContent = 'Unduh Updater Terbaru lewat GitHub';
+    status.dataset.status = 'info';
+    status.textContent = 'Paket dipublikasikan melalui GitHub privat. Login menggunakan akun GitHub yang diberi akses. Jika halaman belum menemukan ZIP, paket versi terbaru belum selesai diterbitkan. Tidak ada password atau token yang diminta oleh website.';
     dialog.showModal();
-    checkRelease(++requestId);
   });
   closeButton.addEventListener('click', () => dialog.close());
-  dialog.addEventListener('close', () => {requestId++; selected = null; openButton.focus();});
+  dialog.addEventListener('close', () => openButton.focus());
   dialog.addEventListener('click', event => {
     if (event.target === dialog) dialog.close();
   });
   downloadButton.addEventListener('click', () => {
-    if (selected && validAsset(selected)) {
-      window.location.assign(selected.browser_download_url);
-    }
+    // Nama aset tetap; GitHub latest memilih versi terbaru tanpa perlu edit website.
+    window.open(latestZip, '_blank', 'noopener,noreferrer');
   });
 })();
 </script>
