@@ -13,7 +13,15 @@ function fixture(){
     petugas:[{_row:2,petugas_id:'id-fasih-000000001',nama:'Andi',email:'andi@bps.go.id',nomor_whatsapp:'6281234567890',aktif:'TRUE'}],
     sumber_petugas:[{petugas_id:'id-fasih-000000001',nama:'Andi FASIH',email:'andi@bps.go.id'},
       {petugas_id:'id-fasih-000000002',nama:'Budi',email:'budi@bps.go.id'}],
-    sumber_assignment:[{ppl_id:'id-fasih-000000001',pml_id:'id-fasih-000000002'}],
+    survei:[
+      {survey_period_id:'periode-UTAMA',status_operasional:'AKTIF'},
+      {survey_period_id:'periode-SKTH',status_operasional:'AKTIF'},
+      {survey_period_id:'periode-STPIM',status_operasional:'AKTIF'},
+      {survey_period_id:'periode-IMK',status_operasional:'AKTIF'},
+      {survey_period_id:'periode-ARSIP',status_operasional:'DITUTUP'}
+    ],
+    sumber_assignment:[{ppl_id:'id-fasih-000000001',pml_id:'id-fasih-000000002',
+      survey_period_id:'periode-UTAMA',survei:'STPIM'}],
     tindak_lanjut:[{petugas_id:'id-fasih-000000001',catatan:'Tetap tersimpan'}],
     kontak:[{petugas_id:'id-fasih-000000001',isi_pesan:'Tetap tersimpan'}]
   };
@@ -140,4 +148,23 @@ test('unverified monitoring alias cannot be registered for WhatsApp',()=>{
  const result=f.api.save('admin',{...request,verifikasi_alias:true});
  assert.equal(result.success,true);
  assert.equal(f.tab.petugas.length,2);
+});
+
+test('ignores personnel only in archived and inactive survey assignments',()=>{
+ const f=fixture();
+ f.tab.survei.push({survey_period_id:'periode-NONAKTIF',status_operasional:'NONAKTIF'});
+ f.tab.sumber_petugas.push({petugas_id:'id-never-assigned-999',nama:'Belum Ditugaskan',email:''});
+ f.tab.sumber_assignment.push(
+  {ppl_id:'id-arsip-1234567',ppl:'Petugas Arsip',pml_id:'',
+   survei:'SURVEI-ARSIP',survey_period_id:'periode-ARSIP'},
+  {ppl_id:'id-inactive-56789',ppl:'Petugas Nonaktif',pml_id:'',
+   survei:'SURVEI-NONAKTIF',survey_period_id:'periode-NONAKTIF'}
+ );
+ const candidates=f.api.list('admin').kandidat_fasih;
+ assert.equal(candidates.length,1);
+ assert.equal(candidates[0].nama,'Budi');
+ assert.equal(candidates[0].jumlah_assignment,1);
+ assert.equal(candidates.some(x=>x.nama==='Petugas Arsip'),false);
+ assert.equal(candidates.some(x=>x.nama==='Petugas Nonaktif'),false);
+ assert.equal(candidates.some(x=>x.nama==='Belum Ditugaskan'),false);
 });
