@@ -43,7 +43,7 @@ function tlMonStatus_(x){
 /**
  * Identitas yang sudah diverifikasi ADMIN adalah sumber utama.
  * Dua record sumber FASIH dengan nama sama tidak boleh membatalkan identitas
- * unik yang sudah terdaftar. Nama kembar di master tetap AMBIGU.
+ * unik yang sudah terdaftar bila ID-nya juga konsisten. Nama saja tidak cukup.
  */
 function tlMonNameIDs_(db){
   const master=read_(db,'petugas'),source=read_(db,'sumber_petugas');
@@ -58,10 +58,15 @@ function tlMonNameIDs_(db){
     return result;
   };
   const verified=group(master),external=group(source),map=new Map();
-  for(const [name,ids] of verified)if(ids.size===1)map.set(name,[...ids][0]);
+  for(const [name,ids] of verified){
+    // Hanya tautkan otomatis jika identitas juga cocok dengan ID dari FASIH.
+    // Nama saja belum cukup: bila FASIH berbeda/tidak tersedia, usulkan
+    // penautan manual dengan verifikasi identitas dan nomor WhatsApp.
+    const trusted=external.get(name);
+    if(ids.size===1 && trusted && trusted.size===1 && trusted.has([...ids][0]))
+      map.set(name,[...ids][0]);
+  }
   for(const [name,ids] of external){
-    // Jika ada satu atau lebih orang di master dengan nama ini,
-    // JANGAN memilih identitas FASIH yang berbeda secara diam-diam.
     if(verified.has(name))continue;
     if(ids.size===1)map.set(name,[...ids][0]);
   }
