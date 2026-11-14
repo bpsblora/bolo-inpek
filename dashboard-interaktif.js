@@ -483,9 +483,8 @@ function biSurveyDashboard(survey){
           '<p class="export-feedback" role="status" aria-live="polite"></p></div>'+
       '</div>'+
       '<div class="bi-survey-donut-panel">'+
-        biUnitControl('survey')+
         '<div class="bi-donut" style="background:'+donutColor+'"><div class="bi-donut-center">'+
-          '<strong>'+(biUnitMode('survey')==='persentase'?(all.length?percent(count.submitted,all.length):'—'):format.format(count.submitted))+'</strong>'+
+          '<strong>'+(all.length?percent(count.submitted,all.length):'—')+'</strong>'+
           '<small>Sudah Submit</small>'+
           '<span>'+format.format(count.submitted)+' / '+format.format(all.length)+'</span>'+
         '</div></div>'+
