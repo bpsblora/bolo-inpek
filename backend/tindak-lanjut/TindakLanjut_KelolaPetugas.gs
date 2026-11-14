@@ -37,14 +37,71 @@ function tlPetugasId_(value) {
   }
   return id;
 }
-function tlPetugasPetaAssignment_(db) {
+function tlPetugasPetaAssignment_(assignments) {
   var stat = new Map();
-  read_(db, 'sumber_assignment').forEach(function (a) {
+  assignments.forEach(function (a) {
     [a.ppl_id, a.pml_id].forEach(function (id) {
+      id=text_(id);
       if (id) stat.set(id, (stat.get(id) || 0) + 1);
     });
   });
   return stat;
+}
+/** Identifikasi ID FASIH PPL/PML yang muncul pada assignment tapi belum di tabel petugas.
+ * Petugas berstatus NONAKTIF tetap dianggap terdaftar (bukan petugas baru).
+ * Nama saja tanpa ID tidak bisa otomatis ditambahkan tanpa risiko salah orang. */
+function tlPetugasDeteksiBaru_(assignments, source, saved) {
+  var known=new Set(saved.map(function(p){return text_(p.petugas_id);}));
+  var sourced=new Map(source.map(function(p){return [text_(p.petugas_id),p];}));
+  var candidates=new Map();
+  var missingId=new Map();
+  function candidate(id) {
+    if(!candidates.has(id)){
+      var person=sourced.get(id);
+      candidates.set(id,{petugas_id:id,nama:person?text_(person.nama):'',
+        email:person?text_(person.email):'',jumlah_assignment:0,
+        daftar_survei:[],peran:[],asal:'sumber_petugas'});
+    }
+    return candidates.get(id);
+  }
+  // Pertama masukkan kandidat yang baru ada pada daftar petugas FASIH.
+  source.forEach(function(p){
+    var id=text_(p.petugas_id);
+    if(id&&!known.has(id))candidate(id);
+  });
+  assignments.forEach(function(a){
+    for(var role of ['ppl','pml']){
+      var id=text_(a[role+'_id']);
+      var nama=text_(a[role]);
+      if(!id){
+        if(nama){
+          var key=role+'|'+nama.toLocaleLowerCase('id');
+          if(!missingId.has(key))missingId.set(key,{nama:nama,peran:role.toUpperCase(),jumlah_assignment:0,daftar_survei:[]});
+          var unknown=missingId.get(key);
+          unknown.jumlah_assignment++;
+          var label=text_(a.survei)||text_(a.survey_id);
+          if(label && unknown.daftar_survei.indexOf(label)<0)unknown.daftar_survei.push(label);
+        }
+        continue;
+      }
+      if(known.has(id))continue;
+      var record=candidate(id);
+      record.asal='assignment';
+      record.jumlah_assignment++;
+      if(!record.nama && nama)record.nama=nama;
+      var survey=text_(a.survei)||text_(a.survey_id);
+      var period=text_(a.survey_period_id);
+      var detail=survey+(period?' · '+period:'');
+      if(survey&&record.daftar_survei.indexOf(detail)<0)record.daftar_survei.push(detail);
+      var peran=role.toUpperCase();
+      if(record.peran.indexOf(peran)<0)record.peran.push(peran);
+    }
+  });
+  var items=[...candidates.values()].sort(function(a,b){
+    if(a.asal!==b.asal)return a.asal==='assignment'?-1:1;
+    return (a.nama||a.petugas_id).localeCompare(b.nama||b.petugas_id,'id');
+  });
+  return {kandidat:items,tanpa_id:[...missingId.values()].sort(function(a,b){return b.jumlah_assignment-a.jumlah_assignment;})};
 }
 function tlPetugasView_(p, assignmentCount, source) {
   return {
@@ -67,18 +124,16 @@ function apiDaftarPetugasAdmin(token) {
   var db = db_();
   var saved = read_(db, 'petugas').filter(function (p) { return !!p.petugas_id; });
   var source = read_(db, 'sumber_petugas').filter(function (p) { return !!p.petugas_id; });
-  var count = tlPetugasPetaAssignment_(db);
+  var assignment = read_(db, 'sumber_assignment');
+  var count = tlPetugasPetaAssignment_(assignment);
   var lookup = new Map(source.map(function (p) {return [p.petugas_id,p];}));
-  var known = new Set(saved.map(function (p) {return p.petugas_id;}));
   var all = saved.map(function (p) {
     return tlPetugasView_(p, count.get(p.petugas_id), lookup.get(p.petugas_id));
   }).sort(function(a,b) { return a.nama.localeCompare(b.nama,'id');});
-  var candidates = source.filter(function (p) {return !known.has(p.petugas_id);})
-    .map(function (p) {
-      return {petugas_id:p.petugas_id,nama:p.nama,email:p.email,
-        jumlah_assignment:count.get(p.petugas_id)||0};
-    }).sort(function(a,b){return a.nama.localeCompare(b.nama,'id');});
-  return {petugas:all,kandidat_fasih:candidates,
+  var detections=tlPetugasDeteksiBaru_(assignment,source,saved);
+  return {petugas:all,kandidat_fasih:detections.kandidat,
+    kandidat_assignment:detections.kandidat.filter(function(p){return p.asal==='assignment';}).length,
+    id_petugas_kosong:detections.tanpa_id,
     total:all.length,aktif:all.filter(function(p){return p.aktif;}).length,
     nonaktif:all.filter(function(p){return !p.aktif;}).length};
 }
@@ -133,7 +188,10 @@ function apiSimpanPetugasAdmin(token, request) {
     } else {
       var source = read_(db,'sumber_petugas').find(function(p){return p.petugas_id===id;});
       if (!source && request.dari_fasih === true) {
-        throw Error('ID kandidat FASIH belum ditemukan pada sumber terbaru.');
+        var matching=read_(db,'sumber_assignment').some(function(a){
+          return a.ppl_id===id||a.pml_id===id;
+        });
+        if(!matching)throw Error('ID kandidat tidak ditemukan pada sumber petugas maupun assignment FASIH terbaru.');
       }
       append_(db,'petugas',[{petugas_id:id,nama:name,email:email,
         nomor_whatsapp:nomor,aktif:request.aktif?'TRUE':'FALSE'}]);
