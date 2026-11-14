@@ -120,6 +120,38 @@
   .tl-confirm-actions button{width:100%}}
 @media(prefers-reduced-motion:reduce){.tl-confirm-dialog[open]{animation:none}}
 
+
+/* Kelola Biodata Petugas — BOLO INPEK */
+.tl-staff-shell{background:#fff;border:1px solid #d0dfef;border-radius:15px;padding:20px;margin-bottom:17px}
+.tl-staff-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.tl-staff-heading h2{margin:0;font-size:21px;color:#173c6b}
+.tl-staff-stats{display:flex;gap:9px;flex-wrap:wrap;margin:14px 0}
+.tl-staff-stat{border:1px solid #cfdeee;background:#f4f9ff;border-radius:12px;padding:11px 15px;min-width:120px}
+.tl-staff-stat strong{display:block;font-size:21px;color:#18568b;font-weight:900}
+.tl-staff-stat span{font-size:11px;color:#55738b;font-weight:750}
+.tl-staff-toolbar{display:flex;gap:9px;align-items:flex-end;flex-wrap:wrap;margin:14px 0}
+.tl-staff-toolbar label{flex:1 1 230px;margin:0}
+.tl-staff-toolbar select{width:auto;min-width:160px}
+.tl-staff-tablebox{overflow-x:auto;border:1px solid #d5e2ee;border-radius:12px}
+.tl-staff-table{width:100%;border-collapse:collapse;min-width:720px}
+.tl-staff-table th{background:#eaf3fe;text-transform:none;font-size:12px;color:#224d78;text-align:left;padding:12px}
+.tl-staff-table td{border-top:1px solid #e2ebf4;padding:11px 12px;vertical-align:middle;font-size:12px;color:#274d71;overflow-wrap:anywhere}
+.tl-staff-table td:first-child{font-weight:800}
+.tl-staff-table button{margin:0;padding:7px 11px;font-size:11px}
+.tl-staff-chip{display:inline-block;border-radius:16px;padding:4px 10px;font-size:10px;font-weight:800;background:#e6f6ec;color:#196243}
+.tl-staff-chip.inactive{background:#fff0f0;color:#9d3e4a}
+.tl-staff-form{border-top:1px solid #dbe7f1;padding-top:15px;margin-top:18px}
+.tl-staff-form[hidden],#staffPanel[hidden]{display:none!important}
+.tl-staff-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 16px}
+.tl-staff-fields label{margin-bottom:5px}
+.tl-staff-fields .full{grid-column:1/-1}
+.tl-staff-form .tl-staff-hint{background:#f0f7ff;border-left:3px solid #3275b1;border-radius:8px;padding:10px 12px;color:#3b6184;font-size:12px;line-height:1.6}
+.tl-staff-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:14px}
+.tl-staff-actions button{min-width:110px}
+#staffMessage{font-size:12px;font-weight:750;color:#215f43}
+#staffMessage.error{color:#a22d3a}
+@media(max-width:640px){.tl-staff-shell{padding:14px}.tl-staff-heading h2{font-size:18px}.tl-staff-fields{grid-template-columns:1fr}.tl-staff-toolbar select{width:100%}.tl-staff-actions{flex-wrap:wrap}.tl-staff-actions button{flex:1}}
+
 </style></head><body>
 <header><h1>Tindak Lanjut BOLO INPEK</h1><p id="greeting">Masuk Sebagai Admin INPEK</p></header>
 <main>
@@ -155,8 +187,9 @@
   <p id="sourceTime" class="muted"></p>
 </div>
 <nav class="grid" aria-label="Menu tindak lanjut"><button id="closeMenu">Arsipkan &amp; Tutup Survei</button><button id="remindMenu">Ingatkan Petugas</button><button id="noteMenu">Tambahkan Catatan Survei</button></nav>
-<div id="adminArchiveShortcut" style="margin-top:10px" hidden>
+<div id="adminArchiveShortcut" style="margin-top:10px;display:flex;gap:9px;flex-wrap:wrap" hidden>
   <button type="button" class="secondary" id="openCompletedTL">▣ Survei Selesai &amp; Pulihkan</button>
+  <button type="button" class="secondary" id="openStaffTL">♙ Kelola Biodata Petugas</button>
 </div>
 <details class="panel pengingat-dropdown" style="margin-top:16px">
   <summary>
@@ -215,7 +248,77 @@
 <section id="notePanel" class="panel" hidden><h2>Catatan dan Hasil Konfirmasi</h2><p id="chainInfo" class="muted"></p><label for="assignment">Cakupan catatan</label><select id="assignment"></select><label for="note">Catatan / hasil konfirmasi</label><textarea id="note"></textarea><label for="plan">Rencana perbaikan</label><textarea id="plan"></textarea><label for="followStatus">Status tindak lanjut</label><select id="followStatus"><option value="MENUNGGU_BALASAN">Menunggu balasan</option><option value="DALAM_PERBAIKAN">Dalam perbaikan</option><option value="SELESAI">Selesai</option></select><label for="target">Target selesai (opsional)</label><input id="target" type="datetime-local"><label for="nextDate">Pengingat berikutnya</label><input id="nextDate" type="datetime-local"><button id="saveNote">Simpan catatan</button><button id="newNote" class="secondary">Catatan baru</button></section>
 <section id="closePanel" class="panel" hidden><h2>Arsipkan dan Tutup Periode Survei</h2><pre id="closeSummary"></pre><label for="closeNote">Catatan penutupan</label><textarea id="closeNote"></textarea><label class="choice"><input type="checkbox" id="closeConfirm">Saya sudah memeriksa ringkasan dan ingin menutup periode survei ini. Catatan aktif dibersihkan setelah arsip berhasil diverifikasi.</label><button id="closeBtn" class="danger">Arsipkan dan tutup survei</button><div id="archiveResult"></div></section>
 <section class="panel"><h2>Riwayat catatan survei terpilih</h2><div id="history"></div></section>
-</div></main>
+</div>
+
+<section id="staffPanel" hidden aria-labelledby="staffTitle">
+  <div class="tl-staff-shell">
+    <div class="tl-staff-heading">
+      <div>
+        <h2 id="staffTitle">Kelola Biodata Petugas</h2>
+        <p class="muted" style="margin:5px 0 0">Database petugas Tindak Lanjut BOLO INPEK · Nama, email, nomor WhatsApp, dan status aktif</p>
+      </div>
+      <button type="button" class="secondary" id="staffBack">← Kembali ke Tindak Lanjut</button>
+    </div>
+    <div class="tl-staff-stats" id="staffStats" aria-live="polite"></div>
+    <p id="staffMessage" role="status" aria-live="polite"></p>
+    <div class="tl-staff-toolbar">
+      <label for="staffSearch">Cari petugas
+        <input type="search" id="staffSearch" placeholder="Nama, email, atau nomor WhatsApp" autocomplete="off">
+      </label>
+      <label for="staffFilter">Status
+        <select id="staffFilter"><option value="semua">Semua Petugas</option>
+          <option value="aktif">Aktif</option><option value="nonaktif">Nonaktif</option></select>
+      </label>
+      <button type="button" id="staffRefresh" class="secondary">↻ Muat Ulang</button>
+      <button type="button" id="staffNew">+ Tambah Petugas</button>
+    </div>
+    <div class="tl-staff-tablebox">
+      <table class="tl-staff-table" aria-label="Biodata petugas yang sudah terdaftar">
+        <thead><tr><th>Petugas</th><th>Email</th><th>Nomor WhatsApp</th><th>Status</th><th>Assignment FASIH</th><th>Tindakan</th></tr></thead>
+        <tbody id="staffRows"><tr><td colspan="6">Memuat database petugas…</td></tr></tbody>
+      </table>
+    </div>
+    <p class="muted">ID petugas tidak diubah saat biodata diperbarui. Data tindak lanjut dan riwayat WhatsApp lama tetap tersimpan.</p>
+    <form id="staffForm" class="tl-staff-form" hidden>
+      <h3 id="staffFormTitle">Biodata Petugas</h3>
+      <div class="tl-staff-fields">
+        <div class="full">
+          <label for="staffSource">Petugas baru dari FASIH (opsional)</label>
+          <select id="staffSource"><option value="">— Tidak dipilih / input manual —</option></select>
+        </div>
+        <div class="full">
+          <label for="staffId">ID Petugas FASIH</label>
+          <input type="text" id="staffId" maxlength="100" placeholder="Masukkan ID FASIH, atau kosongkan untuk ID internal">
+          <p class="muted" style="margin:4px 0">ID harus sama dengan FASIH supaya petugas terhubung ke assignment. Untuk petugas lama, ID dikunci agar riwayat tetap utuh.</p>
+        </div>
+        <div>
+          <label for="staffNama">Nama Petugas <span aria-hidden="true">*</span></label>
+          <input type="text" id="staffNama" maxlength="140" required autocomplete="name">
+        </div>
+        <div>
+          <label for="staffEmail">Email Petugas</label>
+          <input type="email" id="staffEmail" maxlength="150" placeholder="nama@bps.go.id" autocomplete="email">
+        </div>
+        <div>
+          <label for="staffWa">Nomor WhatsApp <span aria-hidden="true">*</span></label>
+          <input type="tel" id="staffWa" maxlength="30" required placeholder="08xxxxxxxxxx / 628xxxxxxxxxx">
+        </div>
+        <div style="display:flex;align-items:center">
+          <label class="choice" for="staffActive" style="margin:8px 0;width:100%">
+            <input type="checkbox" id="staffActive" checked>
+            <span>Aktif — muncul pada daftar Ingatkan Petugas</span>
+          </label>
+        </div>
+      </div>
+      <p class="tl-staff-hint">Menonaktifkan petugas hanya menyembunyikannya dari daftar pengingat baru. Catatan, kontak, assignment, dan arsip sebelumnya tidak dihapus. Petugas baru tanpa assignment belum bisa dipilih sebagai penerima pengingat berbasis FASIH.</p>
+      <div class="tl-staff-actions">
+        <button type="button" class="secondary" id="staffCancel">Batal</button>
+        <button type="submit" id="staffSave">Simpan Biodata</button>
+      </div>
+    </form>
+  </div>
+</section>
+</main>
 <div id="initial" hidden data-survei="<?= surveiAwal ?>" data-periode="<?= periodeAwal ?>"></div>
 <dialog id="tlConfirmDialog" class="tl-confirm-dialog" aria-labelledby="tlConfirmHeading" aria-describedby="tlConfirmDetail tlConfirmMessage">
   <div class="tl-confirm-shell">
@@ -237,6 +340,7 @@
 <script>
   
 const $=id=>document.getElementById(id);let konteksCatatanKirim = null;let token='',data=null,draft=null,sendId='',noteId='',chain=null,busy=false,initialUsed=false;
+let staffData=null, staffEditing=null;
 const initial=$('initial').dataset;const key=x=>JSON.stringify([x.survey_id,x.survey_period_id]);
 const BOLO_ADMIN_GATE = /^__BOLO_INPEK_ADMIN_GATE__([a-f0-9]{32})$/.exec(String(initial.survei||''));
 const BOLO_ADMIN_GATE_NONCE = BOLO_ADMIN_GATE ? BOLO_ADMIN_GATE[1] : '';
@@ -730,6 +834,154 @@ judul.append(jumlah);
   }
 }
 
+
+function staffNotice(message,error=false){
+  $('staffMessage').textContent=message||'';
+  $('staffMessage').className=error?'error':'';
+}
+function staffStatsPaint(){
+  const stats=$('staffStats');stats.replaceChildren();
+  if(!staffData)return;
+  for(const [label,value] of [['Total Petugas',staffData.total],['Aktif',staffData.aktif],
+    ['Nonaktif',staffData.nonaktif],['Calon dari FASIH',staffData.kandidat_fasih.length]]){
+    const box=document.createElement('div');box.className='tl-staff-stat';
+    const strong=document.createElement('strong');strong.textContent=String(value);
+    const caption=document.createElement('span');caption.textContent=label;
+    box.append(strong,caption);stats.append(box);
+  }
+}
+function staffRowsPaint(){
+  const body=$('staffRows');body.replaceChildren();
+  if(!staffData)return;
+  const q=$('staffSearch').value.toLocaleLowerCase('id').trim();
+  const filter=$('staffFilter').value;
+  const rows=staffData.petugas.filter(p=>
+    (filter==='semua'||p.aktif===(filter==='aktif')) &&
+    (!q||[p.nama,p.email,p.nomor_whatsapp,p.petugas_id].some(x=>String(x||'').toLocaleLowerCase('id').includes(q))));
+  if(!rows.length){
+    const tr=document.createElement('tr'),td=document.createElement('td');
+    td.colSpan=6;td.textContent='Tidak ada petugas yang sesuai dengan pencarian ini.';
+    tr.append(td);body.append(tr);return;
+  }
+  for(const p of rows){
+    const tr=document.createElement('tr');
+    function cell(value){const td=document.createElement('td');td.textContent=String(value||'');tr.append(td);return td;}
+    cell(p.nama);
+    cell(p.email||'—');
+    cell(p.nomor_whatsapp||'—');
+    const status=cell('');
+    const badge=document.createElement('span');badge.className='tl-staff-chip'+(p.aktif?'':' inactive');
+    badge.textContent=p.aktif?'Aktif':'Nonaktif';status.append(badge);
+    const count=cell(String(p.jumlah_assignment||0));
+    if(!p.ada_di_fasih){
+      const note=document.createElement('div');note.className='muted';note.textContent='ID belum ada di sumber petugas FASIH';count.append(note);
+    }
+    const td=cell('');
+    const edit=document.createElement('button');edit.type='button';edit.className='secondary';
+    edit.textContent='Edit Biodata';edit.setAttribute('aria-label','Edit biodata '+p.nama);
+    edit.addEventListener('click',()=>staffOpenForm(p));
+    td.append(edit);body.append(tr);
+  }
+}
+function staffCandidatesPaint(){
+  const select=$('staffSource');select.replaceChildren();
+  option(select,'','— Tidak dipilih / input manual —');
+  for(const p of staffData?.kandidat_fasih||[]){
+    option(select,p.petugas_id,p.nama+' · '+p.jumlah_assignment+' assignment');
+  }
+}
+async function staffLoad(){
+  if(!token)throw Error('Sesi operator berakhir. Masuk kembali.');
+  try{
+    staffData=await rpc('apiDaftarPetugasAdmin',token);
+  }catch(e){
+    const detail=String(e?.message||e||'');
+    if(/apiDaftarPetugasAdmin|not a function|tidak ditemukan/i.test(detail)){
+      throw Error('Backend Kelola Petugas belum dipasang. Tambahkan TindakLanjut_KelolaPetugas.gs di Apps Script dan perbarui deployment lama satu kali.');
+    }
+    throw e;
+  }
+  if(!staffData||!Array.isArray(staffData.petugas)||!Array.isArray(staffData.kandidat_fasih)){
+    throw Error('Respons database petugas tidak sesuai. Hubungi admin BOLO INPEK.');
+  }
+  staffStatsPaint();staffRowsPaint();staffCandidatesPaint();
+}
+async function staffOpen(){
+  if(!token || data?.operator?.peran!=='ADMIN')throw Error('Kelola Petugas hanya tersedia untuk ADMIN INPEK.');
+  $('staffPanel').hidden=false;
+  $('app').hidden=true;
+  $('halamanSelesai').hidden=true;
+  $('staffForm').hidden=true;
+  staffEditing=null;
+  staffNotice('Memuat biodata petugas…');
+  try{
+    await staffLoad();staffNotice('Database petugas berhasil dimuat. Pilih Edit Biodata atau Tambah Petugas.');
+  }catch(e){
+    staffNotice(String(e.message||e),true);notice(String(e.message||e),true);
+  }
+  $('staffTitle').scrollIntoView({block:'start',behavior:'smooth'});
+}
+function staffOpenForm(p=null){
+  if(!staffData)throw Error('Daftar petugas belum dimuat.');
+  staffEditing=p?{...p}:null;
+  $('staffFormTitle').textContent=p?'Edit Biodata · '+p.nama:'Tambah Petugas';
+  $('staffSource').disabled=!!p;
+  $('staffSource').value='';
+  $('staffId').value=p?.petugas_id||'';
+  $('staffId').readOnly=!!p;
+  $('staffNama').value=p?.nama||'';
+  $('staffEmail').value=p?.email||'';
+  $('staffWa').value=p?.nomor_whatsapp||'';
+  $('staffActive').checked=p?p.aktif:true;
+  $('staffForm').hidden=false;
+  $('staffForm').scrollIntoView({behavior:'smooth',block:'start'});
+  $('staffNama').focus({preventScroll:true});
+}
+$('staffSearch').addEventListener('input',staffRowsPaint);
+$('staffFilter').addEventListener('change',staffRowsPaint);
+$('staffNew').addEventListener('click',()=>staffOpenForm());
+$('staffCancel').addEventListener('click',()=>{$('staffForm').hidden=true;staffEditing=null;});
+$('staffSource').addEventListener('change',()=>{
+  const p=staffData?.kandidat_fasih.find(p=>p.petugas_id===$('staffSource').value);
+  if(!p)return;
+  $('staffId').value=p.petugas_id;$('staffNama').value=p.nama;$('staffEmail').value=p.email||'';
+  $('staffWa').focus();
+});
+$('staffRefresh').addEventListener('click',()=>action(async()=>{
+  await staffLoad();staffNotice('Biodata petugas telah dimuat ulang.');
+}));
+$('staffForm').addEventListener('submit',event=>{
+  event.preventDefault();
+  action(async()=>{
+    const editing=staffEditing;
+    const record={
+      mode:editing?'edit':'tambah',
+      petugas_id:$('staffId').value.trim(),
+      nama:$('staffNama').value.trim(),
+      email:$('staffEmail').value.trim(),
+      nomor_whatsapp:$('staffWa').value.trim(),
+      aktif:$('staffActive').checked,
+      dari_fasih:!!$('staffSource').value,
+      expected:editing?{
+        nama:editing.nama,email:editing.email,
+        nomor_whatsapp:editing.nomor_whatsapp,aktif:editing.aktif
+      }:null
+    };
+    const res=await rpc('apiSimpanPetugasAdmin',token,record);
+    await staffLoad();
+    $('staffForm').hidden=true;staffEditing=null;
+    staffNotice('Biodata '+res.nama+' berhasil '+(record.mode==='tambah'?'ditambahkan':'diperbarui')+'. Nomor WhatsApp terbaru digunakan pada draf pengingat berikutnya.');
+    notice('Biodata petugas berhasil disimpan.');
+  });
+});
+$('openStaffTL').addEventListener('click',()=>action(staffOpen));
+$('staffBack').addEventListener('click',()=>action(async()=>{
+  await load();
+  $('staffPanel').hidden=true;$('halamanSelesai').hidden=true;$('app').hidden=false;
+  $('staffForm').hidden=true;staffEditing=null;
+  notice('Kembali ke Tindak Lanjut. Daftar petugas telah mengikuti database terbaru.');
+}));
+
 $('loginForm').onsubmit = e => {
   e.preventDefault();
 
@@ -744,6 +996,7 @@ $('loginForm').onsubmit = e => {
       throw Error('Email ini tidak memiliki peran ADMIN INPEK. Gunakan email Admin INPEK yang terdaftar pada database operator.');
     }
     token = x.token;
+    $('openStaffTL').hidden=x.operator.peran!=='ADMIN';
 
     if ($('modeHalaman').value === 'selesai') {
       await tampilkanSurveiSelesai();
@@ -770,7 +1023,7 @@ $('loginForm').onsubmit = e => {
 $('logout').onclick=()=>action(async()=>{
   await rpc('apiLogout',token);
   token='';data=null;draft=null;chain=null;initialUsed=false;
-  $('app').hidden=true;$('login').hidden=false;
+  $('app').hidden=true;$('staffPanel').hidden=true;$('login').hidden=false;
   ['history','reminders','choices','survey','person'].forEach(id=>$(id).replaceChildren());
   ['message','note','plan','closeNote'].forEach(id=>$(id).value='');
   $('greeting').textContent='Masuk sebagai operator';
@@ -1068,6 +1321,7 @@ $('keluarSelesai').onclick = () => action(async () => {
 
   $('halamanSelesai').hidden = true;
   $('app').hidden = true;
+  $('staffPanel').hidden = true;
   $('login').hidden = false;
   $('email').value = '';
   $('greeting').textContent = 'Masuk Sebagai Admin INPEK';
