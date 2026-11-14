@@ -476,7 +476,7 @@ function biSurveyDashboard(survey){
         '</div>'+
         '<div class="bi-survey-progress-group">'+
           '<div class="bi-survey-progress-heading"><strong>Komposisi Status FASIH</strong>'+
-            '<span>'+format.format(statusRows.length)+' status tercatat</span></div>'+
+            '<span><strong>'+format.format(count.submitted)+' / '+format.format(all.length)+'</strong> Sudah Submit · '+(all.length?percent(count.submitted,all.length):'—')+'</span></div>'+
           '<div class="bi-survey-fullbar">'+biBar(all,'Komposisi status FASIH '+survey)+'</div>'+
         '</div>'+
         '<div class="bi-head-actions">'+exportButtons(survey)+tombolTindakLanjut(survey)+
