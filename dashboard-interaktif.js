@@ -2,11 +2,11 @@
 /* BOLO INPEK · Visualisasi status petugas — berbasis data monitoring asli. */
 const biView={mode:'grafik',pml:'',ppl:''};
 const biBuckets=[
-  {id:'pending',label:'Belum Submit',color:'#f0a45a'},
-  {id:'sent',label:'Terkirim',color:'#4c89d5'},
-  {id:'approved',label:'Disetujui / Selesai',color:'#298c70'},
-  {id:'revision',label:'Perlu Perbaikan',color:'#d65b73'},
-  {id:'other',label:'Status Lain',color:'#98a7ba'}
+  {id:'pending',label:'Belum Submit',color:'#cbdcf0'},
+  {id:'sent',label:'Terkirim',color:'#84b2df'},
+  {id:'approved',label:'Disetujui / Selesai',color:'#265e9e'},
+  {id:'revision',label:'Perlu Perbaikan',color:'#5289bd'},
+  {id:'other',label:'Status Lain',color:'#a9bdcf'}
 ];
 function biStatusBucket(value){
   const s=String(value||'').trim().toUpperCase();
@@ -42,32 +42,27 @@ function biLegend(){
 }
 function biSummary(){
   const surveys=biSurveyList();
-  const total=biCounts(DATA.filter(r=>surveys.includes(r.survei))).pending;
+  const activeRows=DATA.filter(r=>surveys.includes(r.survei));
+  const submitted=biCounts(activeRows).submitted;
+  const denominator=activeRows.length;
   return '<section class="bi-summary" aria-labelledby="bi-summary-h">'+
-    '<div class="bi-head"><div><div class="bi-eyebrow">RINGKASAN MONITORING</div><h2 id="bi-summary-h">Belum Submit per Survei</h2>'+
-    '<p>Jumlah assignment dengan status OPEN atau DRAFT.</p></div>'+
-    '<span class="bi-county-total"><strong>'+total+'</strong> Belum Submit · Kabupaten</span></div>'+
+    '<div class="bi-head"><div><div class="bi-eyebrow">RINGKASAN MONITORING</div><h2 id="bi-summary-h">Capaian Sudah Submit per Survei</h2>'+
+    '<p>Ketuk kartu survei untuk melihat progres PML dan PPL. Kartu ini sekaligus menjadi filter survei.</p></div>'+
+    '<div class="bi-summary-actions"><span class="bi-county-total"><strong>'+
+    (denominator?percent(submitted,denominator):'—')+'</strong>'+
+    '<span>'+format.format(submitted)+' dari '+format.format(denominator)+' assignment sudah submit · Kabupaten</span></span>'+
+    (state.survey===null?'':'<button class="bi-back-all" type="button" data-level="home" data-value="">← Semua Survei</button>')+
+    '</div></div>'+
     '<div class="bi-summary-grid">'+(surveys.map(survey=>{
-      const rows=DATA.filter(r=>r.survei===survey),pending=biCounts(rows).pending;
+      const rows=DATA.filter(r=>r.survei===survey),submitted=biCounts(rows).submitted;
       return '<button type="button" class="bi-summary-tile'+(state.survey===survey?' selected':'')+
         '" data-level="survey" data-value="'+esc(survey)+'">'+
         '<span class="bi-summary-name">'+esc(survey)+'</span>'+
-        '<span class="bi-summary-num">'+format.format(pending)+'</span>'+
-        '<span class="bi-summary-meta">dari '+format.format(rows.length)+' assignment · '+percent(pending,rows.length)+'</span></button>';
+        '<span class="bi-summary-num">'+(rows.length?percent(submitted,rows.length):'—')+'</span>'+
+        '<span class="bi-summary-meta">'+format.format(submitted)+' dari '+format.format(rows.length)+' assignment Sudah Submit</span>'+ 
+        '<span class="bi-summary-track"><span style="width:'+(rows.length?Math.min(100,submitted/rows.length*100):0)+'%"></span></span></button>';
     }).join('')||'<p class="bi-empty">Belum ada survei aktif.</p>')+'</div>'+
     '<p class="bi-footnote">Belum Submit = OPEN/DRAFT (belum dikirim PPL). Semua tahap SUBMITTED, APPROVED, REJECTED, REVOKED dan COMPLETED termasuk Sudah Submit. Perlu Perbaikan merupakan bagian dari Sudah Submit. Status yang tidak tersedia tetap terpisah.</p></section>';
-}
-function biTabs(){
-  const surveys=biSurveyList();
-  const data=[{name:'Semua Survei',value:null}].concat(surveys.map(name=>({name,value:name})));
-  return '<section class="bi-filters" aria-label="Filter Survei"><div class="bi-filter-title">FILTER SURVEI · PILIH UNTUK MELIHAT DETAIL</div>'+
-    '<div class="bi-chip-row" role="group" aria-label="Pilih survei">'+data.map(item=>{
-      const count=DATA.filter(r=>item.value===null?surveys.includes(r.survei):r.survei===item.value).length;
-      const active=state.survey===item.value;
-      return '<button type="button" data-level="'+(item.value===null?'home':'survey')+
-        '" data-value="'+esc(item.value||'')+'" aria-pressed="'+active+'" class="bi-survey-chip'+(active?' selected':'')+'">'+
-        '<b>'+esc(item.name)+'</b><small>'+format.format(count)+' assignment</small></button>';
-    }).join('')+'</div></section>';
 }
 function biRoleNames(rows,key){
   // PPL: urutkan jumlah SUDAH SUBMIT (termasuk REJECTED/REVOKED).
