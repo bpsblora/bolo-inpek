@@ -193,3 +193,17 @@
 .bi-mark-row-btn[data-bi-activation-help]{background:#fff9e9;color:#835e19;border-color:#e9cc86}
 #markAssignmentSetup a.survey-admin-btn{margin:12px 0;display:inline-flex}
 #markAssignmentSetup p{font-size:13px;line-height:1.65}
+
+/* Filter penanda perhitungan: bukan filter survei tambahan. */
+.bi-mark-filters{display:flex;gap:8px;flex-wrap:wrap;margin:11px 0 13px}
+.bi-mark-filter{border:1px solid #bfd3e8;background:#f6faff;color:#255780;border-radius:9px;padding:8px 11px;font-weight:750;font-size:12px;display:inline-flex;gap:8px;align-items:center;cursor:pointer}
+.bi-mark-filter strong{font-size:13px;font-variant-numeric:tabular-nums}
+.bi-mark-filter:hover{background:#e9f3ff}
+.bi-mark-filter.selected{background:#1d568b;color:#fff;border-color:#1d568b}
+.bi-mark-filter.excluded:not(.selected){background:#fff3ec;border-color:#f1c5b1;color:#a34c24}
+.bi-mark-filter.excluded.selected{background:#a74a24;border-color:#a74a24;color:#fff}
+.bi-mark-filter:focus-visible{outline:2px solid #3679bc;outline-offset:2px}
+.bi-mark-no-rows{padding:18px!important;font-size:13px;color:#657b91;font-weight:650;text-align:center;white-space:normal!important}
+.bi-unassigned-table td:nth-child(6){max-width:350px;white-space:normal;overflow-wrap:anywhere}
+.bi-unassigned-table td:nth-child(7){white-space:nowrap}
+@media(max-width:650px){.bi-mark-filters{gap:6px}.bi-mark-filter{font-size:11px;padding:8px}}
