@@ -88,7 +88,13 @@ export function stageSync({repoRoot,liveDir,includeBackend=false}) {
   const backend=all.find(x=>/^KodeV2\.(?:gs|js)$/.test(x));
   if(!backend)throw Error('KodeV2 tidak ditemukan dalam hasil pull. BATAL: proyek salah/tidak lengkap.');
   const script=readFileSync(join(liveDir,backend),'utf8');
-  if(!script.includes("Index_TindakLanjutV2"))throw Error('Backend aktif bukan Tindak Lanjut versi yang diharapkan.');
+  // Backend lama memakai template lokal; versi terkini memakai GitHub Loader.
+  // Dua pola harus dapat dikenali, dan loader harus ada bila dipakai.
+  const localTemplate=/createTemplateFromFile\s*\(\s*['"]Index_TindakLanjutV2['"]/.test(script);
+  const remoteTemplate=/boloTlOutputGithub_\s*\(\s*p\s*\)/.test(script);
+  const loaderPresent=readdirSync(liveDir).some(name=>/^TindakLanjut_GitHubLoader\.(gs|js)$/.test(name));
+  if(!(localTemplate || (remoteTemplate && loaderPresent)))
+    throw Error('Backend bukan Tindak Lanjut yang diketahui (template lokal atau GitHub Loader). BATAL.');
   JSON.parse(readFileSync(join(liveDir,'appsscript.json'),'utf8'));
 
   const before=readFileSync(join(liveDir,APPS_FILE),'utf8');
