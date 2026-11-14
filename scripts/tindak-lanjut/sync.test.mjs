@@ -42,6 +42,10 @@ test('rejects native dialogs and invalid script',()=>{
  assert.equal(validateHtml(valid),1);
  assert.throws(()=>validateHtml(valid+'<script>window.confirm("x")</script>'),/dialog browser/i);
  assert.throws(()=>validateHtml(valid+'<script>function {</script>'),SyntaxError);
+ assert.throws(
+   ()=>validateHtml(valid.replace('<?= modeAwal ?>','<? SpreadsheetApp.openById("x") ?>')),
+   /Template HTML/
+ );
 });
 test('requires exactly one deployed existing web app URL',()=>{
  assert.throws(()=>deploymentIdFromIndex('const x=1'),/tidak ditemukan/);
