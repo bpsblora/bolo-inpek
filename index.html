@@ -341,10 +341,21 @@
 .tombol-tindak-lanjut:hover{background:#102a43;color:white}
 #tlPopup{width:75vw;max-width:75vw;height:75vh;height:75dvh;max-height:75dvh;padding:0;border:0;border-radius:14px;background:#f3f7fc;color:#173858;overflow:hidden;box-shadow:0 20px 70px #0005}
 #tlPopup::backdrop{background:rgba(8,26,44,.38)}
-#tlPopup .tl-bar{height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;background:white;border-bottom:1px solid #d6e1ed}
-#tlPopup .tl-bar button{border:0;background:transparent;font-size:24px;color:#173858;cursor:pointer;padding:2px 10px}
-#tlPopup iframe{display:block;width:100%;height:calc(100% - 48px);border:0;background:#f3f7fc}
-#tlPopup button:focus-visible{outline:3px solid #2563eb}
+/* v40 — modal Tindak Lanjut selaras dengan palet biru BPS pada semua pop-up. */
+#tlPopup .tl-bar{height:56px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 18px;background:linear-gradient(115deg,#153e70,#23659d);color:#fff;
+  border-bottom:1px solid #2d6598;gap:12px}
+#tlPopup .tl-bar strong{font-size:14px;font-weight:850;letter-spacing:.01em}
+#tlPopup .tl-bar button{border:1px solid #ffffff35;background:#ffffff18;
+  font-size:23px;color:#fff;cursor:pointer;padding:4px 12px;border-radius:10px;
+  line-height:1.1;transition:background .18s ease}
+#tlPopup .tl-bar button:hover{background:#ffffff32}
+#tlPopup iframe{display:block;width:100%;height:calc(100% - 56px);border:0;background:#f3f7fc}
+#tlPopup button:focus-visible{outline:3px solid #f2b455;outline-offset:3px}
+@media(max-width:720px){#tlPopup{width:96vw;max-width:96vw;height:91dvh;
+  max-height:91dvh;border-radius:14px}#tlPopup .tl-bar{padding:0 12px}
+  #tlPopup .tl-bar strong{font-size:12px}}
+@media(prefers-reduced-motion:reduce){#tlPopup .tl-bar button{transition:none}}
 
 </style>
 
