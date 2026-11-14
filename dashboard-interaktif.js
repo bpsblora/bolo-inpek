@@ -489,6 +489,7 @@ function biPplDetailPanel(survey){
     '<div class="bi-export-banner"><div><h3>Unduh Laporan PPL · '+esc(survey)+'</h3>'+
     '</div>'+
     biExportButtons(survey,null)+'<p class="bi-feedback" role="status" aria-live="polite"></p></div>'+
+    '<div class="bi-inline-status-legend" id="statusLegend" role="list" aria-label="Legenda warna status FASIH"></div>'+
     (pairs.length?'<div class="tablebox"><table class="bi-ppl-table bi-ppl-summary-table"><thead><tr>'+
       '<th>PPL</th><th>Assignment</th><th>Sudah Submit ↓</th><th>APPROVED</th><th>Progres</th><th>PML</th>'+
       '</tr></thead><tbody>'+pairs.map((entry,i)=>{
