@@ -1,5 +1,11 @@
 # Integrasi Backend Tindak Lanjut — BOLO INPEK
 
+## Sinkronisasi GitHub → Apps Script
+
+[Mulai setup sinkronisasi via GitHub Actions (pratinjau, deployment lama, lalu auto-sync opsional)](./SINKRONISASI-GITHUB-APPS-SCRIPT.md)
+
+GitHub Actions memakai `clasp pull` terlebih dahulu untuk mempertahankan semua file kode produksi yang tidak disimpan di repository. **Belum dapat berjalan terhadap Google sebelum pemilik mengisi dua GitHub Secrets** (`CLASPRC_JSON` dan `TL_SCRIPT_ID`). Mode deploy otomatis dinonaktifkan secara default.
+
 ## Mulai dari sini — setup sekali pada proyek yang sudah aktif
 
 Panduan paling ringkas: [SETUP-LANGKAH.md](./SETUP-LANGKAH.md).
