@@ -379,7 +379,9 @@ function biOverview(){
 
 
 /* Report khusus PPL: pasangan (PPL, PML) tidak boleh digabung lintas pengawas. */
-function biPplPmlPairs(rows){
+function biPplPmlPairs(rows,scope='report'){
+  // Satu baris tetap merepresentasikan pasangan PPL-PML yang sama.
+  // Persentase = rasio Sudah Submit tertinggi; Angka = total Sudah Submit terbanyak.
   const map=new Map();
   rows.forEach(row=>{
     const ppl=name(row,'ppl'),pml=name(row,'pml');
@@ -387,10 +389,16 @@ function biPplPmlPairs(rows){
     if(!map.has(key))map.set(key,{ppl,pml,rows:[]});
     map.get(key).rows.push(row);
   });
+  const mode=biUnitMode(scope);
   return [...map.values()].sort((a,b)=>{
     const sa=biCounts(a.rows).submitted,sb=biCounts(b.rows).submitted;
-    return sb-sa || b.rows.length-a.rows.length ||
-      a.pml.localeCompare(b.pml,'id') || a.ppl.localeCompare(b.ppl,'id');
+    // Bandingkan rasio tanpa pembulatan; jika seri, pakai metrik lainnya.
+    const byPercentage=sb*a.rows.length-sa*b.rows.length;
+    const byCount=sb-sa;
+    const byName=a.ppl.localeCompare(b.ppl,'id')||a.pml.localeCompare(b.pml,'id');
+    return mode==='persentase'
+      ?(byPercentage||byCount||byName)
+      :(byCount||byPercentage||byName);
   });
 }
 function biExportButtons(survey,pml){
@@ -405,17 +413,20 @@ function biExportButtons(survey,pml){
 }
 function biPplDetailPanel(survey){
   const rows=DATA.filter(row=>row.survei===survey);
-  const pairs=biPplPmlPairs(rows);
+  const pairs=biPplPmlPairs(rows,'report');
+  const orderText=biUnitMode('report')==='persentase'
+    ?'persentase Sudah Submit tertinggi ke terendah'
+    :'jumlah Sudah Submit terbanyak ke paling sedikit';
   return '<section class="bi-panel" aria-label="Rincian progres PPL dengan PML">'+
     '<div class="bi-role-head"><div><h2>Rincian Progres Seluruh PPL</h2>'+
-    '<small>Urut dari jumlah Sudah Submit PPL terbanyak. PML tetap pada kolom paling kanan.</small></div>'+
+    '<small>Urut dari '+orderText+'. PML tetap pada kolom paling kanan.</small></div>'+
     '<div class="bi-panel-tools"><small>'+pairs.length+' pasangan PPL–PML</small>'+
     biUnitControl('report')+'</div></div>'+
     '<div class="bi-export-banner"><div><h3>Laporan Seluruh PPL · '+esc(survey)+'</h3>'+
     '<p>Gambar dan PDF memuat progres setiap PPL, status assignment, grafik, serta PML penanggung jawab. Ekspor seluruh survei, tidak terpengaruh filter layar.</p></div>'+
     biExportButtons(survey,null)+'<p class="bi-feedback" role="status" aria-live="polite"></p></div>'+
     (pairs.length?'<div class="tablebox"><table class="bi-ppl-table"><thead><tr>'+
-      '<th>PPL</th><th>Assignment</th><th>Belum Submit</th><th>Sudah Submit</th><th>Terkirim</th><th>Disetujui / Selesai</th><th>Perbaikan</th><th>Progres</th><th>PML</th>'+
+      '<th>PPL</th><th>Assignment</th><th>Belum Submit</th><th>Sudah Submit ↓</th><th>Terkirim</th><th>Disetujui / Selesai</th><th>Perbaikan</th><th>Progres</th><th>PML</th>'+
       '</tr></thead><tbody>'+pairs.map(entry=>{
         const c=biCounts(entry.rows);
         return '<tr><td>'+esc(entry.ppl)+'</td><td>'+entry.rows.length+'</td><td>'+c.pending+'</td>'+
@@ -437,7 +448,7 @@ function biPmlCards(survey){
     biUnitControl('cards')+'</div></div>'+
     (names.length?'<div class="bi-pml-grid">'+names.map(pml=>{
       const group=rows.filter(row=>name(row,'pml')===pml);
-      const pairs=biPplPmlPairs(group),stats=biCounts(group);
+      const pairs=biPplPmlPairs(group,'cards'),stats=biCounts(group);
       return '<article class="bi-pml-card"><div class="bi-pml-top"><div><strong>'+esc(pml)+'</strong>'+
         '<small>'+pairs.length+' PPL · '+group.length+' assignment</small></div>'+
         '<span class="bi-pml-count">'+biUnitText(stats.approved,group.length,'cards')+' approve</span></div>'+
@@ -568,7 +579,8 @@ async function biExportProgress(button){
   const survey=button.dataset.survey;
   const pml=button.dataset.scope==='pml'?button.dataset.pml:null;
   const rows=DATA.filter(r=>r.survei===survey&&(pml===null||name(r,'pml')===pml));
-  const pairs=biPplPmlPairs(rows);
+  // Seluruh assignment tetap tercakup; hanya urutan yang mengikuti tombol panel.
+  const pairs=biPplPmlPairs(rows,pml===null?'report':'cards');
   const feedback=button.closest('.bi-export-banner, .bi-pml-card')?.querySelector('.bi-feedback');
   const siblings=button.closest('.bi-export-buttons')?.querySelectorAll('button')||[button];
   if(!pairs.length){if(feedback)feedback.textContent='Belum ada assignment PPL untuk diekspor.';return;}
