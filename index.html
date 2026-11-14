@@ -2067,7 +2067,8 @@ body.bolo-loading-active{overflow:hidden}
     const ok=boloAdminActive();
     enter.hidden=ok;tools.hidden=!ok;
     name.textContent=ok?('Admin: '+(BOLO_ADMIN.nama||BOLO_ADMIN.email)):'';
-    if(typeof render==='function')render(false);
+    // Rendering ulang tidak boleh menimpa layar loading API monitoring.
+    if(typeof render==='function' && !loading)render(false);
   }
   function expireAdmin(){
     BOLO_ADMIN.verified=false;
