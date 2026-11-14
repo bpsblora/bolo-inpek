@@ -441,7 +441,7 @@
         Monitoring Survei Statistik INPEK - Blora Pengelolaan Statistik INPEK
       </p>
     </div>
-    <div class="survey-admin-top"><button type="button" class="survey-admin-btn" id="openSurveyAdmin">⚙ Kelola Survei</button><a class="survey-admin-btn bolo-updater-btn" id="boloUpdaterOpen" href="https://github.com/bpsblora/bolo-inpek-appscript/releases/latest/download/BOLO-INPEK-Updater-Windows.zip" target="_blank" rel="noopener noreferrer" title="Unduh Updater Windows terbaru dari GitHub privat. Login GitHub diperlukan.">↻ Perbarui Survei</a></div>
+    <div class="survey-admin-top"><button type="button" class="survey-admin-btn" id="refreshBoloData" title="Ambil data terbaru tanpa menghapus filter yang sedang dipilih">↻ Muat Ulang Data</button><button type="button" class="survey-admin-btn" id="openSurveyAdmin">⚙ Kelola Survei</button><a class="survey-admin-btn bolo-updater-btn" id="boloUpdaterOpen" href="https://github.com/bpsblora/bolo-inpek-appscript/releases/latest/download/BOLO-INPEK-Updater-Windows.zip" target="_blank" rel="noopener noreferrer" title="Unduh Updater Windows terbaru dari GitHub privat. Login GitHub diperlukan.">↻ Perbarui Survei</a></div>
   </div>
 </header>
 <dialog id="surveyAdminModal" aria-labelledby="surveyAdminTitle">
@@ -849,16 +849,27 @@
       }).join('');
     }
 
-    async function loadData(){
+    async function loadData({preserveView=false}={}){
       if(loading)return;
+      const snapshot=preserveView?{
+        data:DATA, registry:REGISTRY, surveys:SURVEYS,
+        periods:PERIODE_SURVEI, closed:PERIODE_DITUTUP,
+        pengingat:JUMLAH_PENGINGAT, last:lastFetched,
+        state:{...state}
+      }:null;
       loading=true;
       const connection=document.getElementById('connection');
       connection.hidden = false;
       const view=document.getElementById('view');
-      connection.textContent='Memuat data monitoring dari spreadsheet…';
-      document.getElementById('breadcrumbs').innerHTML='';
-      view.innerHTML='<div class="empty">Mohon tunggu, sedang mengambil data.</div>';
-      view.setAttribute('aria-busy','true');
+      connection.textContent=snapshot?'Mengambil pembaruan data… Tampilan dan filter tetap tersedia.':
+        'Memuat data monitoring dari spreadsheet…';
+      if(!snapshot){
+        document.getElementById('breadcrumbs').innerHTML='';
+        view.innerHTML='<div class="empty">Mohon tunggu, sedang mengambil data.</div>';
+        view.setAttribute('aria-busy','true');
+      }
+      const reloadButton=document.getElementById('refreshBoloData');
+      if(reloadButton){reloadButton.disabled=true;reloadButton.textContent='↻ Memuat…';}
       const controller=new AbortController();
       const timer=setTimeout(()=>controller.abort(),45000);
       try{
@@ -906,7 +917,18 @@
         await ambilStatusPenutupan(controller.signal);
         DATA=DATA.filter(r=>SURVEYS.includes(r.survei)&&surveiMasihAktif(r.survei));
         tampilkanWaktuPengambilan(payload.data_terakhir_diambil);
-        Object.assign(state,{survey:null,pml:null,ppl:null,status:null});
+        if(!snapshot){
+          Object.assign(state,{survey:null,pml:null,ppl:null,status:null});
+        }else{
+          // Pertahankan posisi/filter jika survei dan petugasnya masih tersedia.
+          if(state.survey && !SURVEYS.includes(state.survey))
+            Object.assign(state,{survey:null,pml:null,ppl:null,status:null});
+          if(state.pml && !DATA.some(r=>r.survei===state.survey && name(r,'pml')===state.pml))
+            Object.assign(state,{pml:null,ppl:null,status:null});
+          if(state.ppl && !DATA.some(r=>r.survei===state.survey &&
+              name(r,'ppl')===state.ppl && (!state.pml || name(r,'pml')===state.pml)))
+            Object.assign(state,{ppl:null,status:null});
+        }
         renderKeteranganStatus(DATA);
         render(false);
         connection.hidden = !memakaiCadanganTerverifikasi;
@@ -914,6 +936,16 @@
           connection.textContent='Mode cadangan: status survei aktif/nonaktif telah diverifikasi dari API Monitoring. Periksa Apps Script PUBLIK untuk mengaktifkan pembacaan langsung.';
         }
       }catch(error){
+        if(snapshot){
+          DATA=snapshot.data;REGISTRY=snapshot.registry;SURVEYS=snapshot.surveys;
+          PERIODE_SURVEI=snapshot.periods;PERIODE_DITUTUP=snapshot.closed;
+          JUMLAH_PENGINGAT=snapshot.pengingat;
+          lastFetched=snapshot.last;Object.assign(state,snapshot.state);
+          connection.hidden=false;
+          connection.textContent='Gagal memuat data terbaru. Data dan filter sebelumnya tetap ditampilkan.';
+          console.warn('Pembaruan manual gagal; monitoring terakhir dipertahankan:',error);
+          return;
+        }
         DATA=[];
         renderKeteranganStatus([]);
         tampilkanWaktuPengambilan(null);
@@ -927,6 +959,7 @@
         view.innerHTML='<div class="empty"><h1>'+(registryFail?'Konfigurasi Survei Belum Terhubung':'Gagal Memuat Monitoring')+'</h1><p>'+esc(message)+'</p>'+hint+'<button class="statusbtn" id="retry">Coba Lagi</button></div>';
       }finally{
         clearTimeout(timer);loading=false;view.setAttribute('aria-busy','false');
+        if(reloadButton){reloadButton.disabled=false;reloadButton.textContent='↻ Muat Ulang Data';}
       }
     }
     const name = (row,key) => row[key] || UNASSIGNED;
@@ -1234,7 +1267,10 @@
     document.getElementById('closeSurveyAdmin').addEventListener('click',()=>document.getElementById('surveyAdminModal').close());
     document.getElementById('surveyAdminModal').addEventListener('close',()=>{
       document.getElementById('surveyAdminFrame').src='about:blank';
-      loadData();
+      // Tidak reload otomatis saat dialog ditutup: pilihan survei/filter tidak hilang.
+    });
+    document.getElementById('refreshBoloData').addEventListener('click',()=>{
+      loadData({preserveView:true});
     });
     document.addEventListener('click',event=>{
       const exportButton=event.target.closest('button[data-export]');
@@ -1275,7 +1311,7 @@
     returnFocus=b;frame.src=u.href;modal.showModal();document.documentElement.style.overflow='hidden';
   });
   document.getElementById('tlClose').onclick=()=>modal.close();
-  modal.addEventListener('close',()=>{frame.src='about:blank';document.documentElement.style.overflow='';returnFocus?.focus();loadData();});
+  modal.addEventListener('close',()=>{frame.src='about:blank';document.documentElement.style.overflow='';returnFocus?.focus();});
 })();
 </script>
 
