@@ -2160,6 +2160,8 @@ body.bolo-loading-active{overflow:hidden}
     if(!event.isTrusted||!okOrigin(event.origin)||!msg||typeof msg!=='object')return;
     if(msg.nonce!==BOLO_ADMIN.nonce||!BOLO_ADMIN.nonce)return;
     if(msg.type==='BOLO_INPEK_ADMIN_VERIFIED'){
+      // Jangan menyelesaikan login setelah pengguna menutup dialog.
+      if(!modal.open)return;
       if(msg.peran!=='ADMIN'||typeof msg.nama!=='string'||typeof msg.email!=='string')return;
       BOLO_ADMIN.verified=true;
       BOLO_ADMIN.since=Date.now();
@@ -2177,11 +2179,24 @@ body.bolo-loading-active{overflow:hidden}
   modal.addEventListener('close',()=>{
     // Jika terverifikasi, iframe dibiarkan hidup agar login Tindak Lanjut
     // dapat digunakan kembali; setelah Keluar, iframe baru dihancurkan.
-    if(!boloAdminActive())frame.src='about:blank';
+    if(!boloAdminActive()){
+      BOLO_ADMIN.nonce='';
+      frame.src='about:blank';
+    }
     document.documentElement.style.overflow='';
     if(returnFocus?.isConnected)returnFocus.focus({preventScroll:true});
     returnFocus=null;
   });
+  // Batas menu admin lebih singkat daripada masa berlaku token backend.
+  // Tombol langsung disembunyikan ketika batas sesi halaman terlewati.
+  if(typeof window.setInterval==='function'){
+    window.setInterval(()=>{
+      if(BOLO_ADMIN.verified && !boloAdminActive()){
+        if(modal.open)modal.close();
+        expireAdmin();
+      }
+    },60*1000);
+  }
 })();
 </script>
 
