@@ -229,7 +229,8 @@ function biPplDetailPanel(survey){
   return '<section class="bi-panel" aria-label="Rincian progres PPL dengan PML">'+
     '<div class="bi-role-head"><div><h2>Rincian Progres Seluruh PPL</h2>'+
     '<small>Urut dari jumlah Sudah Submit PPL terbanyak. PML tetap pada kolom paling kanan.</small></div>'+
-    '<small>'+pairs.length+' pasangan PPL–PML</small></div>'+
+    '<div class="bi-panel-tools"><small>'+pairs.length+' pasangan PPL–PML</small>'+
+    biUnitControl('report')+'</div></div>'+
     '<div class="bi-export-banner"><div><h3>Laporan Seluruh PPL · '+esc(survey)+'</h3>'+
     '<p>Gambar dan PDF memuat progres setiap PPL, status assignment, grafik, serta PML penanggung jawab. Ekspor seluruh survei, tidak terpengaruh filter layar.</p></div>'+
     biExportButtons(survey,null)+'<p class="bi-feedback" role="status" aria-live="polite"></p></div>'+
@@ -238,8 +239,10 @@ function biPplDetailPanel(survey){
       '</tr></thead><tbody>'+pairs.map(entry=>{
         const c=biCounts(entry.rows);
         return '<tr><td>'+esc(entry.ppl)+'</td><td>'+entry.rows.length+'</td><td>'+c.pending+'</td>'+
-          '<td><strong>'+c.submitted+'</strong></td><td>'+c.sent+'</td><td>'+c.approved+'</td><td>'+c.revision+'</td>'+
-          '<td class="bi-mini-stack">'+biBar(entry.rows,entry.ppl)+'</td>'+
+          '<td><strong>'+biUnitText(c.submitted,entry.rows.length,'report')+'</strong></td>'+
+          '<td>'+c.sent+'</td><td>'+c.approved+'</td><td>'+c.revision+'</td>'+
+          '<td class="bi-mini-stack">'+biBar(entry.rows,entry.ppl)+
+          '<small class="bi-progress-label">'+biUnitText(c.submitted,entry.rows.length,'report')+'</small></td>'+
           '<td>'+esc(entry.pml)+'</td></tr>';
       }).join('')+'</tbody></table></div>':
       '<div class="bi-empty">Belum ada PPL untuk survei ini.</div>')+
@@ -250,20 +253,23 @@ function biPmlCards(survey){
   const names=biRoleNames(rows,'pml');
   return '<section class="bi-pml-collection"><div class="bi-role-head"><div>'+
     '<h2>Progres PPL per PML</h2><small>Urut dari jumlah Approved / Completed PML terbanyak. Setiap PML bisa mengunduh laporan sendiri.</small>'+
-    '</div><small>'+names.length+' PML</small></div>'+
+    '</div><div class="bi-panel-tools"><small>'+names.length+' PML</small>'+
+    biUnitControl('cards')+'</div></div>'+
     (names.length?'<div class="bi-pml-grid">'+names.map(pml=>{
       const group=rows.filter(row=>name(row,'pml')===pml);
       const pairs=biPplPmlPairs(group),stats=biCounts(group);
       return '<article class="bi-pml-card"><div class="bi-pml-top"><div><strong>'+esc(pml)+'</strong>'+
         '<small>'+pairs.length+' PPL · '+group.length+' assignment</small></div>'+
-        '<span class="bi-pml-count">'+stats.approved+' approve · '+stats.pending+' belum</span></div>'+
-        biBar(group,pml)+biExportButtons(survey,pml)+
+        '<span class="bi-pml-count">'+biUnitText(stats.approved,group.length,'cards')+' approve</span></div>'+
+        biBar(group,pml)+'<p class="bi-card-progress">Approved / Completed: <strong>'+
+          biUnitText(stats.approved,group.length,'cards')+'</strong></p>'+
+        biExportButtons(survey,pml)+
         '<p class="bi-feedback" role="status" aria-live="polite"></p>'+
         '<details><summary>Lihat progres '+pairs.length+' PPL</summary>'+
         pairs.map(item=>{
           const n=biCounts(item.rows);
           return '<div class="bi-pml-minirow"><span>'+esc(item.ppl)+'</span>'+
-            '<b>'+n.submitted+' sudah · '+n.pending+' belum / '+item.rows.length+'</b></div>';
+            '<b>'+biUnitText(n.submitted,item.rows.length,'cards')+' Sudah Submit</b></div>';
         }).join('')+'</details></article>';
     }).join('')+'</div>':'<div class="bi-empty">Belum ada PML pada survei ini.</div>')+
     '</section>';
@@ -321,7 +327,7 @@ function biCanvasPage(survey,pml,pairs,pageIndex,pages,totalCounts){
   stats.forEach(([label,n],i)=>{
     const x=75+i*220;
     ctx.fillStyle='#5c7390';ctx.font='bold 14px Arial';ctx.fillText(label,x,220);
-    ctx.font='bold 30px Arial';ctx.fillStyle=i===1?'#b75c21':'#174679';
+    ctx.font='bold 30px Arial';ctx.fillStyle=i===1?'#5289bd':'#174679';
     ctx.fillText(String(n),x,260);
   });
   const headings=[
@@ -341,8 +347,10 @@ function biCanvasPage(survey,pml,pairs,pageIndex,pages,totalCounts){
     ctx.font='18px Arial';ctx.fillStyle='#163e68';
     biCanvasText(ctx,entry.ppl,68,y+28,246);
     const values=[entry.rows.length,c.pending,c.submitted,c.sent,c.approved,c.revision,c.other];
-    [330,400,480,580,660,745,820].forEach((x,j)=>{ctx.fillStyle=j===1?'#ad5520':j===2?'#166b54':'#183e63';ctx.fillText(String(values[j]),x,y+28);});
-    const barX=927,barY=y+15,barW=326,barH=14;
+    [330,400,480,580,660,745,820].forEach((x,j)=>{ctx.fillStyle=j===1?'#5289bd':j===2?'#265e9e':'#183e63';ctx.fillText(String(values[j]),x,y+28);});
+    const barX=927,barY=y+26,barW=326,barH=9;
+    ctx.font='bold 15px Arial';ctx.fillStyle='#245f98';
+    biCanvasText(ctx,biUnitText(c.submitted,entry.rows.length,pml===null?'report':'cards'),barX,y+19,barW);
     ctx.fillStyle='#dce5f1';ctx.fillRect(barX,barY,barW,barH);
     let left=0;
     for(const b of biBuckets){const n=c[b.id];if(!n)continue;
