@@ -45,6 +45,78 @@ function biCounts(rows){
   out.submitted=out.sent+out.approved+out.revision;
   return out;
 }
+
+function biUnassigned(value){
+  const normal=x=>String(x||'').normalize('NFC').trim().replace(/\s+/g,' ').toLowerCase();
+  return !normal(value.ppl)||!normal(value.pml)||
+    ['belum dialokasikan','belum ditetapkan'].includes(normal(value.ppl))||
+    ['belum dialokasikan','belum ditetapkan'].includes(normal(value.pml));
+}
+function biMarkComposite(row){
+  const norm=x=>String(x||'').normalize('NFC').trim().replace(/\s+/g,' ').toLowerCase();
+  return JSON.stringify([norm(row.survei),norm(row.nama_assignment)]);
+}
+async function biMarkHash(composite){
+  if(!crypto?.subtle||typeof TextEncoder==='undefined'){
+    throw new Error('Browser ini tidak mendukung verifikasi SHA-256 penanda.');
+  }
+  const input=new TextEncoder().encode(composite);
+  const digest=await crypto.subtle.digest('SHA-256',input);
+  return [...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function biApplyMarkers(rows,marks){
+  const sources=rows.map(row=>({...row,boloMark:null,boloExcluded:false}));
+  if(!marks.length)return sources;
+  const candidates=new Map();
+  sources.forEach(row=>{
+    if(!biUnassigned(row))return;
+    const key=biMarkComposite(row);
+    if(!candidates.has(key))candidates.set(key,[]);
+    candidates.get(key).push(row);
+  });
+  const lookup=new Map(marks.map(mark=>[mark.id,mark]));
+  for(const [composite,items] of candidates){
+    // Nama ganda tidak boleh dikecualikan berdasarkan tebakan.
+    if(items.length!==1)continue;
+    const hash=await biMarkHash(composite);
+    const mark=lookup.get(hash);
+    if(!mark)continue;
+    items[0].boloMark=mark;
+    items[0].boloExcluded=mark.dihitung===false;
+  }
+  return sources;
+}
+function biUnassignedPanel(survey){
+  const rows=ALL_ASSIGNMENTS.filter(row=>(!survey||row.survei===survey)&&biUnassigned(row));
+  if(!rows.length)return '';
+  const excluded=rows.filter(row=>row.boloExcluded).length;
+  const marked=rows.filter(row=>row.boloMark).length;
+  const unmarked=rows.length-marked;
+  const details=rows.slice().sort((a,b)=>Number(!!b.boloExcluded)-Number(!!a.boloExcluded)||
+      a.survei.localeCompare(b.survei,'id')||a.nama_assignment.localeCompare(b.nama_assignment,'id'));
+  return '<section class="bi-unassigned-panel">'+
+    '<div class="bi-unassigned-header"><div><h2>Penanda Assignment Belum Dialokasikan</h2>'+
+    '<p>Assignment tanpa PPL/PML bisa merupakan sampel cadangan. Periksa sebelum dikecualikan.</p></div>'+
+    '<button type="button" class="bi-mark-button" data-bi-open-marks>⚙ Atur Penanda & Catatan</button></div>'+
+    '<div class="bi-unassigned-stats"><strong>'+rows.length+'</strong> Belum Dialokasikan · <strong>'+
+    excluded+'</strong> Tidak Dihitung · <strong>'+unmarked+'</strong> Belum Ditandai</div>'+
+    (MARKERS_AVAILABLE?'':'<p class="bi-mark-notice">Layanan penanda bersama belum diaktifkan. Semua assignment sementara tetap dihitung. Admin perlu menerbitkan pembaruan Apps Script terlebih dahulu.</p>')+
+    '<details class="bi-unassigned-details"><summary>Lihat daftar & alasan ('+rows.length+' assignment)</summary>'+
+    '<div class="tablebox"><table class="bi-unassigned-table"><thead><tr>'+
+    '<th>Survei</th><th>Assignment</th><th>Status FASIH</th><th>Perhitungan</th><th>Alasan / Catatan</th><th>Tindakan</th>'+
+    '</tr></thead><tbody>'+details.map(row=>{
+      const mark=row.boloMark;
+      const status=row.boloExcluded?'Tidak Dihitung':mark?'Tetap Dihitung':'Belum Ditandai · Dihitung';
+      const note=mark?[mark.alasan,mark.catatan].filter(Boolean).join(' — '):'Belum ada catatan';
+      return '<tr><td>'+esc(row.survei)+'</td><td>'+esc(row.nama_assignment)+'</td>'+
+        '<td>'+esc(row.status)+'</td>'+
+        '<td><span class="bi-mark-state'+(row.boloExcluded?' off':'')+'">'+esc(status)+'</span></td>'+
+        '<td>'+esc(note)+'</td><td><button type="button" class="bi-mark-row-btn" data-bi-open-marks>Atur</button></td></tr>';
+    }).join('')+'</tbody></table></div></details>'+
+    '<p class="bi-mark-footnote">Penanda disimpan oleh admin di Google Sheets, bukan pada browser. Jika baru mengubah penanda, klik <b>Muat Ulang Data</b> untuk menerapkan perhitungan terbaru. Assignment asli FASIH tetap tersimpan.</p>'+
+    '</section>';
+}
+
 function biSurveyList(){return surveiUrutDeadline().filter(surveiMasihAktif);}
 function biBar(rows,label){
   const counts=biCounts(rows);
@@ -83,7 +155,8 @@ function biSummary(){
         '<span class="bi-summary-meta">'+format.format(submitted)+' dari '+format.format(rows.length)+' assignment Sudah Submit</span>'+ 
         '<span class="bi-summary-track"><span style="width:'+(rows.length?Math.min(100,submitted/rows.length*100):0)+'%"></span></span></button>';
     }).join('')||'<p class="bi-empty">Belum ada survei aktif.</p>')+'</div>'+
-    '<p class="bi-footnote">Belum Submit = OPEN/DRAFT (belum dikirim PPL). Semua tahap SUBMITTED, APPROVED, REJECTED, REVOKED dan COMPLETED termasuk Sudah Submit. Perlu Perbaikan merupakan bagian dari Sudah Submit. Status yang tidak tersedia tetap terpisah.</p></section>';
+    '<p class="bi-footnote">Belum Submit = OPEN/DRAFT. REJECTED/REVOKED tetap Sudah Submit. Penanda Tidak Dihitung mengecualikan sampel cadangan dari pembilang dan penyebut, tetapi tidak menghapus data asli.'+
+    ((ALL_ASSIGNMENTS.length-DATA.length)>0?' <strong>'+format.format(ALL_ASSIGNMENTS.length-DATA.length)+' assignment dikecualikan dari perhitungan.</strong>':'')+'</p></section>';
 }
 function biRoleNames(rows,key){
   // PPL: urutkan jumlah SUDAH SUBMIT (termasuk REJECTED/REVOKED).
