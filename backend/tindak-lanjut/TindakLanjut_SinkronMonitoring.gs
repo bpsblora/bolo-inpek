@@ -145,9 +145,12 @@ function tlMonWrite_(db,tab,headers,rows){
   if(rows.length)sh.getRange(2,1,rows.length,headers.length).setNumberFormat('@')
     .setValues(rows.map(r=>headers.map(c=>safe_(r[c]))));
 }
-function apiSinkronMonitoring(token){
-  return lock_(()=>{
-    session_(token,true);
+/**
+ * Satu mesin sinkronisasi untuk permintaan Admin dan pemeriksaan otomatis.
+ * Tidak pernah dipanggil dari endpoint publik; pembungkus API memvalidasi
+ * sesi Admin, sedangkan pemicu waktu berjalan dengan izin pemilik skrip.
+ */
+function tlMonSyncInternal_(){
     const db=db_(),plan=tlMonBuild_(SpreadsheetApp.openById(TL_MON.id),db);
     const report=tlMonSummary_(plan,db);
     const props=PropertiesService.getScriptProperties();
@@ -195,5 +198,22 @@ function apiSinkronMonitoring(token){
     SpreadsheetApp.flush();
     props.setProperty(TL_MON.prop,plan.checksum);
     return {...report,success:true,berubah:true};
-  });
+}
+/**
+ * Menjaga perilaku API lama. Setiap login Admin menjalankan sinkronisasi
+ * langsung dan mencoba memasang satu pemicu pemeriksaan otomatis. Jika
+ * pembuatan pemicu terkendala izin, sinkronisasi sekarang tetap berhasil.
+ */
+function apiSinkronMonitoring(token){
+  session_(token,true);
+  const report=lock_(()=>tlMonSyncInternal_());
+  try{
+    if(typeof tlAutoEnsure_==='function'){
+      report.deteksi_otomatis=tlAutoEnsure_();
+    }
+  }catch(e){
+    console.warn('Deteksi otomatis belum aktif: '+String(e&&e.message||e));
+    report.deteksi_otomatis={aktif:false,alasan:String(e&&e.message||e)};
+  }
+  return report;
 }
