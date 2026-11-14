@@ -15,6 +15,10 @@ function fixture({backend=true,html=true,manifest=true}={}){
   mkdirSync(liveDir);
   writeFileSync(join(repoRoot,'index.html'),index);
   writeFileSync(join(repoRoot,'backend','tindak-lanjut','Index_TindakLanjutV2.html'),valid);
+  writeFileSync(join(repoRoot,'backend','tindak-lanjut','TindakLanjut_KelolaPetugas.gs'),
+    'function apiDaftarPetugasAdmin(){};function apiSimpanPetugasAdmin(){}');
+  writeFileSync(join(repoRoot,'backend','tindak-lanjut','TindakLanjut_SinkronMonitoring.gs'),
+    'function apiSinkronMonitoring(){};function apiPratinjauSinkronMonitoring(){}');
   if(backend)writeFileSync(join(liveDir,'KodeV2.js'),'const tpl="Index_TindakLanjutV2";\nconst privateKey="retained";');
   if(html)writeFileSync(join(liveDir,'Index_TindakLanjutV2.html'),'<p>Old</p>');
   if(manifest)writeFileSync(join(liveDir,'appsscript.json'),'{"timeZone":"Asia/Jakarta"}');
@@ -50,4 +54,42 @@ test('rejects native dialogs and invalid script',()=>{
 test('requires exactly one deployed existing web app URL',()=>{
  assert.throws(()=>deploymentIdFromIndex('const x=1'),/tidak ditemukan/);
  assert.throws(()=>deploymentIdFromIndex(index+index),/ganda/);
+});
+
+test('explicit backend mode installs only two allowlisted scripts and preserves core',()=>{
+ const f=fixture();try{
+  const before=readFileSync(join(f.liveDir,'KodeV2.js'),'utf8');
+  const r=stageSync({...f,includeBackend:true});
+  assert.equal(r.changed,true);
+  assert.deepEqual(r.backendChanged,
+    ['TindakLanjut_KelolaPetugas','TindakLanjut_SinkronMonitoring']);
+  assert.equal(r.filesCreated,2);
+  assert.equal(readFileSync(join(f.liveDir,'KodeV2.js'),'utf8'),before);
+  assert.equal(readFileSync(join(f.liveDir,'TindakLanjut_KelolaPetugas.js'),'utf8'),
+    'function apiDaftarPetugasAdmin(){};function apiSimpanPetugasAdmin(){}');
+  const again=stageSync({...f,includeBackend:true});
+  assert.equal(again.changed,false);
+  assert.deepEqual(again.backendChanged,[]);
+  assert.equal(again.filesCreated,0);
+ }finally{f.done()}
+});
+test('HTML-only mode never stages backend and ignores differences in server scripts',()=>{
+ const f=fixture();try{
+  stageSync(f);
+  const list=readdirSync(f.liveDir);
+  assert.equal(list.includes('TindakLanjut_KelolaPetugas.js'),false);
+  assert.equal(list.includes('TindakLanjut_SinkronMonitoring.js'),false);
+  writeFileSync(join(f.liveDir,'TindakLanjut_KelolaPetugas.js'),'function original(){}');
+  const again=stageSync(f);
+  assert.equal(again.changed,false);
+  assert.equal(readFileSync(join(f.liveDir,'TindakLanjut_KelolaPetugas.js'),'utf8'),
+    'function original(){}');
+ }finally{f.done()}
+});
+test('backend mode rejects wrong or malformed source before clasp push',()=>{
+ const f=fixture();try{
+  writeFileSync(join(f.repoRoot,'backend','tindak-lanjut','TindakLanjut_KelolaPetugas.gs'),
+    'function broken( {');
+  assert.throws(()=>stageSync({...f,includeBackend:true}),SyntaxError);
+ }finally{f.done()}
 });
