@@ -1,5 +1,9 @@
 # Integrasi Backend Tindak Lanjut — BOLO INPEK
 
+## Pintu Masuk Admin INPEK
+
+[**Satu pintu masuk Admin INPEK untuk menu monitoring dan tindak lanjut**](./ADMIN-INPEK-GATE.md) — menggunakan `apiLogin` yang sudah berjalan, dengan validasi peran `ADMIN`. Login ini **berbasis alamat email terdaftar**, bukan OTP/OAuth. Baca batasan keamanan dan prosedur pengujian pada panduan.
+
 ## Cara utama: edit UI langsung melalui GitHub (tanpa instalasi)
 
 [**Aktivasi satu kali lewat browser: GitHub Loader untuk Tindak Lanjut**](./AKTIVASI-GITHUB-TANPA-INSTALASI.md).
