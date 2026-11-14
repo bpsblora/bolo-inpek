@@ -128,3 +128,16 @@ test('row status toggle and candidate registration are visible in staff UI',()=>
  assert.match(html,/BOLO_INPEK_PETUGAS_PENDING/);
  assert.match(page,/id="adminStaffPending"/);
 });
+
+test('unverified monitoring alias cannot be registered for WhatsApp',()=>{
+ const f=fixture(),alias='monitor:'+'a'.repeat(32);
+ f.tab.sumber_assignment.push({ppl_id:alias,ppl:'Calon IMK',pml_id:'',
+  survei:'VIMK_TH26',survey_period_id:'periode-IMK'});
+ const request={mode:'tambah',petugas_id:alias,nama:'Calon IMK',email:'',
+  nomor_whatsapp:'081355553333',aktif:true,dari_fasih:true};
+ assert.throws(()=>f.api.save('admin',request),/Konfirmasi identitas/);
+ assert.equal(f.tab.petugas.length,1);
+ const result=f.api.save('admin',{...request,verifikasi_alias:true});
+ assert.equal(result.success,true);
+ assert.equal(f.tab.petugas.length,2);
+});
