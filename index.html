@@ -410,6 +410,7 @@
 @media(max-width:780px){.header-inner{flex-wrap:wrap}.survey-admin-top{margin:0;width:100%}.survey-admin-btn{width:100%}}
 </style>
 
+<link rel="stylesheet" href="./dashboard-interaktif.css?v=3">
 </head>
 <body>
   <!-- HEADER: identitas BOLO INPEK dan BPS Kabupaten Blora -->
@@ -491,6 +492,7 @@
   </main>
   <footer>BOLO INPEK · Sumber: Google Sheets · Persentase dihitung dari seluruh assignment pada kelompok yang sedang dibuka. Data pendataan diperbarui setelah operator menjalankan Python. · <a href="./kebijakan-privasi.html">Kebijakan Privasi</a></footer>
   <noscript>Aktifkan JavaScript untuk menggunakan dashboard ini.</noscript>
+  <script src="./dashboard-interaktif.js?v=3"></script>
   <script>
     // ========================================================
     // STATUS DASHBOARD: setiap assignment dihitung satu kali.
@@ -931,6 +933,7 @@
     function counts(rows,statuses=daftarStatus(rows)){return statuses.map(s=>rows.filter(r=>r.status===s.code).length)}
     function selected(){return DATA.filter(r=>(state.survey===null||r.survei===state.survey)&&(state.pml===null||name(r,'pml')===state.pml)&&(state.ppl===null||name(r,'ppl')===state.ppl)&&(state.status===null||r.status===state.status))}
     function go(level,value){
+      if(level==='home'||level==='survey'){biView.pml='';biView.ppl='';}
       if(level==='home')Object.assign(state,{survey:null,pml:null,ppl:null,status:null});
       if(level==='survey')Object.assign(state,{survey:value,pml:null,ppl:null,status:null});
       if(level==='pml')Object.assign(state,{pml:value,ppl:null,status:null});
@@ -1182,35 +1185,32 @@
     
     function render(focus=true){
       const nav=document.getElementById('breadcrumbs');
-      // Navigasi ditampilkan setelah salah satu survei dibuka.
-      nav.hidden = state.survey === null;
+      nav.hidden=state.survey===null||(state.pml===null&&state.ppl===null&&state.status===null);
       const crumbs=[['home','Semua survei','']];
-      
       if(state.survey!==null)crumbs.push(['survey',state.survey,state.survey]);
       if(state.pml!==null)crumbs.push(['pml',state.pml,state.pml]);
       if(state.ppl!==null)crumbs.push(['ppl',state.ppl,state.ppl]);
       if(state.status!==null)crumbs.push(['status',state.status,state.status]);
-      nav.innerHTML=crumbs.map(([level,label,value],i)=>i===crumbs.length-1?'<span aria-current="page">'+esc(label)+'</span>':'<button data-level="'+level+'" data-value="'+esc(value)+'">'+esc(label)+'</button>').join('<span aria-hidden="true"> / </span>');
-      const view=document.getElementById('view'),rows=selected();
-      if (state.survey === null) {
-        view.innerHTML =
-          title(
-            'Progres Pendataan Survei INPEK 2026',
-            'Pilih survei untuk melihat progres petugas',
-            DATA.length
-          ) +
-          '<div class="grid">' +
-          (SURVEYS.length ? surveiUrutDeadline().filter(surveiMasihAktif).map(surveyCard).join('') : '<p class="empty">Belum ada survei pada sumber data.</p>') +
-          '</div>';
-
-        // Cetak miring keterangan pada halaman utama saja.
-        view.querySelector('.title .sub').style.fontStyle = 'italic';
+      nav.innerHTML=crumbs.map(([level,label,value],i)=>i===crumbs.length-1?
+        '<span aria-current="page">'+esc(label)+'</span>':
+        '<button data-level="'+level+'" data-value="'+esc(value)+'">'+esc(label)+'</button>'
+      ).join('<span aria-hidden="true"> / </span>');
+      const view=document.getElementById('view'),rows=selected(),top=biSummary()+biTabs();
+      if(state.survey===null){
+        view.innerHTML=top+title('Progres Pendataan Survei INPEK 2026',
+          'Klik survei di filter atas untuk melihat progres PML dan PPL.',DATA.length)+biOverview();
+      }else if(state.status!==null){
+        view.innerHTML=top+title('Assignment · '+state.status,
+          [state.survey,state.pml,state.ppl].filter(Boolean).join(' · '),rows.length)+assignmentTable(rows);
+      }else if(state.ppl!==null){
+        view.innerHTML=top+title(state.ppl,'Rincian PPL · '+state.survey,rows.length)+peopleTable(rows,'ppl');
+      }else if(state.pml!==null){
+        view.innerHTML=top+title('Progres PPL · '+state.pml,state.survey,rows.length)+
+          biPanel(rows,'ppl')+peopleTable(rows,'ppl');
+      }else{
+        view.innerHTML=top+biSurveyDashboard(state.survey);
       }
-      else if(state.status!==null){view.innerHTML=title('Assignment · '+state.status,state.survey+' · '+state.pml+' · '+state.ppl,rows.length)+(rows.length?assignmentTable(rows):'<div class="empty">Tidak ada assignment pada status ini.</div>');}
-      else if(state.ppl!==null){view.innerHTML=title(state.ppl,'Pilih status untuk melihat assignment.',rows.length)+peopleTable(rows,'ppl');}
-      else if(state.pml!==null){view.innerHTML=title('Progres PPL',state.survey+' · '+state.pml,rows.length)+peopleTable(rows,'ppl')+'<p class="hint">Klik persentase status pada baris PPL untuk membuka daftar assignment.</p>';}
-      else{view.innerHTML=title('Progres PML · '+state.survey,'Pilih PML untuk melihat progres PPL.',rows.length)+peopleTable(rows,'pml')+'<p class="hint">Seluruh tahap status FASIH ditampilkan tanpa digabung. Kelompok tanpa alokasi tetap masuk total survei.</p>';}
-      if(focus)view.querySelector('h1').focus({preventScroll:true});
+      if(focus){const heading=view.querySelector('h1');if(heading)heading.focus({preventScroll:true});}
     }
 
     document.getElementById('openSurveyAdmin').addEventListener('click',async()=>{
@@ -1240,10 +1240,24 @@
       const exportButton=event.target.closest('button[data-export]');
       if(exportButton){if(!exportButton.disabled)handleExport(exportButton);return;}
       if(event.target.closest('#retry')){loadData();return;}
+      const mode=event.target.closest('button[data-bi-mode]');
+      if(mode){biView.mode=mode.dataset.biMode;render(false);return;}
       const button=event.target.closest('button[data-level]');
       if(!button || button.disabled)return;
       if(button.dataset.level==='status' && button.dataset.person!==undefined)state.ppl=button.dataset.person;
+      if(button.dataset.level==='ppl' && biView.pml && state.survey && !state.pml)state.pml=biView.pml;
       go(button.dataset.level,button.dataset.value);
+    });
+    document.addEventListener('change',event=>{
+      const field=event.target.closest('select[data-bi-person]');
+      if(!field)return;
+      const role=field.dataset.biPerson;
+      if(role!=='pml'&&role!=='ppl')return;
+      biView[role]=field.value;
+      if(role==='pml')biView.ppl='';
+      render(false);
+      const updated=document.querySelector('select[data-bi-person="'+role+'"]');
+      if(updated)updated.focus({preventScroll:true});
     });
     loadData();
   </script>
