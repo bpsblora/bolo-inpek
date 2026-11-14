@@ -103,3 +103,26 @@ function boloTlAuditIntegritas_() {
   Logger.log(JSON.stringify(report,null,2));
   return report;
 }
+
+/**
+ * ENTRYPOINT UNTUK EDITOR APPS SCRIPT (muncul pada daftar fungsi).
+ * Fungsi audit asli tetap privat (akhiran "_").
+ *
+ * Google Apps Script sering tidak menampilkan fungsi berakhiran "_"
+ * pada dropdown Jalankan. Endpoint publik dibatasi: hanya sesi dengan
+ * active user yang SAMA dengan effective user/pemilik eksekusi.
+ * Dalam deployment "Execute as me", pengunjung tidak akan lolos.
+ *
+ * Tidak melakukan mutasi data. JANGAN gunakan fungsi ini sebagai API web.
+ */
+function jalankanAuditIntegritasBolo() {
+  const aktif = String(Session.getActiveUser().getEmail() || "").trim().toLowerCase();
+  const pelaksana = String(Session.getEffectiveUser().getEmail() || "").trim().toLowerCase();
+  if (!aktif || !pelaksana || aktif !== pelaksana) {
+    throw new Error(
+      "Audit hanya boleh dijalankan oleh pemilik dari editor Apps Script. " +
+      "Jangan jalankan fungsi ini lewat website."
+    );
+  }
+  return boloTlAuditIntegritas_();
+}
