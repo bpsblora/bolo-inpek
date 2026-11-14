@@ -410,16 +410,37 @@
 @media(max-width:780px){.header-inner{flex-wrap:wrap}.survey-admin-top{margin:0;width:100%}.survey-admin-btn{width:100%}}
 </style>
 <style>
-#markAssignmentModal{border:0;border-radius:17px;width:min(620px,94vw);
-  max-height:85vh;padding:0;box-shadow:0 24px 80px #0e335266;overflow:auto}
-#markAssignmentModal::backdrop{background:#0e2b4d99}
-#markAssignmentSetup{font-size:13px;padding:22px 24px;line-height:1.6;background:#fff;display:block}
+/* Pop-up 1: daftar assignment, tidak mempengaruhi dashboard di belakangnya. */
+#markListModal{border:0;border-radius:17px;width:min(1250px,97vw);height:min(880px,91vh);
+  padding:0;box-shadow:0 24px 90px #092f5666;overflow:hidden}
+#markListModal[open]{display:flex;flex-direction:column}
+#markListModal::backdrop{background:#0e2b4d88}
+#markListBody{padding:20px 22px;overflow-y:auto;overscroll-behavior:contain;flex:1;min-height:0;
+  background:#fff}
+#markListBody .bi-mark-filters{margin:12px 0}
+#markListBody .bi-mark-modal-tablebox{max-height:none;overflow:auto}
+#markListBody .bi-mark-filter-caption{margin:10px 0;color:#5d7692;font-size:12px;font-weight:750}
+#markListBody .bi-mark-modal-intro{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+#markListBody .bi-mark-modal-intro p{margin:0 0 7px;font-size:12px;color:#5b7795}
+#markListBody .bi-unassigned-table{min-width:900px}
+#markListBody .bi-unassigned-table thead th{position:sticky;top:0;background:#eaf2fd;z-index:1}
+/* Pop-up 2: editor di atas daftar; penutupan pop-up ini tidak menutup pop-up 1. */
+#markAssignmentModal{border:0;border-radius:17px;width:min(800px,95vw);height:min(790px,88vh);
+  padding:0;box-shadow:0 24px 90px #092f5666;overflow:hidden}
+#markAssignmentModal[open]{display:flex;flex-direction:column}
+#markAssignmentModal::backdrop{background:#08284488}
+#markAssignmentFrame{display:block;width:100%;flex:1;min-height:0;border:0;background:#eff5fc}
+#markAssignmentFrame[hidden]{display:none}
+#markAssignmentSetup{padding:11px 18px;font-size:12px;line-height:1.55;background:#f1f7fd;color:#305c87}
 #markAssignmentSetup[hidden]{display:none}
-#markAssignmentSetup strong{display:block;color:#174572;font-size:15px;margin-bottom:8px}
-#markAssignmentSetup a.survey-admin-btn{display:inline-flex;margin:10px 0;text-decoration:none}
+#markAssignmentSetup p{margin:4px 0 8px}
+#markAssignmentExternal{color:#fff;font-size:12px;text-decoration:underline;font-weight:700;white-space:nowrap}
+#markAssignmentExternal[hidden]{display:none!important}
+@media(max-width:650px){#markListBody{padding:12px}#markAssignmentModal{height:90vh}
+  #markAssignmentExternal{font-size:10px}#markListBody .bi-mark-modal-intro{display:block}}
 </style>
 
-<link rel="stylesheet" href="./dashboard-interaktif.css?v=18">
+<link rel="stylesheet" href="./dashboard-interaktif.css?v=19">
 </head>
 <body>
   <!-- HEADER: identitas BOLO INPEK dan BPS Kabupaten Blora -->
@@ -458,14 +479,26 @@
   <div id="surveyAdminSetup" class="survey-admin-help" hidden><strong>Panel Admin Belum Disambungkan</strong><p>Pasang backend Apps Script Kelola Survei satu kali, kemudian isikan URL deployment di berkas <code>kelola-survei-link.json</code>. Setelah itu survei dapat ditambah, diedit, atau dinonaktifkan dari sini.</p></div>
   <iframe id="surveyAdminFrame" title="Form Kelola Survei BOLO INPEK" referrerpolicy="strict-origin-when-cross-origin"></iframe>
 </dialog>
+<dialog id="markListModal" aria-labelledby="markListTitle">
+  <div class="survey-admin-bar">
+    <strong id="markListTitle">Daftar Penanda Assignment — BOLO INPEK</strong>
+    <button type="button" class="survey-admin-close" id="closeMarkList">Tutup ×</button>
+  </div>
+  <div id="markListBody" role="region" aria-label="Daftar penanda assignment"></div>
+</dialog>
 <dialog id="markAssignmentModal" aria-labelledby="markAssignmentTitle">
   <div class="survey-admin-bar">
-    <strong id="markAssignmentTitle">Penanda Assignment — BOLO INPEK</strong>
-    <button type="button" class="survey-admin-close" id="closeMarkAssignment">Tutup ×</button>
+    <strong id="markAssignmentTitle">Atur Penanda — BOLO INPEK</strong>
+    <span style="display:flex;align-items:center;gap:12px">
+      <a id="markAssignmentExternal" href="#" target="_blank" rel="noopener noreferrer" hidden>Buka di Tab Baru</a>
+      <button type="button" class="survey-admin-close" id="closeMarkAssignment">Kembali ke Daftar ×</button>
+    </span>
   </div>
-  <div id="markAssignmentSetup" role="status" class="survey-admin-help">
-    Formulir Penanda Assignment dibuka di tab Google Apps Script tersendiri agar login Google dan penyimpanan tidak terhalang iframe.
+  <div id="markAssignmentSetup" role="status" aria-live="polite">
+    Memuat formulir Google Apps Script…
   </div>
+  <iframe id="markAssignmentFrame" title="Formulir penanda untuk assignment terpilih"
+    referrerpolicy="strict-origin-when-cross-origin" hidden></iframe>
 </dialog>
 
   <main>
@@ -510,7 +543,7 @@
   </main>
   <footer>BOLO INPEK · Sumber: Google Sheets · Persentase dihitung dari seluruh assignment pada kelompok yang sedang dibuka. Data pendataan diperbarui setelah operator menjalankan Python. · <a href="./kebijakan-privasi.html">Kebijakan Privasi</a></footer>
   <noscript>Aktifkan JavaScript untuk menggunakan dashboard ini.</noscript>
-  <script src="./dashboard-interaktif.js?v=18"></script>
+  <script src="./dashboard-interaktif.js?v=19"></script>
   <script>
     // ========================================================
     // STATUS DASHBOARD: setiap assignment dihitung satu kali.
@@ -1340,87 +1373,121 @@
       // Tidak reload otomatis saat dialog ditutup: pilihan survei/filter tidak hilang.
     });
 
-    // HTML Google Apps Script kerap ditolak untuk login lintas-domain di iframe
-    // GitHub Pages. Penanda dibuka di TAB tersendiri agar Google SSO berfungsi.
+
+    // Semua isi daftar memakai data yang sudah tersedia pada ALL_ASSIGNMENTS.
+    // Membuka/menutup kedua pop-up TIDAK menjalankan loadData() atau render().
+    let markListSurvey=null;
+    let markListRenderedFor=null;
+    let markReturnFocus=null;
+    let markEditSequence=0;
     let markAdminUrlPromise=null;
+    const markListModal=document.getElementById('markListModal');
+    const markAssignmentModal=document.getElementById('markAssignmentModal');
     function markAdminUrl(){
       if(!markAdminUrlPromise){
         markAdminUrlPromise=fetch('./kelola-survei-link.json?t='+Date.now(),{cache:'no-store'})
           .then(r=>{
-            if(!r.ok)throw new Error('Konfigurasi URL admin tidak dapat dimuat.');
+            if(!r.ok)throw new Error('Konfigurasi URL ADMIN belum dapat dimuat.');
             return r.json();
           }).then(cfg=>{
             const url=String(cfg.admin_webapp_url||'').trim();
             if(!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec(?:\?.*)?$/.test(url))
-              throw new Error('URL Apps Script ADMIN belum valid.');
+              throw new Error('URL Google Apps Script ADMIN belum valid.');
             return url;
-          }).catch(err=>{
-            markAdminUrlPromise=null;
-            throw err;
-          });
+          }).catch(err=>{markAdminUrlPromise=null;throw err;});
       }
       return markAdminUrlPromise;
     }
-    function showMarkInfo(title,message,url){
-      const modal=document.getElementById('markAssignmentModal');
+    function paintMarkList(resetScroll=false){
+      const body=document.getElementById('markListBody');
+      const previousScroll=resetScroll?0:body.scrollTop;
+      body.innerHTML=biMarkListContent(markListSurvey);
+      body.scrollTop=previousScroll;
+      markListRenderedFor=markListSurvey;
+    }
+    function openMarkList(survey,filter){
+      const nextSurvey=survey||null;
+      const scopeChanged=markListRenderedFor!==nextSurvey;
+      if(scopeChanged)biView.markFilter='all';
+      if(filter&&['all','excluded','included','review','unmarked'].includes(filter))
+        biView.markFilter=filter;
+      markListSurvey=nextSurvey;
+      // Bila pop-up sebelumnya sudah ada dengan filter yang sama, jangan
+      // render ulang; posisi gulir dan pilihan petugas tetap.
+      if(!markListModal.open){
+        if(markListRenderedFor!==markListSurvey||filter)paintMarkList(true);
+        markListModal.showModal();
+      }else if(scopeChanged||filter){
+        paintMarkList(false);
+      }
+    }
+    document.getElementById('closeMarkList').addEventListener('click',()=>{
+      markListModal.close();
+    });
+    markListModal.addEventListener('close',()=>{
+      // Sengaja tidak membersihkan isi/scroll/filter dan tidak mengambil data ulang.
+      markListRenderedFor=markListSurvey;
+    });
+    function setMarkEditorInfo(title,message,url){
       document.getElementById('markAssignmentTitle').textContent=title;
       const info=document.getElementById('markAssignmentSetup');
-      info.replaceChildren();
-      const textEl=document.createElement('p');
-      textEl.textContent=message;
-      info.append(textEl);
-      if(url){
-        const link=document.createElement('a');
-        link.className='survey-admin-btn';
-        link.textContent='Buka Formulir Penanda di Tab Baru';
-        link.href=url;link.target='_blank';link.rel='noopener noreferrer';
-        info.append(link);
-      }
-      if(!modal.open)modal.showModal();
+      info.textContent=message;
+      info.hidden=false;
+      const external=document.getElementById('markAssignmentExternal');
+      external.href=url||'#';
+      external.hidden=!url;
     }
     function openMarkActivationHelp(){
-      showMarkInfo('Aktivasi Penanda Assignment',
-        'Layanan Penanda Assignment belum aktif pada Apps Script produksi. Buka workflow, jalankan dari branch main dengan konfirmasi TERBITKAN, lalu pilih Muat Ulang Data di dashboard.',
+      markReturnFocus=document.activeElement;
+      document.getElementById('markAssignmentFrame').hidden=true;
+      setMarkEditorInfo('Aktivasi Penanda Assignment',
+        'Layanan penanda belum diaktifkan pada Apps Script produksi. Gunakan tautan di kanan atas untuk membuka workflow aktivasi, lalu Muat Ulang Data secara manual.',
         PENANDA_DEPLOY_URL);
+      if(!markAssignmentModal.open)markAssignmentModal.showModal();
     }
-    async function openSingleAssignmentMark(survey,assignment){
+    async function openSingleAssignmentMark(survey,assignment,originButton){
       if(!MARKERS_AVAILABLE){openMarkActivationHelp();return;}
-      // window.open harus dijalankan LANGSUNG dari klik, sebelum fetch async
-      // agar tidak diblokir pemblokir pop-up Chrome.
-      let tab=null;
+      markReturnFocus=originButton||document.activeElement;
+      const seq=++markEditSequence;
+      const frame=document.getElementById('markAssignmentFrame');
+      frame.hidden=true;
+      setMarkEditorInfo('Atur Penanda · '+survey+' · '+assignment,
+        'Menyiapkan formulir penanda untuk assignment ini…',null);
+      if(!markAssignmentModal.open)markAssignmentModal.showModal();
       try{
-        tab=window.open('about:blank','_blank');
-        if(tab&&!tab.closed){
-          try{tab.opener=null;}catch(_ignored){}
-          // Tampilkan teks sementara tanpa memasukkan nama assignment ke HTML.
-          try{
-            tab.document.title='Membuka Penanda Assignment BOLO INPEK';
-            tab.document.body.textContent='Menyiapkan formulir penanda…';
-          }catch(_ignored){}
-        }
         const base=await markAdminUrl();
+        if(seq!==markEditSequence||!markAssignmentModal.open)return;
         const target=new URL(base);
         target.searchParams.set('action','mark');
         target.searchParams.set('mark_survey',survey);
         target.searchParams.set('mark_assignment',assignment);
-        const url=target.href;
-        if(tab&&!tab.closed){
-          tab.location.replace(url);
-          return;
-        }
-        // Browser memblokir tab baru: tampilkan tautan yang bisa diklik manual.
-        showMarkInfo('Penanda Assignment · '+survey,
-          'Browser memblokir pembukaan tab otomatis. Buka formulir melalui tautan berikut untuk assignment '+assignment+'. Status dan catatan disimpan pada Apps Script ADMIN.',
-          url);
+        const address=target.href;
+        // Template Mark.html mempunyai tampilan mandiri yang langsung
+        // terlihat dan menggunakan google.script.run pada domain Google.
+        // Cadangan tab baru tetap tersedia jika login Google diblokir di iframe.
+        setMarkEditorInfo('Atur Penanda · '+survey+' · '+assignment,
+          'Formulir dimuat di bawah ini. Jika Google menampilkan halaman kosong atau meminta login, pilih "Buka di Tab Baru" tanpa menutup pop-up daftar.',
+          address);
+        frame.src=address;
+        frame.hidden=false;
       }catch(err){
-        if(tab&&!tab.closed)try{tab.close()}catch(_ignored){}
-        showMarkInfo('Penanda Assignment Gagal Dibuka',
-          'Formulir penanda untuk '+assignment+' belum bisa dibuka: '+(err.message||String(err)),
-          null);
+        if(seq!==markEditSequence||!markAssignmentModal.open)return;
+        setMarkEditorInfo('Penanda belum dapat dibuka',
+          'Formulir assignment '+assignment+' gagal dimuat: '+(err.message||String(err)),null);
       }
     }
     document.getElementById('closeMarkAssignment').addEventListener('click',()=>{
-      document.getElementById('markAssignmentModal').close();
+      markAssignmentModal.close();
+    });
+    markAssignmentModal.addEventListener('close',()=>{
+      // Penting: pop-up daftar tetap terbuka, filternya dan posisi gulir
+      // tidak disegarkan. Hanya iframe editor yang dihentikan.
+      ++markEditSequence;
+      document.getElementById('markAssignmentFrame').src='about:blank';
+      document.getElementById('markAssignmentFrame').hidden=true;
+      if(markReturnFocus?.isConnected)
+        markReturnFocus.focus({preventScroll:true});
+      markReturnFocus=null;
     });
     document.getElementById('refreshBoloData').addEventListener('click',()=>{
       loadData({preserveView:true});
@@ -1431,21 +1498,22 @@
       if(event.target.closest('#retry')){loadData();return;}
       const markFilter=event.target.closest('button[data-bi-mark-filter]');
       if(markFilter){
-        const selected=markFilter.dataset.biMarkFilter;
-        if(['all','excluded','included','review','unmarked'].includes(selected)){
-          biView.markFilter=selected;
-          render(false);
-          const list=document.getElementById('bi-mark-list');
-          if(list){list.open=true;list.scrollIntoView({behavior:'smooth',block:'nearest'});}
+        const selectedFilter=markFilter.dataset.biMarkFilter;
+        if(['all','excluded','included','review','unmarked'].includes(selectedFilter)){
+          biView.markFilter=selectedFilter;
+          // Hanya isi pop-up daftar yang berubah; dashboard tidak dirender ulang.
+          paintMarkList(false);
         }
+        return;
+      }
+      const openMarkFilter=event.target.closest('button[data-bi-open-mark-filter]');
+      if(openMarkFilter){
+        openMarkList(state.survey,openMarkFilter.dataset.biOpenMarkFilter);
         return;
       }
       const showMarks=event.target.closest('button[data-bi-show-marks]');
       if(showMarks){
-        biView.markFilter='all';
-        render(false);
-        const list=document.getElementById('bi-mark-list');
-        if(list){list.open=true;list.scrollIntoView({behavior:'smooth',block:'nearest'});}
+        openMarkList(state.survey);
         return;
       }
       const activationButton=event.target.closest('button[data-bi-activation-help]');
@@ -1453,7 +1521,7 @@
       const oneMark=event.target.closest('button[data-bi-mark-assignment]');
       if(oneMark){
         if(!MARKERS_AVAILABLE){openMarkActivationHelp();return;}
-        if(!oneMark.disabled)openSingleAssignmentMark(oneMark.dataset.biMarkSurvey,oneMark.dataset.biMarkAssignment);
+        if(!oneMark.disabled)openSingleAssignmentMark(oneMark.dataset.biMarkSurvey,oneMark.dataset.biMarkAssignment,oneMark);
         return;
       }
       const reportButton=event.target.closest('button[data-bi-export]');
