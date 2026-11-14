@@ -134,3 +134,33 @@ test('only Admin can synchronize and malformed source data are rejected',()=>{
  f.source.assignment_identitas.push([...f.source.assignment_identitas[2]]);
  assert.throws(()=>f.api.run('admin'),/tidak valid\/ganda/);
 });
+
+test('one registered petugas takes priority over conflicting sumber_petugas with same name',()=>{
+ const f=fixture();
+ f.data.sumber_petugas.push(['external-wrong-sari','Sari','','']);
+ const res=f.api.run('admin');
+ assert.equal(res.success,true);
+ assert.equal(f.data.sumber_assignment[1][7],'fasih-sari');
+ assert.equal(res.calon_petugas,1,'Only Baru should require registration');
+});
+test('same-name collision among registered profiles is not automatically merged',()=>{
+ const f=fixture();
+ f.data.petugas.push(['fasih-sari-2','Sari','','628111112223','TRUE']);
+ const res=f.api.run('admin');
+ assert.equal(res.success,true);
+ const alias=f.data.sumber_assignment[1][7];
+ assert.match(alias,/^monitor:[a-f0-9]{32}$/);
+ assert.equal(res.calon_petugas,2,'Both Sari and Baru are unverified aliases');
+ // Admin mapping explicitly chooses one of two registered Sari identities.
+ f.data.padanan_petugas=[
+  ['alias_monitoring','petugas_id','nama_monitoring','waktu_taut','ditautkan_oleh'],
+  [alias,'fasih-sari','Sari','2026-11-15T00:00:00Z','admin@bps.go.id']
+ ];
+ const next=f.api.run('admin');
+ assert.equal(next.success,true);
+ assert.equal(next.berubah,true);
+ assert.equal(f.data.sumber_assignment[1][7],'fasih-sari');
+ assert.equal(next.calon_petugas,1,'Manually linked Sari no longer appears as a new person');
+ assert.equal(f.data.kontak[1][1],'Jangan diubah');
+ assert.equal(f.data.tindak_lanjut[1][1],'Jangan diubah');
+});
