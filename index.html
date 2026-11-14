@@ -602,7 +602,7 @@ body.bolo-loading-active{overflow:hidden}
 }
 </style>
 
-<link rel="stylesheet" href="./dashboard-interaktif.css?v=31">
+<link rel="stylesheet" href="./dashboard-interaktif.css?v=32">
 </head>
 <body>
 <div id="boloLoading" class="bolo-loading" role="status" aria-live="polite" aria-label="BOLO INPEK sedang memuat data" hidden>
@@ -741,7 +741,7 @@ body.bolo-loading-active{overflow:hidden}
   </main>
   <footer>BOLO INPEK · Sumber: FASIH-SM melalui Google Sheets · <a href="./kebijakan-privasi.html">Kebijakan Privasi</a></footer>
   <noscript>Aktifkan JavaScript untuk menggunakan dashboard ini.</noscript>
-  <script src="./dashboard-interaktif.js?v=31"></script>
+  <script src="./dashboard-interaktif.js?v=32"></script>
   <script>
     // ========================================================
     // STATUS DASHBOARD: setiap assignment dihitung satu kali.
@@ -1141,6 +1141,7 @@ body.bolo-loading-active{overflow:hidden}
         let meaning='Tahap status sesuai data FASIH.';
         if(s.code==='OPEN'||s.code==='DRAFT')meaning='Dokumen belum dikirim.';
         else if(s.code.startsWith('SUBMITTED'))meaning='Dokumen dikirim dan menunggu pemeriksaan.';
+        else if(s.code.startsWith('REJECTED BY PENGAWAS'))meaning='Perlu diperbaiki dan dikirim ulang; masih dihitung Belum Submit.';
         else if(s.code.startsWith('REJECTED'))meaning='Dokumen dikembalikan untuk diperbaiki.';
         else if(s.code.startsWith('REVOKED'))meaning='Persetujuan ditarik atau dikembalikan.';
         else if(s.code.startsWith('APPROVED'))meaning='Dokumen telah disetujui oleh '+s.code.replace('APPROVED BY ','')+'.';
