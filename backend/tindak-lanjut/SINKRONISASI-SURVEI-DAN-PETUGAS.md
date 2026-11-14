@@ -11,7 +11,29 @@ Pada pemeriksaan 15 November 2026, dua spreadsheet berbeda:
 
 Monitoring memiliki tabel `monitoring`, `konfigurasi_survei`, `periode_survei`, `assignment_identitas`, `info_update` dan `db_petugas`. Semua 382 baris monitoring memiliki ID assignment yang cocok dengan posisi pada `assignment_identitas`, tanpa ID ganda.
 
-Dari 264 assignment IMK Tahunan, ada **36 nama PPL/PML unik**. Sebanyak **8 nama** belum cocok dengan biodata Tindak Lanjut. Nama IMK baru itu perlu dikonfirmasi sebelum kontak WhatsApp dikirim.
+Dari 264 assignment IMK Tahunan pada audit awal, ada **36 nama PPL/PML unik**, dengan **8 nama** belum cocok dengan biodata Tindak Lanjut ketika snapshot masih belum diperbarui. Nama IMK baru itu perlu dikonfirmasi sebelum kontak WhatsApp dikirim.
+
+## Deteksi petugas otomatis untuk seluruh survei aktif
+
+Sejak pembaruan ini, **tidak ada daftar survei khusus** di kode identifikasi petugas. Setelah Updater Windows menulis data terbaru ke Monitoring utama, pemeriksaan backend **TindakLanjut_DeteksiOtomatis.gs** berjalan melalui *time-driven trigger* sekitar **setiap 1 menit** (jadwal Google dapat sedikit bergeser). Ini mencakup survei baru dan periode baru yang ditandai **AKTIF**, bukan hanya IMK Tahunan.
+
+Pemeriksaan otomatis:
+- Memvalidasi identitas assignment terbaru, tanggal update, daftar survei, dan perubahan PPL/PML.
+- Menyelaraskan hanya tab sumber operasional Tindak Lanjut jika checksum berubah; jika tidak berubah, tidak membuat cadangan atau menulis ulang snapshot.
+- Memasukkan rekomendasi ID PPL/PML yang belum terdaftar ke daftar **Petugas Baru Terdeteksi**. Admin yang sedang membuka dashboard menerima angka rekomendasi yang diperbarui berkala.
+- Mengabaikan assignment survei **NONAKTIF**, **DITUTUP**, atau dalam **PENGARSIPAN** untuk rekomendasi.
+- **Tidak otomatis menambah biodata atau nomor WhatsApp** dan tidak memulai Updater FASIH. Updater tetap membutuhkan Chrome, VPN BPS, dan SSO FASIH sesuai alur manual yang sudah disepakati.
+
+Pemicu dipasang **satu kali** pada login Admin saat fungsi sinkronisasi dipanggil, atau dari tombol **Aktifkan Deteksi Petugas Otomatis** di Tindak Lanjut. Setelah terpasang, pemicu berjalan sendiri walaupun Admin keluar dan laptop ditutup. Penyiapan ini tidak dilakukan hanya dengan menerapkan kode; sekurang-kurangnya satu aktivasi Admin yang berhasil diperlukan.
+
+### Bila nama petugas sudah ada
+
+- Pencocokan nama menggunakan normalisasi Unicode, huruf kecil/besar, serta spasi ganda. **Biodata `petugas` yang telah dikelola Admin diprioritaskan** daripada identitas dari `sumber_petugas`.
+- Jika satu nama hanya dimiliki **satu ID terdaftar**, penugasan memakai ID lama tersebut dan tidak menambah biodata baru, termasuk ketika orang yang sama bertugas pada survei lain.
+- Jika **lebih dari satu ID terdaftar memiliki nama sama**, sistem tidak menentukan orangnya sendiri. Panel **Petugas Baru Terdeteksi** menawarkan **Tautkan ke Petugas Terdaftar** dengan empat digit akhir WhatsApp untuk pembeda. Admin memverifikasi identitas lalu menyetujui dialog konfirmasi.
+- Konfirmasi disimpan di tab baru **`padanan_petugas`** (dibuat otomatis saat diperlukan). Berkas ini hanya mencatat `alias_monitoring,petugas_id,nama_monitoring,waktu_taut,ditautkan_oleh`. Riwayat `kontak` dan `tindak_lanjut` tidak diubah.
+- Apabila petugas benar-benar berbeda meskipun namanya sama, pilih **Daftarkan Baru** untuk membuat biodata terpisah.
+- Jangan menganggap kecocokan nama sebagai verifikasi kepemilikan nomor WhatsApp. Admin tetap wajib memastikan orang yang dihubungi benar sebelum mengirim pengingat.
 
 ## Mekanisme baru
 
@@ -35,7 +57,7 @@ Seperti fitur Kelola Petugas sebelumnya, HTML langsung diperbarui dari GitHub Lo
 1. Buka editor Google Apps Script **Tindak Lanjut BOLO INPEK** yang sudah ada.
 2. Pada menu **File → + → Script**, buat file bernama **`TindakLanjut_SinkronMonitoring`**.
 3. Buka [kode TindakLanjut_SinkronMonitoring.gs](./TindakLanjut_SinkronMonitoring.gs), klik **Raw**, salin seluruh kode, lalu tempel ke file baru.
-4. Pastikan file **`TindakLanjut_KelolaPetugas.gs`** yang sudah ada juga memakai [versi terbaru](./TindakLanjut_KelolaPetugas.gs), terutama pemeriksaan alias internal.
+4. Pastikan **`TindakLanjut_KelolaPetugas.gs`** memakai [versi terbaru](./TindakLanjut_KelolaPetugas.gs) dan modul **`TindakLanjut_DeteksiOtomatis.gs`** juga tersedia. Workflow GitHub privat telah disiapkan untuk menerapkan ketiganya tanpa instalasi lokal.
 5. Simpan semua kode. **Jangan ganti** `KodeV2.gs`, `TindakLanjut_GitHubLoader.gs`, sheet petugas lama, atau deployment URL.
 6. Pilih **Terapkan → Kelola penerapan → Edit penerapan aktif → Versi baru → Terapkan**.
 7. Buka ulang [BOLO INPEK](https://bpsblora.github.io/bolo-inpek/) dan masuk menggunakan email Admin INPEK seperti biasa.
