@@ -459,7 +459,7 @@
 <dialog id="markAssignmentModal" aria-labelledby="markAssignmentTitle">
   <div class="survey-admin-bar">
     <strong id="markAssignmentTitle">Penanda Assignment — BOLO INPEK</strong>
-    <button type="button" class="survey-admin-close" id="closeMarkAssignment">Tutup ×</button>
+    <span><a id="markAssignmentExternal" href="#" target="_blank" rel="noopener noreferrer" style="display:none;color:#fff;font-size:12px;margin-right:12px">Buka di Tab Baru</a><button type="button" class="survey-admin-close" id="closeMarkAssignment">Tutup ×</button></span>
   </div>
   <div id="markAssignmentSetup" class="survey-admin-help" hidden>Memuat formulir penanda assignment…</div>
   <iframe id="markAssignmentFrame" title="Penanda dan catatan per assignment" referrerpolicy="strict-origin-when-cross-origin"></iframe>
@@ -1320,6 +1320,8 @@
       const title=document.getElementById('markAssignmentTitle');
       title.textContent='Penanda Assignment · '+survey;
       loading.hidden=false;loading.textContent='Menghubungkan penanda untuk '+assignment+'…';
+      const external=document.getElementById('markAssignmentExternal');
+      external.style.display='none';external.href='#';
       frame.hidden=true;modal.showModal();
       try{
         const r=await fetch('./kelola-survei-link.json?t='+Date.now(),{cache:'no-store'});
@@ -1334,6 +1336,7 @@
         target.searchParams.set('mark_assignment',assignment);
         if(!modal.open)return;
         frame.src=target.href;
+        external.href=target.href;external.style.display='inline';
         frame.hidden=false;loading.hidden=true;
       }catch(err){
         loading.hidden=false;loading.textContent='Penanda tidak dapat dibuka: '+(err.message||String(err));
