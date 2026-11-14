@@ -1,6 +1,25 @@
 
 /* BOLO INPEK · Visualisasi status petugas — berbasis data monitoring asli. */
-const biView={mode:'grafik',pml:'',ppl:''};
+const biView={
+  mode:'grafik',pml:'',ppl:'',
+  units:{survey:'persentase',overview:'persentase',pml:'persentase',ppl:'persentase',report:'persentase',cards:'persentase'}
+};
+function biUnitMode(scope){
+  return biView.units[scope]==='angka'?'angka':'persentase';
+}
+function biUnitText(n,total,scope){
+  const left=format.format(n),right=format.format(total);
+  if(biUnitMode(scope)==='angka')return left+' dari '+right;
+  return (total?percent(n,total):'—')+' ('+left+'/'+right+')';
+}
+function biUnitControl(scope){
+  return '<span class="bi-unit-toggle" role="group" aria-label="Tampilan capaian dalam angka atau persentase">'+
+    [['angka','Angka'],['persentase','Persentase']].map(item=>{
+      const value=item[0],label=item[1],selected=biUnitMode(scope)===value;
+      return '<button type="button" data-bi-unit="'+value+'" data-bi-scope="'+scope+
+        '" class="'+(selected?'selected':'')+'" aria-pressed="'+selected+'">'+label+'</button>';
+    }).join('')+'</span>';
+}
 const biBuckets=[
   {id:'pending',label:'Belum Submit',color:'#cbdcf0'},
   {id:'sent',label:'Terkirim',color:'#84b2df'},

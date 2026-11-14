@@ -410,7 +410,7 @@
 @media(max-width:780px){.header-inner{flex-wrap:wrap}.survey-admin-top{margin:0;width:100%}.survey-admin-btn{width:100%}}
 </style>
 
-<link rel="stylesheet" href="./dashboard-interaktif.css?v=6">
+<link rel="stylesheet" href="./dashboard-interaktif.css?v=7">
 </head>
 <body>
   <!-- HEADER: identitas BOLO INPEK dan BPS Kabupaten Blora -->
@@ -492,7 +492,7 @@
   </main>
   <footer>BOLO INPEK · Sumber: Google Sheets · Persentase dihitung dari seluruh assignment pada kelompok yang sedang dibuka. Data pendataan diperbarui setelah operator menjalankan Python. · <a href="./kebijakan-privasi.html">Kebijakan Privasi</a></footer>
   <noscript>Aktifkan JavaScript untuk menggunakan dashboard ini.</noscript>
-  <script src="./dashboard-interaktif.js?v=6"></script>
+  <script src="./dashboard-interaktif.js?v=7"></script>
   <script>
     // ========================================================
     // STATUS DASHBOARD: setiap assignment dihitung satu kali.
@@ -1278,6 +1278,15 @@
       if(event.target.closest('#retry')){loadData();return;}
       const reportButton=event.target.closest('button[data-bi-export]');
       if(reportButton){biExportProgress(reportButton);return;}
+      const unitButton=event.target.closest('button[data-bi-unit]');
+      if(unitButton){
+        const scope=unitButton.dataset.biScope,unit=unitButton.dataset.biUnit;
+        if(Object.prototype.hasOwnProperty.call(biView.units,scope) && (unit==='angka'||unit==='persentase')){
+          biView.units[scope]=unit;
+          render(false);
+        }
+        return;
+      }
       const mode=event.target.closest('button[data-bi-mode]');
       if(mode){biView.mode=mode.dataset.biMode;render(false);return;}
       const button=event.target.closest('button[data-level]');
