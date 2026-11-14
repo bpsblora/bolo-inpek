@@ -417,7 +417,7 @@
 #markAssignmentSetup{font-size:13px}
 </style>
 
-<link rel="stylesheet" href="./dashboard-interaktif.css?v=13">
+<link rel="stylesheet" href="./dashboard-interaktif.css?v=14">
 </head>
 <body>
   <!-- HEADER: identitas BOLO INPEK dan BPS Kabupaten Blora -->
@@ -507,7 +507,7 @@
   </main>
   <footer>BOLO INPEK · Sumber: Google Sheets · Persentase dihitung dari seluruh assignment pada kelompok yang sedang dibuka. Data pendataan diperbarui setelah operator menjalankan Python. · <a href="./kebijakan-privasi.html">Kebijakan Privasi</a></footer>
   <noscript>Aktifkan JavaScript untuk menggunakan dashboard ini.</noscript>
-  <script src="./dashboard-interaktif.js?v=13"></script>
+  <script src="./dashboard-interaktif.js?v=14"></script>
   <script>
     // ========================================================
     // STATUS DASHBOARD: setiap assignment dihitung satu kali.
@@ -733,10 +733,13 @@
           m&&/^[0-9a-f]{64}$/.test(String(m.id||''))&&
           typeof m.dihitung==='boolean'&&
           typeof m.berlaku==='boolean'&&typeof m.perlu_tinjau==='boolean'&&
+          (m.status_perhitungan===undefined||typeof m.status_perhitungan==='string')&&
+          String(m.status_perhitungan||'').length<=120&&
           String(m.alasan||'').length<=60&&String(m.catatan||'').length<=220
         ).slice(0,3000).map(m=>({
           id:m.id,dihitung:m.dihitung,
           berlaku:m.berlaku,perlu_tinjau:m.perlu_tinjau,
+          status_perhitungan:String(m.status_perhitungan||''),
           alasan:String(m.alasan||''),catatan:String(m.catatan||'')
         })):[];
         if(markersAvailable&&markers.length!==body.markers.length)
@@ -957,7 +960,12 @@
         ALL_ASSIGNMENTS=DATA.filter(r=>SURVEYS.includes(r.survei)&&surveiMasihAktif(r.survei));
         // Penanda hanya mengubah perhitungan, tidak menghapus data FASIH.
         ALL_ASSIGNMENTS=await biApplyMarkers(ALL_ASSIGNMENTS,MARKER_RULES);
-        DATA=ALL_ASSIGNMENTS.filter(r=>!r.boloExcluded);
+        DATA=ALL_ASSIGNMENTS.filter(r=>!r.boloExcluded).map(r=>({
+          ...r,
+          // Status hanya diubah pada data untuk perhitungan visualisasi.
+          // ALL_ASSIGNMENTS dan hasil ekspor monitoring tetap memakai status asli FASIH.
+          status:r.boloStatusManual||r.status
+        }));
         tampilkanWaktuPengambilan(payload.data_terakhir_diambil);
         if(!snapshot){
           Object.assign(state,{survey:null,pml:null,ppl:null,status:null});
@@ -1124,6 +1132,18 @@
       details['!cols']=[{wch:16},{wch:48},{wch:39},{wch:44},{wch:30},{wch:30}];
       details['!autofilter']={ref:details['!ref']};
       XLSX.utils.book_append_sheet(workbook,details,'monitoring');
+      // Audit penanda terpisah; tidak pernah mengganti kolom status pada sheet monitoring.
+      const marked=rows.filter(r=>r.boloMark);
+      if(marked.length){
+        const audit=XLSX.utils.aoa_to_sheet([
+          ['survei','nama_assignment','status_FASIH','status_perhitungan_manual','perlakuan','alasan','catatan'],
+          ...marked.map(r=>[r.survei,r.nama_assignment,r.status,
+            r.boloStatusManual||'',r.boloExcluded?'Tidak Dihitung':'Dihitung',
+            r.boloMark?.alasan||'',r.boloMark?.catatan||''])
+        ]);
+        audit['!cols']=[{wch:19},{wch:45},{wch:36},{wch:36},{wch:20},{wch:23},{wch:48}];
+        XLSX.utils.book_append_sheet(workbook,audit,'penanda_perhitungan');
+      }
       XLSX.writeFile(workbook,exportFilename(survey,'xlsx'),{compression:true});
     }
     // GAMBAR PNG: gambar ulang diagram agar hasil unduhan tajam.
