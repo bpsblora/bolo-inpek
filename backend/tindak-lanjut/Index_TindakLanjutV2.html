@@ -128,9 +128,10 @@
 <section id="halamanSelesai" class="panel" hidden>
   <div class="survey-heading">
     <h2>SURVEI INPEK SELESAI</h2>
-    <button type="button" id="keluarSelesai" class="logout-button">
-      Keluar
-    </button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+      <button type="button" id="backToTL" class="secondary" hidden>Kembali ke Tindak Lanjut</button>
+      <button type="button" id="keluarSelesai" class="logout-button">Keluar</button>
+    </div>
   </div>
 
   <p class="muted">Survei yang sudah ditutup dapat diaktifkan kembali tanpa menghapus arsip lama. Setelah dipulihkan, perbarui dashboard monitoring untuk menampilkan perubahan.</p>
@@ -154,6 +155,9 @@
   <p id="sourceTime" class="muted"></p>
 </div>
 <nav class="grid" aria-label="Menu tindak lanjut"><button id="closeMenu">Arsipkan &amp; Tutup Survei</button><button id="remindMenu">Ingatkan Petugas</button><button id="noteMenu">Tambahkan Catatan Survei</button></nav>
+<div id="adminArchiveShortcut" style="margin-top:10px" hidden>
+  <button type="button" class="secondary" id="openCompletedTL">▣ Survei Selesai &amp; Pulihkan</button>
+</div>
 <details class="panel pengingat-dropdown" style="margin-top:16px">
   <summary>
     <span id="reminderTitle">
@@ -256,6 +260,18 @@ function notifyDashboardAdmin(type,extras={}){
 if(BOLO_ADMIN_GATE_NONCE){
   $('greeting').textContent='Masuk untuk mengakses fitur pengelolaan BOLO INPEK';
   document.querySelector('#login h2').textContent='Masuk Admin INPEK';
+  const info=document.createElement('p');
+  info.className='muted';
+  info.textContent='Masukkan email yang memiliki peran ADMIN pada daftar operator INPEK. Setelah berhasil, tombol pengelolaan pada dashboard akan tersedia.';
+  $('loginForm').before(info);
+  const surveyLabel=document.createElement('label');
+  surveyLabel.htmlFor='survey';
+  surveyLabel.textContent='Pilih Survei dan Periode';
+  $('survey').before(surveyLabel);
+  $('survey').hidden=false;
+  $('survey').removeAttribute('aria-hidden');
+  $('adminArchiveShortcut').hidden=false;
+  $('backToTL').hidden=false;
 }
 const reqId=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
 const fmt=x=>{if(!x)return 'Belum tercatat';const d=new Date(x);return isNaN(d)?x:d.toLocaleString('id-ID',{timeZone:'Asia/Jakarta'})+' WIB';};
@@ -749,6 +765,18 @@ $('logout').onclick=()=>action(async()=>{
   notifyDashboardAdmin('BOLO_INPEK_ADMIN_LOGOUT');
 });
 $('survey').onchange=renderSurvey;$('person').onchange=renderPerson;
+$('openCompletedTL').onclick=()=>action(async()=>{
+  if(!token||data?.operator?.peran!=='ADMIN')throw Error('Hanya Admin INPEK yang dapat melihat daftar arsip.');
+  await tampilkanSurveiSelesai();
+  notice('Daftar periode yang telah selesai dan arsipnya ditampilkan.');
+});
+$('backToTL').onclick=()=>action(async()=>{
+  if(!token)throw Error('Sesi Admin INPEK telah berakhir. Masuk kembali.');
+  await load();
+  $('halamanSelesai').hidden=true;
+  $('app').hidden=false;
+  notice('Kembali ke pengelolaan tindak lanjut. Pilih survei pada menu Survei dan Periode.');
+});
 $('remindMenu').onclick=()=>{if(!selected())return;switchPanel('remindPanel');};$('noteMenu').onclick=()=>initNote();$('newNote').onclick=()=>initNote();
 $("draftBtn").onclick = susunPesanOtomatis;
 $("draftBtn").textContent = "Susun ulang pesan";
