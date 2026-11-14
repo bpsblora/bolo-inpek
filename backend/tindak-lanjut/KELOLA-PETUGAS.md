@@ -38,6 +38,38 @@ Catatan dan arsip lama tidak diubah. Penggantian nama/nomor berlaku untuk **peng
 
 Jika file GAS belum dipasang/deployment belum diperbarui, antarmuka akan menampilkan peringatan bahwa backend Kelola Petugas belum aktif. Data lama tidak terpengaruh.
 
+## Pembaruan: Nonaktifkan langsung & deteksi PPL/PML baru dari assignment
+
+### Mengaktifkan / menonaktifkan petugas
+
+- Di tabel, pada kolom **Tindakan**, sekarang terdapat dua tombol: **Edit Biodata** dan **Nonaktifkan** (untuk yang masih aktif) atau **Aktifkan** (untuk yang nonaktif).
+- Klik tombol status dan baca pop-up konfirmasi. Jika memilih **Batal**, database tidak berubah. Jika memilih konfirmasi, kolom `aktif` pada baris `petugas` berubah menjadi `FALSE` atau `TRUE`.
+- Cara lama tetap tersedia: **Edit Biodata → checkbox Aktif → Simpan Biodata**.
+- Pengaturan ini **tidak menghapus ID, assignment, pesan WhatsApp lama, atau catatan tindak lanjut**. Petugas nonaktif tidak muncul di pilihan Ingatkan Petugas. Bila diaktifkan kembali dan masih memiliki assignment, ia dapat diingatkan lagi.
+
+### Deteksi otomatis saat pembaruan sumber FASIH
+
+Saat Admin INPEK login atau membuka/memuat ulang **Kelola Petugas**, backend menggabungkan identitas dari dua tab:
+
+1. `sumber_petugas`: calon petugas dari daftar petugas FASIH.
+2. `sumber_assignment`: ID `ppl_id` dan `pml_id` yang muncul pada pekerjaan survei, meskipun ID tersebut **belum** muncul di `sumber_petugas`.
+
+Kedua sumber dibandingkan dengan semua baris `petugas`, **termasuk petugas nonaktif**. Hanya ID yang belum ada di `petugas` muncul sebagai kandidat.
+
+Menu **Petugas Baru Terdeteksi** menampilkan nama, PPL/PML, survei/periode dan jumlah assignment, lalu tombol **Daftarkan Petugas**. Form otomatis mengisi ID dan nama; admin wajib memeriksa biodata serta menambahkan nomor WhatsApp sebelum menyimpan. Setelah disimpan kandidat menghilang dari daftar.
+
+Tombol **Kelola Petugas** pada header mendapat angka jumlah kandidat yang belum didaftarkan. Jika ada assignment dengan **nama tetapi ID FASIH kosong**, ditampilkan peringatan terpisah; sistem tidak menebak ID berdasarkan kemiripan nama karena dapat menyebabkan salah identitas atau salah pengiriman WhatsApp.
+
+Sumber FASIH tetap **read-only** bagi menu ini. Petugas yang hanya dibuat manual tanpa ID dalam assignment belum dapat menerima pengingat berbasis FASIH sampai ID petugasnya cocok dengan ID di sumber assignment.
+
+**Kapan pendeteksian berjalan?** Setelah Updater memasukkan assignment terbaru ke database, buka/klik **Muat Ulang** di Kelola Petugas. Penghitungan pada header juga dilakukan sesudah Admin INPEK login. Ini bukan pemantauan waktu nyata ketika browser tertutup.
+
+### Aktivasi pembaruan backend
+
+Karena deteksi assignment PPL/PML terjadi di fungsi Apps Script, pemilik proyek yang sudah memasang `TindakLanjut_KelolaPetugas.gs` versi sebelumnya perlu **mengganti isi file tersebut** dengan [versi terbaru dari GitHub](./TindakLanjut_KelolaPetugas.gs), lalu **Terapkan → Kelola penerapan → Edit → Versi baru → Terapkan**. Jangan menambahkan file duplikat yang mendefinisikan fungsi sama. URL web app tetap sama.
+
+Tidak perlu mengubah `KodeV2.gs`, struktur Google Sheets, maupun HTML secara manual; GitHub Loader yang sudah aktif mengambil tampilan terbaru setelah cache berakhir.
+
 ## Cara memakai
 
 - **Edit petugas lama:** ketik nama pada Cari Petugas → pilih **Edit Biodata** → ubah nama, email, WhatsApp, atau status Aktif → **Simpan Biodata**.
