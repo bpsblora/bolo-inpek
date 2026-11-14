@@ -2205,8 +2205,8 @@ body.bolo-loading-active{overflow:hidden}
     }else if(msg.type==='BOLO_INPEK_PETUGAS_PENDING'){
       if(!boloAdminActive()||!Number.isSafeInteger(msg.jumlah)||msg.jumlah<0||msg.jumlah>10000)return;
       const missing=Number.isSafeInteger(msg.id_kosong)&&msg.id_kosong>=0?msg.id_kosong:0;
-      staffBadge.hidden=msg.jumlah===0;
-      staffBadge.textContent=msg.jumlah>99?'99+':String(msg.jumlah);
+      staffBadge.hidden=msg.jumlah===0 && missing===0;
+      staffBadge.textContent=msg.jumlah? (msg.jumlah>99?'99+':String(msg.jumlah)) : '!';
       staffMenu.title=msg.jumlah+' petugas belum terdaftar; '+missing+
         ' penugasan tanpa ID FASIH. Klik untuk meninjau dan menambahkan biodata.';
     }else if(msg.type==='BOLO_INPEK_ADMIN_LOGOUT'){
