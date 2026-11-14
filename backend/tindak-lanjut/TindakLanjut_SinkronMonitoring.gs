@@ -130,6 +130,9 @@ function tlMonBuild_(src,db){
   const nameMap=tlMonNameIDs_(db),links=tlMonLinkMap_(db),
     unverified=new Map(),assign=[],keys=new Set();
   const registeredIds=new Set(read_(db,'petugas').map(r=>r.petugas_id).filter(Boolean));
+  const archivedPeriods=new Set(read_(db,'survei')
+    .filter(r=>['DITUTUP','PENGARSIPAN'].includes(tlMonText_(r.status_operasional).toUpperCase()))
+    .map(r=>tlMonText_(r.survey_period_id)));
   monitoring.forEach((r,i)=>{
     const id=idMap.get(i+2),c=byName.get(r.survei);
     if(!id||id.survei!==r.survei||id.nama_assignment!==r.nama_assignment)
@@ -141,7 +144,8 @@ function tlMonBuild_(src,db){
     const ppl_id=tlMonPersonId_(r.ppl,nameMap,links),pml_id=tlMonPersonId_(r.pml,nameMap,links);
     // Deteksi hanya untuk SURVEI AKTIF, bukan arsip/periode nonaktif.
     // Assignment historis tetap disalin agar konsistensi referensi terjaga.
-    if(tlMonActive_(c.aktif))for(const [role,name,pid] of [['PPL',r.ppl,ppl_id],['PML',r.pml,pml_id]]){
+    if(tlMonActive_(c.aktif)&&!archivedPeriods.has(c.survey_period_id))
+      for(const [role,name,pid] of [['PPL',r.ppl,ppl_id],['PML',r.pml,pml_id]]){
       if(!pid.startsWith('monitor:')||registeredIds.has(pid))continue;
       if(!unverified.has(pid))unverified.set(pid,{petugas_id:pid,nama:name,
         jumlah_assignment:0,survei:[],peran:[],jenis_id:'ALIAS_MONITORING'});
