@@ -312,7 +312,14 @@ function tlConfirm({judul,target,pesan,catatan,tombol='Lanjutkan',tone='restore'
 
 function notice(s,error=false){$('notice').textContent=s;$('notice').className=error?'error':'';}
 function rpc(fn,...args){return new Promise((resolve,reject)=>google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[fn](...args));}
-async function action(fn){if(busy)return;busy=true;document.querySelectorAll('button').forEach(b=>b.disabled=true);try{await fn();}catch(e){notice(e.message||String(e),true);}finally{busy=false;document.querySelectorAll('button').forEach(b=>b.disabled=false);if(data)$('closeMenu').disabled=data.operator.peran!=='ADMIN';aturKonfirmasiKirim();}}
+async function action(fn){if(busy)return;busy=true;document.querySelectorAll('button').forEach(b=>b.disabled=true);try{await fn();}catch(e){notice(e.message||String(e),true);}finally{busy=false;document.querySelectorAll('button').forEach(b=>b.disabled=false);
+ if(data){
+   const allowed=!!selected();
+   $('closeMenu').disabled=!allowed||data.operator.peran!=='ADMIN';
+   $('remindMenu').disabled=!allowed;
+   $('noteMenu').disabled=!allowed;
+ }
+ aturKonfirmasiKirim();}}
 function option(select,value,label){const o=document.createElement('option');o.value=value;o.textContent=label;select.append(o);}
 function selected(){return data?.survei.find(s=>key(s)===$('survey').value);}
 function switchPanel(id) {
@@ -370,10 +377,16 @@ if (initial.periode) {
   );
 }
 
-$('survey').replaceChildren();data.survei.forEach(s=>option($('survey'),key(s),s.nama_survei+' — '+s.nama_periode+(s.status_operasional==='PENGARSIPAN'?' (arsip perlu dilanjutkan)':'')));let match=data.survei.find(s=>key(s)===prev);
+$('survey').replaceChildren();
+if(BOLO_ADMIN_GATE_NONCE)option($('survey'),'','— Pilih Survei dan Periode —');
+data.survei.forEach(s=>option($('survey'),key(s),s.nama_survei+' — '+s.nama_periode+(s.status_operasional==='PENGARSIPAN'?' (arsip perlu dilanjutkan)':'')));let match=data.survei.find(s=>key(s)===prev);
 if(!initialUsed){match=data.survei.find(s=>s.survey_period_id===initial.periode&&(!initial.survei||s.nama_survei===initial.survei));initialUsed=true;if(initial.periode&&!match)notice('Survei dari dashboard sudah ditutup atau tidak ditemukan. Pilih survei aktif lainnya.');}
 if(match)$('survey').value=key(match);$('greeting').textContent='Halo '+(data.operator.peran==='ADMIN'?'Admin':'Operator')+' Bolo INPEK, '+data.operator.nama+'!';$('closeMenu').disabled=data.operator.peran!=='ADMIN';$('person').replaceChildren();option($('person'),'','— Pilih petugas —');[...data.petugas].sort((a,b)=>a.nama.localeCompare(b.nama,'id')).forEach(p=>option($('person'),p.petugas_id,p.nama));renderSurvey();renderReminders();}
-function renderSurvey(){clearDraft();chain=null;noteId='';for(const p of ['remindPanel','notePanel','closePanel'])$(p).hidden=true;const s=selected();$('context').textContent=s?s.nama_survei+' — '+s.nama_periode:'Tidak ada survei aktif.';$('sourceTime').textContent=s?'Data sumber: '+[...new Set(data.assignment.filter(a=>key(a)===key(s)).map(a=>a.waktu_data_monitoring))].map(fmt).join(' | '):'';renderHistory();renderPerson();}
+function renderSurvey(){clearDraft();chain=null;noteId='';for(const p of ['remindPanel','notePanel','closePanel'])$(p).hidden=true;const s=selected();
+$('closeMenu').disabled=!s||data?.operator?.peran!=='ADMIN';
+$('remindMenu').disabled=!s;
+$('noteMenu').disabled=!s;
+$('context').textContent=s?s.nama_survei+' — '+s.nama_periode:'Tidak ada survei aktif.';$('sourceTime').textContent=s?'Data sumber: '+[...new Set(data.assignment.filter(a=>key(a)===key(s)).map(a=>a.waktu_data_monitoring))].map(fmt).join(' | '):'';renderHistory();renderPerson();}
 function renderPerson() {
   clearDraft();
   $("choices").replaceChildren();
