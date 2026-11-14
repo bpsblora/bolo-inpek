@@ -124,27 +124,35 @@ function biUnassignedPanel(survey){
   const rows=biMarkRows(survey);
   if(!rows.length)return '';
   const t=biMarkTotals(rows);
-  return '<section class="bi-unassigned-panel" id="bi-unassigned-panel">'+
+  return '<section class="bi-unassigned-panel'+(t.unmarked||t.review?' needs-attention':' all-reviewed')+'" id="bi-unassigned-panel">'+
     '<div class="bi-unassigned-header"><div>'+
+    '<div class="bi-unassigned-eyebrow"><span class="bi-mark-indicator" aria-hidden="true"></span> PENGELOLAAN PENANDA</div>'+
     '<h2>Penanda Assignment Belum Dialokasikan</h2>'+
     '<p>Assignment tanpa PPL/PML dapat berupa sampel cadangan. Tidak otomatis dikecualikan.</p>'+
     '</div><button type="button" class="bi-mark-button" data-bi-show-marks>'+
     '☷ Lihat Assignment</button></div>'+
-    '<div class="bi-unassigned-stats">'+
-    '<strong>'+format.format(t.all)+'</strong> Belum Dialokasikan · '+
-    '<button type="button" class="bi-mark-stat-link" data-bi-open-mark-filter="excluded"'+
-    ' aria-label="Lihat '+format.format(t.excluded)+' assignment Tidak Dihitung">'+
-    format.format(t.excluded)+' Tidak Dihitung</button> · '+
-    '<strong>'+format.format(t.unmarked)+'</strong> Belum Ditandai'+
-    (t.review?' · <button type="button" class="bi-mark-stat-link" data-bi-open-mark-filter="review">'+
-      format.format(t.review)+' Perlu Tinjau Ulang</button>':'')+
+    '<div class="bi-unassigned-stats" role="group" aria-label="Ringkasan penanda assignment">'+
+    '<div class="bi-mark-stat bi-stat-unassigned"><span>Belum Dialokasikan</span>'+
+      '<strong>'+format.format(t.all)+'</strong><small>Total assignment</small></div>'+
+    '<button type="button" class="bi-mark-stat bi-mark-stat-link bi-stat-excluded" data-bi-open-mark-filter="excluded"'+
+      ' aria-label="Lihat '+format.format(t.excluded)+' assignment Tidak Dihitung">'+
+      '<span>Tidak Dihitung</span><strong>'+format.format(t.excluded)+'</strong>'+
+      '<small>Lihat rincian →</small></button>'+
+    '<div class="bi-mark-stat bi-stat-unmarked'+(t.unmarked?' has-pending':' is-complete')+'">'+
+      '<span>Belum Ditandai</span><strong>'+format.format(t.unmarked)+'</strong>'+
+      '<small>'+(t.unmarked?'Perlu ditinjau':'Sudah ditandai semua')+'</small></div>'+
+    (t.review?'<button type="button" class="bi-mark-stat bi-mark-stat-link bi-stat-review" data-bi-open-mark-filter="review"'+
+      ' aria-label="Lihat '+format.format(t.review)+' assignment Perlu Tinjau Ulang">'+
+      '<span>Perlu Tinjau Ulang</span><strong>'+format.format(t.review)+'</strong>'+
+      '<small>Lihat rincian →</small></button>':'')+
     '</div>'+
     (!MARKERS_AVAILABLE?'<div class="bi-mark-notice" role="status">'+
       'Penanda bersama belum aktif. Seluruh assignment tetap dihitung. '+
       '<button type="button" class="bi-mark-activate-btn" data-bi-activation-help>Lihat Cara Mengaktifkan</button>'+
       '</div>':'')+
-    '<p class="bi-mark-footnote">Gunakan <b>Lihat Assignment</b> untuk membuka daftar dan mengatur penanda satu per satu. '+
-    'Daftar dan formulir memiliki pop-up tersendiri tanpa memuat ulang dashboard.</p>'+
+    '<div class="bi-mark-tip" role="note"><span class="bi-mark-tip-icon" aria-hidden="true">✦</span>'+
+      '<p><strong>Klik Lihat Assignment</strong> untuk membuka daftar dan mengatur penanda satu per satu. '+
+      'Daftar dan formulir tetap menggunakan pop-up tanpa memuat ulang dashboard.</p></div>'+
     '</section>';
 }
 function biMarkListContent(survey){
@@ -263,13 +271,14 @@ function biSummary(){
   const submitted=biCounts(activeRows).submitted;
   const denominator=activeRows.length;
   return '<section class="bi-summary" aria-labelledby="bi-summary-h">'+
-    '<div class="bi-head"><div><div class="bi-eyebrow">RINGKASAN MONITORING</div><h2 id="bi-summary-h">Capaian Sudah Submit per Survei</h2>'+
-    '<p>Ketuk kartu survei untuk melihat progres PML dan PPL. Kartu ini sekaligus menjadi filter survei.</p></div>'+
+    '<div class="bi-head"><div><div class="bi-eyebrow">RINGKASAN MONITORING</div><h2 id="bi-summary-h">Capaian Sudah Submit per Survei</h2></div>'+
     '<div class="bi-summary-actions"><span class="bi-county-total '+(denominator?(submitted===denominator?'is-success':submitted/denominator>=0.8?'is-warning':'is-danger'):'is-empty')+'"><strong>'+
     (denominator?percent(submitted,denominator):'—')+'</strong>'+
     '<span>'+format.format(submitted)+' dari '+format.format(denominator)+' assignment sudah submit · Kabupaten</span></span>'+
     (state.survey===null?'':'<button class="bi-back-all" type="button" data-level="home" data-value="">← Semua Survei</button>')+
     '</div></div>'+
+    '<div class="bi-summary-tip" role="note"><span class="bi-summary-tip-icon" aria-hidden="true">✦</span>'+
+      '<span><strong>Ketuk kartu survei</strong> untuk melihat progres PML/PPL sekaligus memfilter survei yang ditampilkan.</span></div>'+
     '<div class="bi-summary-grid">'+(surveys.map(survey=>{
       const rows=DATA.filter(r=>r.survei===survey),submitted=biCounts(rows).submitted;
       const rate=rows.length?submitted/rows.length*100:null;
