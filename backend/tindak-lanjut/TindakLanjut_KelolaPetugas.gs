@@ -162,6 +162,9 @@ function apiSimpanPetugasAdmin(token, request) {
     var id = text_(request.petugas_id);
     if (mode === 'tambah' && !id) id = uid_();
     id = tlPetugasId_(id);
+    if (mode==='tambah' && id.indexOf('monitor:')===0 && request.verifikasi_alias!==true) {
+      throw Error('Konfirmasi identitas petugas baru dari monitoring sebelum menyimpan. ID ini adalah alias internal, bukan UUID FASIH.');
+    }
     var row = all.find(function(p){return p.petugas_id===id;});
     if (mode === 'edit' && !row) throw Error('Petugas tidak ditemukan. Muat ulang daftar.');
     if (mode === 'tambah' && row) throw Error('ID Petugas sudah ada. Gunakan Edit Petugas untuk mengubah biodata.');
