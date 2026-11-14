@@ -417,7 +417,7 @@
 #markAssignmentSetup{font-size:13px}
 </style>
 
-<link rel="stylesheet" href="./dashboard-interaktif.css?v=11">
+<link rel="stylesheet" href="./dashboard-interaktif.css?v=12">
 </head>
 <body>
   <!-- HEADER: identitas BOLO INPEK dan BPS Kabupaten Blora -->
@@ -507,7 +507,7 @@
   </main>
   <footer>BOLO INPEK · Sumber: Google Sheets · Persentase dihitung dari seluruh assignment pada kelompok yang sedang dibuka. Data pendataan diperbarui setelah operator menjalankan Python. · <a href="./kebijakan-privasi.html">Kebijakan Privasi</a></footer>
   <noscript>Aktifkan JavaScript untuk menggunakan dashboard ini.</noscript>
-  <script src="./dashboard-interaktif.js?v=11"></script>
+  <script src="./dashboard-interaktif.js?v=12"></script>
   <script>
     // ========================================================
     // STATUS DASHBOARD: setiap assignment dihitung satu kali.
@@ -732,9 +732,11 @@
         const markers=markersAvailable?body.markers.filter(m=>
           m&&/^[0-9a-f]{64}$/.test(String(m.id||''))&&
           typeof m.dihitung==='boolean'&&
+          typeof m.berlaku==='boolean'&&typeof m.perlu_tinjau==='boolean'&&
           String(m.alasan||'').length<=60&&String(m.catatan||'').length<=220
         ).slice(0,3000).map(m=>({
           id:m.id,dihitung:m.dihitung,
+          berlaku:m.berlaku,perlu_tinjau:m.perlu_tinjau,
           alasan:String(m.alasan||''),catatan:String(m.catatan||'')
         })):[];
         if(markersAvailable&&markers.length!==body.markers.length)
@@ -749,6 +751,7 @@
     let ALL_ASSIGNMENTS = []; // seluruh baris asli FASIH, termasuk pengecualian
     let MARKER_RULES = [];
     let MARKERS_AVAILABLE = false;
+    const PENANDA_DEPLOY_URL='https://github.com/bpsblora/bolo-inpek-appscript/actions/workflows/deploy-appscript.yml';
     let PERIODE_SURVEI = [];
     let lastFetched = null;
     let loading = false;
@@ -1311,9 +1314,32 @@
       document.getElementById('surveyAdminFrame').src='about:blank';
       // Tidak reload otomatis saat dialog ditutup: pilihan survei/filter tidak hilang.
     });
+    function openMarkActivationHelp(){
+      const modal=document.getElementById('markAssignmentModal');
+      const frame=document.getElementById('markAssignmentFrame');
+      const loading=document.getElementById('markAssignmentSetup');
+      const external=document.getElementById('markAssignmentExternal');
+      document.getElementById('markAssignmentTitle').textContent='Aktivasi Penanda Assignment';
+      frame.hidden=true;frame.src='about:blank';
+      loading.hidden=false;loading.replaceChildren();
+      const title=document.createElement('strong');
+      title.textContent='Penanda belum aktif pada Google Apps Script produksi.';
+      const p=document.createElement('p');
+      p.textContent='Kode dashboard sudah diperbarui, tetapi layanan yang menyimpan penanda masih menggunakan versi lama. Tidak ada assignment yang diubah.';
+      const link=document.createElement('a');
+      link.href=PENANDA_DEPLOY_URL;link.target='_blank';link.rel='noopener noreferrer';
+      link.className='survey-admin-btn';
+      link.textContent='Buka Workflow Aktivasi Penanda';
+      const steps=document.createElement('p');
+      steps.textContent='Pilih Run workflow → branch main → isi TERBITKAN. Setelah selesai dengan sukses, kembali ke BOLO INPEK dan klik Muat Ulang Data.';
+      loading.append(title,p,link,steps);
+      external.style.display='none';external.href='#';
+      if(!modal.open)modal.showModal();
+    }
     // Pop-up khusus Penanda Assignment, tidak terhubung dengan dialog Kelola Survei.
     // Penyimpanan dilakukan di Apps Script sebagai admin melalui google.script.run.
     async function openSingleAssignmentMark(survey,assignment){
+      if(!MARKERS_AVAILABLE){openMarkActivationHelp();return;}
       const modal=document.getElementById('markAssignmentModal');
       const frame=document.getElementById('markAssignmentFrame');
       const loading=document.getElementById('markAssignmentSetup');
@@ -1362,8 +1388,11 @@
         if(list){list.open=true;list.scrollIntoView({behavior:'smooth',block:'nearest'});}
         return;
       }
+      const activationButton=event.target.closest('button[data-bi-activation-help]');
+      if(activationButton){openMarkActivationHelp();return;}
       const oneMark=event.target.closest('button[data-bi-mark-assignment]');
       if(oneMark){
+        if(!MARKERS_AVAILABLE){openMarkActivationHelp();return;}
         if(!oneMark.disabled)openSingleAssignmentMark(oneMark.dataset.biMarkSurvey,oneMark.dataset.biMarkAssignment);
         return;
       }
