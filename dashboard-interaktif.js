@@ -285,7 +285,7 @@ function biSummary(){
     ((ALL_ASSIGNMENTS.length-DATA.length)>0?' <strong>'+format.format(ALL_ASSIGNMENTS.length-DATA.length)+' assignment dikecualikan dari perhitungan.</strong>':'')+'</p></section>';
 }
 function biCompareProgress(a,b,mode){
-  // Prioritas utama: Sudah Submit; jika sama: Approved + Completed.
+  // Prioritas utama: Sudah Submit; jika sama: status APPROVED saja (COMPLETED terpisah).
   // Tombol Angka membandingkan jumlah, tombol Persentase membandingkan rasio.
   const submittedRatio=b.submitted*a.total-a.submitted*b.total;
   const approvedRatio=b.approved*a.total-a.approved*b.total;
@@ -304,7 +304,7 @@ function biRoleNames(rows,key,scope=key){
   });
   const scores=new Map([...groups].map(([person,group])=>{
     const score=biCounts(group);
-    return [person,{total:group.length,submitted:score.submitted,approved:score.approved}];
+    return [person,{total:group.length,submitted:score.submitted,approved:score.approvedStage}];
   }));
   return [...groups.keys()].sort((a,b)=>{
     if(a===UNASSIGNED&&b!==UNASSIGNED)return 1;
@@ -334,15 +334,15 @@ function biRoleContent(rows,key){
     return '<button type="button" class="bi-bar-row" data-level="'+key+'" data-value="'+esc(person)+'">'+
       '<span class="bi-name">'+esc(person)+'</span>'+biBar(group,person)+
       '<span class="bi-row-stat"><strong>'+biUnitText(counts[metric],group.length,key)+'</strong>'+
-      '<span>Sudah Submit · Approved/Completed: '+counts.approved+'</span></span></button>';
+      '<span>Sudah Submit · APPROVED: '+counts.approvedStage+'</span></span></button>';
   }).join('')+'</div>';
 }
 function biPanel(rows,key){
   const label=key==='pml'?'Pengawas / PML':'Pencacah / PPL';
   const rank='Sudah Submit';
   const orderLabel=biUnitMode(key)==='persentase'
-    ?'Persentase '+rank+' tertinggi, lalu Approved/Completed jika sama.'
-    :'Jumlah '+rank+' terbanyak, lalu Approved/Completed jika sama.';
+    ?'Persentase '+rank+' tertinggi, lalu APPROVED jika sama.'
+    :'Jumlah '+rank+' terbanyak, lalu APPROVED jika sama.';
   return '<section class="bi-panel"><div class="bi-role-head"><div><h2>Progres '+label+'</h2>'+
     '<small>Urutan: '+orderLabel+'</small></div>'+
     '<div class="bi-panel-tools"><small>'+biRoleNames(rows,key).length+' petugas</small>'+
@@ -421,8 +421,8 @@ function biPplPmlPairs(rows,scope='report'){
   });
   return [...map.values()].sort((a,b)=>{
     const ac=biCounts(a.rows),bc=biCounts(b.rows);
-    const va={total:a.rows.length,submitted:ac.submitted,approved:ac.approved};
-    const vb={total:b.rows.length,submitted:bc.submitted,approved:bc.approved};
+    const va={total:a.rows.length,submitted:ac.submitted,approved:ac.approvedStage};
+    const vb={total:b.rows.length,submitted:bc.submitted,approved:bc.approvedStage};
     return biCompareProgress(va,vb,biUnitMode(scope))||
       a.ppl.localeCompare(b.ppl,'id')||a.pml.localeCompare(b.pml,'id');
   });
@@ -441,8 +441,8 @@ function biPplDetailPanel(survey){
   const rows=DATA.filter(row=>row.survei===survey);
   const pairs=biPplPmlPairs(rows,'report');
   const orderText=biUnitMode('report')==='persentase'
-    ?'persentase Sudah Submit tertinggi, lalu Approved/Completed'
-    :'jumlah Sudah Submit terbanyak, lalu Approved/Completed';
+    ?'persentase Sudah Submit tertinggi, lalu APPROVED'
+    :'jumlah Sudah Submit terbanyak, lalu APPROVED';
   return '<section class="bi-panel" aria-label="Rincian progres PPL dengan PML">'+
     '<div class="bi-role-head"><div><h2>Rincian Progres Seluruh PPL</h2>'+
     '<small>Urut dari '+orderText+'. PML tetap pada kolom paling kanan.</small></div>'+
@@ -470,7 +470,7 @@ function biPmlCards(survey){
   const rows=DATA.filter(row=>row.survei===survey);
   const names=biRoleNames(rows,'pml','cards');
   return '<section class="bi-pml-collection"><div class="bi-role-head"><div>'+
-    '<h2>Progres PPL per PML</h2><small>Urut berdasarkan Sudah Submit, lalu Approved/Completed jika sama. Setiap PML bisa mengunduh laporan sendiri.</small>'+
+    '<h2>Progres PPL per PML</h2><small>Urut berdasarkan Sudah Submit, lalu status APPROVED jika sama. Setiap PML bisa mengunduh laporan sendiri.</small>'+
     '</div><div class="bi-panel-tools"><small>'+names.length+' PML</small>'+
     biUnitControl('cards')+'</div></div>'+
     (names.length?'<div class="bi-pml-grid">'+names.map(pml=>{
@@ -479,8 +479,8 @@ function biPmlCards(survey){
       return '<article class="bi-pml-card"><div class="bi-pml-top"><div><strong>'+esc(pml)+'</strong>'+
         '<small>'+pairs.length+' PPL · '+group.length+' assignment</small></div>'+
         '<span class="bi-pml-count">'+biUnitText(stats.submitted,group.length,'cards')+' Sudah Submit</span></div>'+
-        biBar(group,pml)+'<p class="bi-card-progress">Approved / Completed: <strong>'+
-          biUnitText(stats.approved,group.length,'cards')+'</strong></p>'+
+        biBar(group,pml)+'<p class="bi-card-progress">APPROVED: <strong>'+format.format(stats.approvedStage)+
+          '</strong> · COMPLETED: <strong>'+format.format(stats.completed)+'</strong></p>'+
         biExportButtons(survey,pml)+
         '<p class="bi-feedback" role="status" aria-live="polite"></p>'+
         '<details><summary>Lihat progres '+pairs.length+' PPL</summary>'+
