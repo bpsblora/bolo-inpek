@@ -1,5 +1,11 @@
 # Integrasi Backend Tindak Lanjut — BOLO INPEK
 
+## Mulai dari sini — setup sekali pada proyek yang sudah aktif
+
+Panduan paling ringkas: [SETUP-LANGKAH.md](./SETUP-LANGKAH.md).
+
+**GitHub menyimpan sumber `.gs`, tetapi tidak otomatis memasangnya ke Google Apps Script.** Karena backend produksi memakai deployment lama dan mempunyai data riwayat, tahap pemasangan pertama dilakukan di editor Apps Script dengan akun operator yang memiliki izin. Pemeriksaan ini bersifat **read-only**, jadi belum perlu deploy ulang. Setelah status `siap: true`, barulah backend produksi dapat diaudit per fungsi.
+
 ## Status audit awal (14 November 2026)
 
 Database operasional yang **sudah ada** berhasil dibaca melalui Google Sheets. Folder arsip penutupan juga ditemukan. Data operasional, riwayat, dan arsip lama tidak dimodifikasi.
