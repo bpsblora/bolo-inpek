@@ -96,7 +96,9 @@ function tlMonBuild_(src,db){
     const k=c.survey_period_id+'|'+id.assignment_id;
     if(keys.has(k))throw Error('Assignment ganda pada sumber.');keys.add(k);
     const ppl_id=tlMonPersonId_(r.ppl,nameMap),pml_id=tlMonPersonId_(r.pml,nameMap);
-    for(const [role,name,pid] of [['PPL',r.ppl,ppl_id],['PML',r.pml,pml_id]]){
+    // Deteksi hanya untuk SURVEI AKTIF, bukan arsip/periode nonaktif.
+    // Assignment historis tetap disalin agar konsistensi referensi terjaga.
+    if(tlMonActive_(c.aktif))for(const [role,name,pid] of [['PPL',r.ppl,ppl_id],['PML',r.pml,pml_id]]){
       if(!pid.startsWith('monitor:')||registeredIds.has(pid))continue;
       if(!unverified.has(pid))unverified.set(pid,{petugas_id:pid,nama:name,
         jumlah_assignment:0,survei:[],peran:[],jenis_id:'ALIAS_MONITORING'});
