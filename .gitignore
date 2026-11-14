@@ -1,0 +1,9 @@
+# Kredensial dan pemetaan proyek Google Apps Script (jangan commit)
+.clasprc.json
+.clasp.json
+.env
+.env.*
+!*.env.example
+# Folder temporary hasil clasp pull
+node_modules/
+.bolo-tl-active/
