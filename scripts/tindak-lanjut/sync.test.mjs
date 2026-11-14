@@ -19,6 +19,8 @@ function fixture({backend=true,html=true,manifest=true}={}){
     'function apiDaftarPetugasAdmin(){};function apiSimpanPetugasAdmin(){}');
   writeFileSync(join(repoRoot,'backend','tindak-lanjut','TindakLanjut_SinkronMonitoring.gs'),
     'function apiSinkronMonitoring(){};function apiPratinjauSinkronMonitoring(){}');
+  writeFileSync(join(repoRoot,'backend','tindak-lanjut','TindakLanjut_DeteksiOtomatis.gs'),
+    'function apiStatusDeteksiOtomatis(){};function apiAktifkanDeteksiOtomatis(){}');
   if(backend)writeFileSync(join(liveDir,'KodeV2.js'),'const tpl="Index_TindakLanjutV2";\nconst privateKey="retained";');
   if(html)writeFileSync(join(liveDir,'Index_TindakLanjutV2.html'),'<p>Old</p>');
   if(manifest)writeFileSync(join(liveDir,'appsscript.json'),'{"timeZone":"Asia/Jakarta"}');
@@ -56,14 +58,14 @@ test('requires exactly one deployed existing web app URL',()=>{
  assert.throws(()=>deploymentIdFromIndex(index+index),/ganda/);
 });
 
-test('explicit backend mode installs only two allowlisted scripts and preserves core',()=>{
+test('explicit backend mode installs only three allowlisted scripts and preserves core',()=>{
  const f=fixture();try{
   const before=readFileSync(join(f.liveDir,'KodeV2.js'),'utf8');
   const r=stageSync({...f,includeBackend:true});
   assert.equal(r.changed,true);
   assert.deepEqual(r.backendChanged,
-    ['TindakLanjut_KelolaPetugas','TindakLanjut_SinkronMonitoring']);
-  assert.equal(r.filesCreated,2);
+    ['TindakLanjut_KelolaPetugas','TindakLanjut_SinkronMonitoring','TindakLanjut_DeteksiOtomatis']);
+  assert.equal(r.filesCreated,3);
   assert.equal(readFileSync(join(f.liveDir,'KodeV2.js'),'utf8'),before);
   assert.equal(readFileSync(join(f.liveDir,'TindakLanjut_KelolaPetugas.js'),'utf8'),
     'function apiDaftarPetugasAdmin(){};function apiSimpanPetugasAdmin(){}');
@@ -79,6 +81,7 @@ test('HTML-only mode never stages backend and ignores differences in server scri
   const list=readdirSync(f.liveDir);
   assert.equal(list.includes('TindakLanjut_KelolaPetugas.js'),false);
   assert.equal(list.includes('TindakLanjut_SinkronMonitoring.js'),false);
+  assert.equal(list.includes('TindakLanjut_DeteksiOtomatis.js'),false);
   writeFileSync(join(f.liveDir,'TindakLanjut_KelolaPetugas.js'),'function original(){}');
   const again=stageSync(f);
   assert.equal(again.changed,false);
