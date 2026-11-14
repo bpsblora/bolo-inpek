@@ -100,7 +100,7 @@ test('HTML-only mode never stages backend and ignores differences in server scri
 test('backend mode rejects wrong or malformed source before clasp push',()=>{
  const f=fixture();try{
   writeFileSync(join(f.repoRoot,'backend','tindak-lanjut','TindakLanjut_KelolaPetugas.gs'),
-    'function broken( {');
+    'function broken( {'+padding);
   assert.throws(()=>stageSync({...f,includeBackend:true}),SyntaxError);
  }finally{f.done()}
 });
