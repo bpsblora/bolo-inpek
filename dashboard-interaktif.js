@@ -385,10 +385,8 @@ function biControls(rows){
 function biSurveyDashboard(survey){
   const all=DATA.filter(r=>r.survei===survey);
   const count=biCounts(all);
-  // Gunakan hanya kategori visual eksklusif, bukan "submitted" (turunan),
-  // agar setiap assignment menempati tepat satu segmen grafik.
   const donutColor=all.length?('conic-gradient('+biBuckets.reduce((agg,bucket)=>{
-    const n=count[bucket.id];const start=agg.end;const end=start+n/all.length*100;
+    const n=count[bucket.id],start=agg.end,end=start+n/all.length*100;
     if(n>0)agg.parts.push(bucket.color+' '+start+'% '+end+'%');
     agg.end=end;return agg;
   },{end:0,parts:[]}).parts.join(',')+')'):'#e3ecf6';
@@ -400,10 +398,26 @@ function biSurveyDashboard(survey){
     '</strong><small>Sudah Submit</small><span>'+format.format(count.submitted)+' / '+format.format(all.length)+'</span></div></div></div></div>'+
     '<div class="bi-head-actions">'+exportButtons(survey)+tombolTindakLanjut(survey)+
     '<p class="export-feedback" role="status" aria-live="polite"></p></div></div>';
-  const controls=biControls(all);
-  const filtered=all.filter(r=>(!biView.pml||name(r,'pml')===biView.pml)&&(!biView.ppl||name(r,'ppl')===biView.ppl));
-  return head+biKpis(all)+controls+biPanel(filtered,'pml')+biPanel(filtered,'ppl')+
-    biPplDetailPanel(survey)+biPmlCards(survey);
+  return head+biKpis(all)+biProgressNavigation(survey,all)+biPplDetailPanel(survey);
+}
+function biProgressNavigation(survey,rows){
+  const counts=biCounts(rows);
+  const ppl=biRoleNames(rows,'ppl').length,pml=biRoleNames(rows,'pml').length;
+  const pairs=biPplPmlPairs(rows,'report').length;
+  const cards=[
+    {view:'ppl',title:'Progres per PPL',subtitle:'Bar chart seluruh pencacah',count:ppl+' PPL',icon:'◉'},
+    {view:'pml',title:'Progres per PML',subtitle:'Bar chart seluruh pengawas',count:pml+' PML',icon:'◎'},
+    {view:'by-pml',title:'PPL menurut PML',subtitle:'Pilih pengawas untuk melihat PPL',count:pairs+' pasangan',icon:'▦'}
+  ];
+  return '<nav class="bi-progress-navigation" aria-label="Pilihan tampilan progres">'+cards.map(card=>
+    '<button type="button" class="bi-progress-nav-card bi-nav-'+card.view+
+      '" data-bi-popup-nav="'+card.view+'" data-bi-popup-survey="'+esc(survey)+'">'+
+      '<span class="bi-nav-icon" aria-hidden="true">'+card.icon+'</span>'+
+      '<span class="bi-nav-copy"><strong>'+card.title+'</strong><small>'+card.subtitle+'</small></span>'+
+      '<span class="bi-nav-count">'+card.count+'</span>'+
+      '<span class="bi-nav-arrow" aria-hidden="true">↗</span></button>'
+  ).join('')+'</nav>'+
+  '<p class="bi-nav-note">Prioritas urutan: <strong>Sudah Submit</strong> tertinggi, lalu <strong>APPROVED</strong> jika sama. Klik baris PPL untuk rincian status.</p>';
 }
 function biOverview(){
   const surveys=biSurveyList();
@@ -452,28 +466,30 @@ function biPplDetailPanel(survey){
   const orderText=biUnitMode('report')==='persentase'
     ?'persentase Sudah Submit tertinggi, lalu APPROVED'
     :'jumlah Sudah Submit terbanyak, lalu APPROVED';
-  return '<section class="bi-panel" aria-label="Rincian progres PPL dengan PML">'+
+  return '<section class="bi-panel bi-main-ppl-panel" aria-label="Rincian progres PPL dengan PML">'+
     '<div class="bi-role-head"><div><h2>Rincian Progres Seluruh PPL</h2>'+
-    '<small>Urut dari '+orderText+'. PML tetap pada kolom paling kanan.</small></div>'+
+    '<small>Urut dari '+orderText+'. Klik baris PPL untuk melihat OPEN, DRAFT, dan seluruh status FASIH.</small></div>'+
     '<div class="bi-panel-tools"><small>'+pairs.length+' pasangan PPL–PML</small>'+
     biUnitControl('report')+'</div></div>'+
     '<div class="bi-export-banner"><div><h3>Laporan Seluruh PPL · '+esc(survey)+'</h3>'+
-    '<p>Gambar dan PDF memuat progres setiap PPL, status assignment, grafik, serta PML penanggung jawab. Ekspor seluruh survei, tidak terpengaruh filter layar.</p></div>'+
+    '<p>Ekspor Gambar/PDF tetap memuat semua PPL, status FASIH, grafik, PML, dan waktu pengambilan data.</p></div>'+
     biExportButtons(survey,null)+'<p class="bi-feedback" role="status" aria-live="polite"></p></div>'+
-    (pairs.length?'<div class="tablebox"><table class="bi-ppl-table"><thead><tr>'+
-      '<th>PPL</th><th>Assignment</th><th>OPEN</th><th>DRAFT</th><th>Sudah Submit ↓</th><th>SUBMITTED</th><th>APPROVED</th><th>REJECTED</th><th>REVOKED</th><th>COMPLETED</th><th>LAINNYA</th><th>Progres</th><th>PML</th>'+
-      '</tr></thead><tbody>'+pairs.map(entry=>{
+    (pairs.length?'<div class="tablebox"><table class="bi-ppl-table bi-ppl-summary-table"><thead><tr>'+
+      '<th>PPL</th><th>Assignment</th><th>Sudah Submit ↓</th><th>APPROVED</th><th>Progres</th><th>PML</th>'+
+      '</tr></thead><tbody>'+pairs.map((entry,i)=>{
         const c=biCounts(entry.rows);
-        return '<tr><td>'+esc(entry.ppl)+'</td><td>'+entry.rows.length+'</td><td>'+c.open+'</td><td>'+c.draft+'</td>'+
+        return '<tr class="bi-ppl-clickable" tabindex="0" data-bi-detail-pair="'+i+
+          '" aria-label="Lihat rincian status PPL '+esc(entry.ppl)+' dengan PML '+esc(entry.pml)+'">'+
+          '<td><strong>'+esc(entry.ppl)+'</strong><small class="bi-click-hint">Klik untuk rincian ↗</small></td>'+
+          '<td>'+format.format(entry.rows.length)+'</td>'+
           '<td><strong>'+biUnitText(c.submitted,entry.rows.length,'report')+'</strong></td>'+
-          '<td>'+c.sent+'</td><td>'+c.approvedStage+'</td><td>'+c.rejected+'</td>'+
-          '<td>'+c.revoked+'</td><td>'+c.completed+'</td><td>'+c.other+'</td>'+
+          '<td>'+format.format(c.approvedStage)+'</td>'+
           '<td class="bi-mini-stack">'+biBar(entry.rows,entry.ppl)+
-          '<small class="bi-progress-label">'+biUnitText(c.submitted,entry.rows.length,'report')+'</small></td>'+
+            '<small class="bi-progress-label">'+biUnitText(c.submitted,entry.rows.length,'report')+'</small></td>'+
           '<td>'+esc(entry.pml)+'</td></tr>';
       }).join('')+'</tbody></table></div>':
       '<div class="bi-empty">Belum ada PPL untuk survei ini.</div>')+
-    '<p class="bi-ppl-footnote">Sudah Submit = SUBMITTED + APPROVED + REJECTED + REVOKED + COMPLETED. OPEN dan DRAFT belum submit. LAINNYA tidak otomatis dihitung sebagai submit. Jika PPL bekerja di bawah dua PML, barisnya dipisah agar progres tidak tertukar.</p></section>';
+    '<p class="bi-ppl-footnote">Sudah Submit = SUBMITTED + APPROVED + REJECTED + REVOKED + COMPLETED. OPEN dan DRAFT belum submit. Penanda Tidak Dihitung tidak masuk perhitungan. Klik tiap baris untuk melihat persentase dan jumlah seluruh status; PML tetap di kolom paling kanan.</p></section>';
 }
 function biPmlCards(survey){
   const rows=DATA.filter(row=>row.survei===survey);
@@ -501,6 +517,145 @@ function biPmlCards(survey){
     }).join('')+'</div>':'<div class="bi-empty">Belum ada PML pada survei ini.</div>')+
     '</section>';
 }
+
+// Navigasi progres dalam pop-up: tidak mengubah filter survei di dashboard.
+const biPopupState={survey:'',view:'',pml:'',focus:{},selection:null};
+function biPopupScope(){return biPopupState.view==='by-pml'?'cards':biPopupState.view;}
+function biPopupRows(){return DATA.filter(row=>row.survei===biPopupState.survey);}
+function biPopupUnitControls(scope){
+  return '<div class="bi-unit-toggle bi-popup-unit" role="group" aria-label="Satuan progres pop-up">'+
+    [['angka','Angka'],['persentase','Persentase']].map(([mode,label])=>
+      '<button type="button" data-bi-popup-unit="'+mode+'" data-bi-popup-scope="'+scope+
+      '" class="'+(biUnitMode(scope)===mode?'selected':'')+
+      '" aria-pressed="'+(biUnitMode(scope)===mode)+'">'+label+'</button>'
+    ).join('')+'</div>';
+}
+function biPopupGroupButton(title,rows,scope,attrs,meta){
+  const count=biCounts(rows),total=rows.length;
+  return '<button class="bi-popup-group" type="button" '+attrs+'>'+
+    '<span class="bi-popup-group-top"><strong>'+esc(title)+'</strong>'+
+      '<b>'+biUnitText(count.submitted,total,scope)+'</b></span>'+
+    '<span class="bi-popup-group-meta">'+esc(meta||'')+' · APPROVED: '+count.approvedStage+
+      ' dari '+total+'</span>'+biBar(rows,title)+'</button>';
+}
+function biPopupPaint(){
+  const view=biPopupState.view,survey=biPopupState.survey,rows=biPopupRows();
+  const key=view==='ppl'?'ppl':'pml',scope=biPopupScope();
+  const title=view==='ppl'?'Progres per PPL':view==='pml'?'Progres per PML':'PPL menurut PML';
+  document.getElementById('biProgressTitle').textContent=title+' · '+survey;
+  const names=biRoleNames(rows,key,scope);
+  let content='<div class="bi-popup-toolbar"><span>'+names.length+' '+(key==='ppl'?'PPL':'PML')+
+    ' · Sudah Submit tertinggi, lalu APPROVED</span>'+biPopupUnitControls(scope)+'</div>';
+  if(!names.length)content+='<div class="bi-empty">Belum ada assignment untuk pilihan ini.</div>';
+  else{
+    content+='<div class="'+(view==='by-pml'?'bi-popup-group-grid':'bi-popup-group-list')+'">'+
+      names.map(person=>{
+        const group=rows.filter(row=>name(row,key)===person);
+        const attrs=view==='by-pml'?'data-bi-popup-pml="'+esc(person)+'"':
+          'data-bi-popup-person="'+esc(person)+'" data-bi-popup-person-role="'+key+'"';
+        const meta=view==='by-pml'
+          ?biPplPmlPairs(group,'cards').length+' PPL · '+group.length+' assignment · Pilih untuk rincian'
+          :group.length+' assignment · Ketuk untuk rincian status';
+        return biPopupGroupButton(person,group,scope,attrs,meta);
+      }).join('')+'</div>';
+  }
+  content+=biLegend();
+  document.getElementById('biProgressBody').innerHTML=content;
+}
+function biPopupOpen(view,survey,trigger){
+  if(!['ppl','pml','by-pml'].includes(view)||!biSurveyList().includes(survey))return;
+  biPopupClose('biStatusModal');biPopupClose('biPmlPeopleModal');
+  biPopupState.view=view;biPopupState.survey=survey;biPopupState.pml='';
+  biPopupState.focus.biProgressModal=trigger||document.activeElement;
+  biPopupPaint();
+  const dialog=document.getElementById('biProgressModal');
+  if(!dialog.open)dialog.showModal();
+}
+function biPopupPaintPmlPeople(){
+  const survey=biPopupState.survey,pml=biPopupState.pml;
+  const rows=biPopupRows().filter(row=>name(row,'pml')===pml);
+  const pairs=biPplPmlPairs(rows,'cards');
+  document.getElementById('biPmlPeopleTitle').textContent='PPL di bawah PML · '+pml;
+  const body='<div class="bi-popup-toolbar"><span>'+pairs.length+
+    ' PPL · '+rows.length+' assignment · '+esc(survey)+'</span>'+
+    biPopupUnitControls('cards')+'</div>'+
+    '<div class="bi-popup-group-list">'+pairs.map((entry,i)=>
+      biPopupGroupButton(entry.ppl,entry.rows,'cards',
+        'data-bi-popup-pml-pair="'+i+'"',entry.rows.length+' assignment · Buka rincian status')
+    ).join('')+'</div>'+biLegend()+
+    '<div class="bi-pml-card bi-popup-report-export"><div class="bi-popup-export-line">'+
+      '<span>Ekspor progres PPL untuk PML ini</span>'+biExportButtons(survey,pml)+'</div>'+
+      '<p class="bi-feedback" role="status" aria-live="polite"></p></div>';
+  document.getElementById('biPmlPeopleBody').innerHTML=body;
+}
+function biPopupOpenPml(pml,trigger){
+  if(biPopupState.view!=='by-pml')return;
+  if(!biPopupRows().some(row=>name(row,'pml')===pml))return;
+  biPopupState.pml=pml;
+  biPopupState.focus.biPmlPeopleModal=trigger||document.activeElement;
+  biPopupPaintPmlPeople();
+  const dialog=document.getElementById('biPmlPeopleModal');
+  if(!dialog.open)dialog.showModal();
+}
+function biPopupDetailHtml(rows,title,context){
+  const n=rows.length,c=biCounts(rows);
+  return '<div class="bi-popup-detail-subtitle">'+esc(context)+'</div>'+
+    '<div class="bi-popup-stats-grid">'+
+      '<div><span>Total Assignment</span><strong>'+n+'</strong></div>'+
+      '<div><span>Sudah Submit</span><strong>'+biUnitText(c.submitted,n,'report')+'</strong></div>'+
+      '<div><span>APPROVED</span><strong>'+c.approvedStage+'</strong></div>'+
+    '</div>'+
+    '<div class="bi-popup-status-heading"><strong>Komposisi Status FASIH</strong><small>'+
+       'Setiap assignment dihitung satu kali</small></div>'+
+    '<div class="bi-popup-mainbar">'+biBar(rows,title)+'</div>'+
+    '<div class="bi-popup-status-list">'+biBuckets.map(bucket=>{
+      const count=c[bucket.id],pct=n?percent(count,n):'—';
+      return '<div class="bi-popup-status-item">'+
+        '<span class="bi-popup-status-dot" style="background:'+bucket.color+'"></span>'+
+        '<span class="bi-popup-status-label">'+esc(bucket.label)+'</span>'+
+        '<span class="bi-popup-status-track"><span style="width:'+(n?count/n*100:0).toFixed(3)+
+          '%;background:'+bucket.color+'"></span></span>'+
+        '<strong>'+pct+'</strong><small>'+count+' / '+n+'</small></div>';
+    }).join('')+'</div>'+
+    '<p class="bi-popup-info">Sudah Submit mencakup SUBMITTED, APPROVED, REJECTED, REVOKED, dan COMPLETED. '+
+    'OPEN/DRAFT belum submit. APPROVED untuk pembeda urutan tidak digabung dengan COMPLETED.</p>';
+}
+function biPopupOpenDetail(kind,value,trigger){
+  const survey=state.survey||biPopupState.survey;
+  if(!survey)return;
+  const all=DATA.filter(row=>row.survei===survey);
+  let rows=[],label='',context='';
+  if(kind==='main-pair'){
+    const pairs=biPplPmlPairs(all,'report'),entry=pairs[value];
+    if(!entry)return;
+    rows=entry.rows;label=entry.ppl;context='PML: '+entry.pml+' · Survei: '+survey;
+  }else if(kind==='modal-person'){
+    const role=biPopupState.view==='ppl'?'ppl':'pml';
+    if(!['ppl','pml'].includes(biPopupState.view))return;
+    rows=all.filter(row=>name(row,role)===value);
+    label=value;context=(role==='ppl'?'Pencacah / PPL':'Pengawas / PML')+' · Survei: '+survey;
+  }else if(kind==='pml-pair'){
+    const group=all.filter(row=>name(row,'pml')===biPopupState.pml);
+    const entry=biPplPmlPairs(group,'cards')[value];
+    if(!entry)return;
+    rows=entry.rows;label=entry.ppl;context='PML: '+entry.pml+' · Survei: '+survey;
+  }else return;
+  if(!rows.length)return;
+  document.getElementById('biStatusTitle').textContent='Rincian Status · '+label;
+  document.getElementById('biStatusBody').innerHTML=biPopupDetailHtml(rows,label,context);
+  biPopupState.focus.biStatusModal=trigger||document.activeElement;
+  const dialog=document.getElementById('biStatusModal');
+  if(!dialog.open)dialog.showModal();
+}
+function biPopupClose(id){
+  if(!['biProgressModal','biPmlPeopleModal','biStatusModal'].includes(id))return;
+  const dialog=document.getElementById(id);
+  if(dialog?.open)dialog.close();
+}
+function biPopupCloseAll(){
+  ['biStatusModal','biPmlPeopleModal','biProgressModal'].forEach(biPopupClose);
+}
+
 /* Semua gambar/PDF dibuat secara lokal di browser, tanpa mengirim data ke layanan lain. */
 let biPdfLibPromise;
 function biLoadPdfLib(){
