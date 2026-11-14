@@ -89,6 +89,22 @@ test('frontend accepts only trusted origin, correct nonce and ADMIN role',()=>{
   assert.equal(s.elements.adminTools.hidden,true);
   assert.equal(s.elements.tlFrame.src,'about:blank');
 });
+test('cancelled Admin login ignores delayed iframe success callback',()=>{
+  const s=sandbox();
+  s.elements.adminEnter.click();
+  const callback=grantEvent(s);
+  s.elements.tlPopup.close();
+  assert.equal(s.admin.nonce,'');
+  s.window.listeners.message(callback);
+  assert.equal(s.admin.verified,false);
+  assert.equal(s.elements.adminTools.hidden,true);
+});
+test('Tindak Lanjut requires explicit selection of survey in shared admin session',()=>{
+  assert.match(tl,/if\(BOLO_ADMIN_GATE_NONCE\)option\(\$\('survey'\),'','— Pilih Survei dan Periode —'\)/);
+  assert.match(tl,/\$\('noteMenu'\)\.disabled=!s/);
+  assert.match(tl,/\$\('remindMenu'\)\.disabled=!s/);
+});
+
 test('Apps Script verifies ADMIN role through apiLogin and exposes no token to parent',()=>{
   assert.match(tl,/const x = await rpc\('apiLogin', \$\('email'\)\.value\)/);
   assert.match(tl,/BOLO_ADMIN_GATE_NONCE && x\?\.operator\?\.peran!=='ADMIN'/);
