@@ -238,8 +238,20 @@ const BOLO_ADMIN_GATE = /^__BOLO_INPEK_ADMIN_GATE__([a-f0-9]{32})$/.exec(String(
 const BOLO_ADMIN_GATE_NONCE = BOLO_ADMIN_GATE ? BOLO_ADMIN_GATE[1] : '';
 const BOLO_ADMIN_PARENT = 'https://bpsblora.github.io';
 function notifyDashboardAdmin(type,extras={}){
-  if(!BOLO_ADMIN_GATE_NONCE || window.top===window)return;
-  window.top.postMessage({type,nonce:BOLO_ADMIN_GATE_NONCE,...extras},BOLO_ADMIN_PARENT);
+  if(!BOLO_ADMIN_GATE_NONCE)return;
+  const message={type,nonce:BOLO_ADMIN_GATE_NONCE,...extras};
+  // Google Sites dapat membungkus GitHub Pages, dan Apps Script sendiri
+  // menggunakan iframe script.googleusercontent.com di dalam script.google.com.
+  // Kirim HANYA ke ancestor dengan origin GitHub Pages yang cocok;
+  // ancestor lain tidak menerima pesan karena targetOrigin spesifik.
+  let ancestor=window;
+  for(let i=0;i<8;i++){
+    let next;
+    try{next=ancestor.parent;}catch(_){break;}
+    if(!next||next===ancestor)break;
+    ancestor=next;
+    try{ancestor.postMessage(message,BOLO_ADMIN_PARENT);}catch(_){}
+  }
 }
 if(BOLO_ADMIN_GATE_NONCE){
   $('greeting').textContent='Masuk untuk mengakses fitur pengelolaan BOLO INPEK';
