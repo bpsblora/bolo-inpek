@@ -60,15 +60,13 @@ function tlPetugasDeteksiBaru_(assignments, source, saved) {
       var person=sourced.get(id);
       candidates.set(id,{petugas_id:id,nama:person?text_(person.nama):'',
         email:person?text_(person.email):'',jumlah_assignment:0,
-        daftar_survei:[],peran:[],asal:'sumber_petugas'});
+        daftar_survei:[],peran:[],asal:'assignment'});
     }
     return candidates.get(id);
   }
-  // Pertama masukkan kandidat yang baru ada pada daftar petugas FASIH.
-  source.forEach(function(p){
-    var id=text_(p.petugas_id);
-    if(id&&!known.has(id))candidate(id);
-  });
+  // Hanya petugas yang benar-benar memiliki assignment survei AKTIF
+  // yang direkomendasikan. Sumber petugas dipakai untuk melengkapi biodata,
+  // bukan mendaftarkan semua identitas yang belum pernah ditugaskan.
   assignments.forEach(function(a){
     for(var role of ['ppl','pml']){
       var id=text_(a[role+'_id']);
