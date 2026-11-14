@@ -40,21 +40,63 @@ function tlMonStatus_(x){
   if(s.startsWith('APPROVED'))return 'APPROVE';
   return 'LAINNYA';
 }
+/**
+ * Identitas yang sudah diverifikasi ADMIN adalah sumber utama.
+ * Dua record sumber FASIH dengan nama sama tidak boleh membatalkan identitas
+ * unik yang sudah terdaftar. Nama kembar di master tetap AMBIGU.
+ */
 function tlMonNameIDs_(db){
-  const list=[...read_(db,'petugas'),...read_(db,'sumber_petugas')];
-  const m=new Map(),invalid=new Set();
-  list.forEach(p=>{
-    const k=tlMonNormalize_(p.nama);
-    if(!k||!p.petugas_id)return;
-    if(m.has(k)&&m.get(k)!==p.petugas_id)invalid.add(k);
-    else m.set(k,p.petugas_id);
-  });
-  invalid.forEach(k=>m.delete(k));return m;
+  const master=read_(db,'petugas'),source=read_(db,'sumber_petugas');
+  const group=rows=>{
+    const result=new Map();
+    for(const p of rows){
+      const name=tlMonNormalize_(p.nama);
+      if(!name||!p.petugas_id)continue;
+      if(!result.has(name))result.set(name,new Set());
+      result.get(name).add(tlMonText_(p.petugas_id));
+    }
+    return result;
+  };
+  const verified=group(master),external=group(source),map=new Map();
+  for(const [name,ids] of verified)if(ids.size===1)map.set(name,[...ids][0]);
+  for(const [name,ids] of external){
+    // Jika ada satu atau lebih orang di master dengan nama ini,
+    // JANGAN memilih identitas FASIH yang berbeda secara diam-diam.
+    if(verified.has(name))continue;
+    if(ids.size===1)map.set(name,[...ids][0]);
+  }
+  return map;
 }
-function tlMonPersonId_(name,map){
+/**
+ * Tab mapping manual dibuat saat Admin memilih Tautkan Petugas, tidak
+ * mengubah/menambah kolom database induk. Snapshot dapat dibangun read-only.
+ */
+function tlMonLinkMap_(db){
+  const sheet=db.getSheetByName('padanan_petugas');
+  if(!sheet)return new Map();
+  const values=sheet.getDataRange().getDisplayValues();
+  const headers=['alias_monitoring','petugas_id','nama_monitoring','waktu_taut','ditautkan_oleh'];
+  if(JSON.stringify(values[0])!==JSON.stringify(headers))
+    throw Error('Struktur tab padanan_petugas tidak sesuai. Sinkronisasi dihentikan.');
+  const registered=new Set(read_(db,'petugas').map(p=>tlMonText_(p.petugas_id)));
+  const map=new Map();
+  values.slice(1).forEach((row,n)=>{
+    const alias=tlMonText_(row[0]),target=tlMonText_(row[1]),name=tlMonText_(row[2]);
+    if(!alias&&!target&&!name)return;
+    if(!/^monitor:[a-f0-9]{32}$/.test(alias)||tlMonAlias_(name)!==alias||!registered.has(target))
+      throw Error('Padanan petugas tidak valid pada baris '+(n+2)+'.');
+    if(map.has(alias)&&map.get(alias)!==target)
+      throw Error('Alias petugas memiliki dua tujuan berbeda. Periksa padanan_petugas.');
+    map.set(alias,target);
+  });
+  return map;
+}
+function tlMonPersonId_(name,map,links){
   const k=tlMonNormalize_(name);
   if(!k||['belum dialokasikan','belum ditetapkan','-','tidak ada'].includes(k))return '';
-  return map.get(k)||tlMonAlias_(name);
+  const alias=tlMonAlias_(name);
+  // Tautan yang sudah dikonfirmasi admin mengatasi ambiguitas nama.
+  return (links&&links.get(alias))||map.get(k)||alias;
 }
 function tlMonBuild_(src,db){
   const config=tlMonRead_(src,'konfigurasi_survei',
@@ -85,7 +127,8 @@ function tlMonBuild_(src,db){
     idSet.add(id);idMap.set(n,{...r,assignment_id:id});
   });
   if(idMap.size!==monitoring.length)throw Error('Monitoring dan assignment_identitas tidak lengkap atau jumlahnya berbeda.');
-  const nameMap=tlMonNameIDs_(db),unverified=new Map(),assign=[],keys=new Set();
+  const nameMap=tlMonNameIDs_(db),links=tlMonLinkMap_(db),
+    unverified=new Map(),assign=[],keys=new Set();
   const registeredIds=new Set(read_(db,'petugas').map(r=>r.petugas_id).filter(Boolean));
   monitoring.forEach((r,i)=>{
     const id=idMap.get(i+2),c=byName.get(r.survei);
@@ -95,7 +138,7 @@ function tlMonBuild_(src,db){
       throw Error('Survei/periode assignment '+r.survei+' tidak cocok dengan konfigurasi.');
     const k=c.survey_period_id+'|'+id.assignment_id;
     if(keys.has(k))throw Error('Assignment ganda pada sumber.');keys.add(k);
-    const ppl_id=tlMonPersonId_(r.ppl,nameMap),pml_id=tlMonPersonId_(r.pml,nameMap);
+    const ppl_id=tlMonPersonId_(r.ppl,nameMap,links),pml_id=tlMonPersonId_(r.pml,nameMap,links);
     // Deteksi hanya untuk SURVEI AKTIF, bukan arsip/periode nonaktif.
     // Assignment historis tetap disalin agar konsistensi referensi terjaga.
     if(tlMonActive_(c.aktif))for(const [role,name,pid] of [['PPL',r.ppl,ppl_id],['PML',r.pml,pml_id]]){
