@@ -214,6 +214,7 @@
   <p id="sourceTime" class="muted"></p>
   <div id="tlMonitoringSync" class="tl-sync-status" hidden role="status" aria-live="polite"></div>
   <button type="button" id="tlForceSync" class="secondary" hidden>↻ Sinkronkan dari Monitoring</button>
+  <button type="button" id="tlAutoEnable" class="secondary" hidden>⚡ Aktifkan Deteksi Petugas Otomatis</button>
 </div>
 <nav class="grid" aria-label="Menu tindak lanjut"><button id="closeMenu">Arsipkan &amp; Tutup Survei</button><button id="remindMenu">Ingatkan Petugas</button><button id="noteMenu">Tambahkan Catatan Survei</button></nav>
 <div id="adminArchiveShortcut" style="margin-top:10px;display:flex;gap:9px;flex-wrap:wrap" hidden>
@@ -506,9 +507,14 @@ function tlSyncBanner(report,error){
     el.textContent='Sinkronisasi ke monitoring utama belum berhasil: '+error+
       '. Data Tindak Lanjut mungkin belum mencakup survei terbaru. Klik Sinkronkan dari Monitoring setelah backend diperbarui.';
   }else{
+    const trigger=report.deteksi_otomatis;
+    const badge=trigger?.aktif
+      ?' · Deteksi otomatis semua survei aktif ~setiap 1 menit.'
+      :' · Deteksi terjadwal belum aktif; gunakan tombol Aktifkan.';
     el.textContent='Tersinkron dengan Monitoring: '+report.survei_aktif+
       ' survei aktif · '+report.assignment+' assignment · '+report.calon_petugas+
-      ' calon petugas memerlukan verifikasi · data FASIH '+fmt(report.waktu_monitoring)+'.';
+      ' calon petugas memerlukan verifikasi · data FASIH '+fmt(report.waktu_monitoring)+'.'+badge;
+    $('tlAutoEnable').hidden=!!trigger?.aktif;
   }
 }
 async function tlEnsureMonitoring(force=false){
@@ -1140,6 +1146,18 @@ $('tlForceSync').addEventListener('click',()=>action(async()=>{
   await load();
   notice('Sinkronisasi selesai: '+report.survei_aktif+' survei dan '+report.assignment+' assignment. Petugas baru dapat diperiksa melalui Kelola Petugas.');
 }));
+$('tlAutoEnable').addEventListener('click',()=>action(async()=>{
+  if(!token||data?.operator?.peran!=='ADMIN')
+    throw Error('Hanya Admin INPEK dapat mengaktifkan deteksi otomatis.');
+  const result=await rpc('apiAktifkanDeteksiOtomatis',token);
+  if(!result?.aktif)throw Error(result?.pesan_gagal||'Gagal mengaktifkan deteksi otomatis.');
+  $('tlAutoEnable').hidden=true;
+  if(tlSyncState.report){
+    tlSyncState.report.deteksi_otomatis=result;
+    tlSyncBanner(tlSyncState.report,'');
+  }
+  notice('Deteksi petugas baru otomatis aktif untuk seluruh survei dan periode yang berstatus aktif, sekitar setiap 1 menit.');
+}));
 $('staffForm').addEventListener('submit',event=>{
   event.preventDefault();
   action(async()=>{
@@ -1172,6 +1190,28 @@ $('staffBack').addEventListener('click',()=>action(async()=>{
   $('staffForm').hidden=true;staffEditing=null;
   notice('Kembali ke Tindak Lanjut. Daftar petugas telah mengikuti database terbaru.');
 }));
+// Jika dashboard Admin tetap terbuka, segarkan badge petugas secara berkala
+// tanpa memindahkan token atau nomor WhatsApp ke halaman GitHub Pages.
+if(typeof window.setInterval==='function'){
+  window.setInterval(async()=>{
+    if(!token||!BOLO_ADMIN_GATE_NONCE||busy)return;
+    try{
+      const fresh=await rpc('apiDaftarPetugasAdmin',token);
+      if(!fresh||!Array.isArray(fresh.kandidat_fasih))return;
+      notifyDashboardAdmin('BOLO_INPEK_PETUGAS_PENDING',{
+        jumlah:fresh.kandidat_fasih.length,
+        id_kosong:(fresh.id_petugas_kosong||[]).reduce((n,x)=>n+(x.jumlah_assignment||0),0)
+      });
+      if(!$('staffPanel').hidden){
+        staffData=fresh;
+        staffStatsPaint();staffRowsPaint();staffCandidatesPaint();
+      }
+    }catch(_){
+      // Sesi lama dapat kedaluwarsa; login berikutnya akan memperbarui ulang.
+    }
+  },60*1000);
+}
+
 function staffReturnHome(){
   return action(async()=>{
     if(!token)throw Error('Sesi Admin INPEK telah berakhir. Silakan masuk kembali.');
@@ -1211,6 +1251,7 @@ $('loginForm').onsubmit = e => {
     token = x.token;
     $('openStaffTL').hidden=x.operator.peran!=='ADMIN';
     $('tlForceSync').hidden=x.operator.peran!=='ADMIN';
+    $('tlAutoEnable').hidden=true;
     if(x.operator.peran==='ADMIN')await tlEnsureMonitoring();
 
     if ($('modeHalaman').value === 'selesai') {
