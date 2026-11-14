@@ -981,6 +981,28 @@ $('staffBack').addEventListener('click',()=>action(async()=>{
   $('staffForm').hidden=true;staffEditing=null;
   notice('Kembali ke Tindak Lanjut. Daftar petugas telah mengikuti database terbaru.');
 }));
+function staffReturnHome(){
+  return action(async()=>{
+    if(!token)throw Error('Sesi Admin INPEK telah berakhir. Silakan masuk kembali.');
+    await load();
+    $('staffPanel').hidden=true;$('halamanSelesai').hidden=true;$('app').hidden=false;
+    $('staffForm').hidden=true;staffEditing=null;
+    notice('Tindak Lanjut siap. Pilih survei dan petugas sesuai kebutuhan.');
+  });
+}
+// Router dua arah: tombol admin pada GitHub Pages menggunakan iframe yang
+// sama dengan sesi login Apps Script, tanpa membaca/mentransfer token sesi.
+window.addEventListener('message',event=>{
+  const msg=event.data;
+  if(event.origin!=='https://bpsblora.github.io' || !msg || typeof msg!=='object')return;
+  if(!BOLO_ADMIN_GATE_NONCE || msg.nonce!==BOLO_ADMIN_GATE_NONCE || !token)return;
+  if(msg.type==='BOLO_INPEK_ADMIN_SHOW_PETUGAS'){
+    action(staffOpen);
+  }else if(msg.type==='BOLO_INPEK_ADMIN_SHOW_TL'){
+    if(!$('staffPanel').hidden || !$('halamanSelesai').hidden)staffReturnHome();
+  }
+});
+
 
 $('loginForm').onsubmit = e => {
   e.preventDefault();
