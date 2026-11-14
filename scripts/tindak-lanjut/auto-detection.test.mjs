@@ -51,12 +51,12 @@ test('background scan detects any active survey changes without dashboard login'
  assert.equal(f.api.run().success,true);
  assert.equal(f.api.status().ringkasan.petugas_perlu_didaftarkan,1);
  assert.ok(f.api.status().sinkronisasi_terakhir);
- const prior=f.api.status().sinkronisasi_terakhir;
  f.counts.candidates=4;
  f.counts.changed=true;
  assert.equal(f.api.run().success,true);
  assert.equal(f.api.status().ringkasan.petugas_perlu_didaftarkan,4);
  assert.equal(f.counts.calls,2);
+ const prior=f.api.status().sinkronisasi_terakhir;
  f.counts.changed=false;
  assert.equal(f.api.run().berubah,false);
  assert.equal(f.api.status().sinkronisasi_terakhir,prior);
