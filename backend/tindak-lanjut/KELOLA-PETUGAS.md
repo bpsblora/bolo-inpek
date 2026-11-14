@@ -38,6 +38,10 @@ Catatan dan arsip lama tidak diubah. Penggantian nama/nomor berlaku untuk **peng
 
 Jika file GAS belum dipasang/deployment belum diperbarui, antarmuka akan menampilkan peringatan bahwa backend Kelola Petugas belum aktif. Data lama tidak terpengaruh.
 
+## Sinkronisasi survei aktif — termasuk IMK Tahunan
+
+[**Panduan Sinkronisasi Survei dan Petugas**](./SINKRONISASI-SURVEI-DAN-PETUGAS.md) menjelaskan cara mengambil sumber yang sama dengan dashboard Monitoring. Setelah modul tambahan `TindakLanjut_SinkronMonitoring.gs` dipasang, tombol Muat Ulang di Kelola Petugas membaca ulang assignment dan periode dari sumber utama. ID PPL/PML yang belum tersedia di sumber monitoring diperlakukan sebagai alias internal, dengan checkbox verifikasi wajib sebelum biodata baru disimpan.
+
 ## Pembaruan: Nonaktifkan langsung & deteksi PPL/PML baru dari assignment
 
 ### Mengaktifkan / menonaktifkan petugas
