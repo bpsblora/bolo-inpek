@@ -448,19 +448,48 @@ function biControls(rows){
 function biSurveyDashboard(survey){
   const all=DATA.filter(r=>r.survei===survey);
   const count=biCounts(all);
-  const donutColor=all.length?('conic-gradient('+biBuckets.reduce((agg,bucket)=>{
-    const n=count[bucket.id],start=agg.end,end=start+n/all.length*100;
-    if(n>0)agg.parts.push(bucket.color+' '+start+'% '+end+'%');
-    agg.end=end;return agg;
-  },{end:0,parts:[]}).parts.join(',')+')'):'#e3ecf6';
-  const head='<div class="bi-survey-head card"><div style="display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap">'+
-    '<div>'+title('Progres '+survey,'',all.length)+periodeHtml(survey)+'</div>'+
-    '<div class="bi-donut-area">'+biUnitControl('survey')+
-    '<div class="bi-donut" style="background:'+donutColor+'"><div class="bi-donut-center"><strong>'+
-    (biUnitMode('survey')==='persentase'?(all.length?percent(count.submitted,all.length):'—'):format.format(count.submitted))+
-    '</strong><small>Sudah Submit</small><span>'+format.format(count.submitted)+' / '+format.format(all.length)+'</span></div></div></div></div>'+
-    '<div class="bi-head-actions">'+exportButtons(survey)+tombolTindakLanjut(survey)+
-    '<p class="export-feedback" role="status" aria-live="polite"></p></div></div>';
+  // Diagram utama dan bar progres memakai warna spesifik tiap status FASIH.
+  const statusRows=biRawStatusStats(all);
+  let position=0;
+  const slices=[];
+  for(const item of statusRows){
+    if(!all.length||!item.count)continue;
+    const next=position+item.count/all.length*100;
+    slices.push(item.color+' '+position+'% '+next+'%');
+    position=next;
+  }
+  const donutColor=slices.length?'conic-gradient('+slices.join(',')+')':'#e3ecf6';
+  const head='<section class="bi-survey-head card bi-survey-hero" aria-label="Ringkasan progres '+esc(survey)+'">'+
+    '<div class="bi-survey-layout">'+
+      '<div class="bi-survey-main">'+
+        '<div class="bi-survey-heading">'+
+          '<div class="bi-survey-heading-text">'+
+            '<span class="bi-survey-eyebrow">PROGRES SURVEI</span>'+
+            '<h1 tabindex="-1">Progres '+esc(survey)+'</h1>'+
+            '<div class="bi-survey-period-row">'+periodeHtml(survey)+'</div>'+
+          '</div>'+
+          '<div class="bi-survey-assignment-chip" aria-label="'+format.format(all.length)+' assignment">'+
+            '<strong>'+format.format(all.length)+'</strong><span>Assignment</span></div>'+
+        '</div>'+
+        '<div class="bi-survey-progress-group">'+
+          '<div class="bi-survey-progress-heading"><strong>Komposisi Status FASIH</strong>'+
+            '<span>'+format.format(statusRows.length)+' status tercatat</span></div>'+
+          '<div class="bi-survey-fullbar">'+biBar(all,'Komposisi status FASIH '+survey)+'</div>'+
+        '</div>'+
+        '<div class="bi-head-actions">'+exportButtons(survey)+tombolTindakLanjut(survey)+
+          '<p class="export-feedback" role="status" aria-live="polite"></p></div>'+
+      '</div>'+
+      '<div class="bi-survey-donut-panel">'+
+        biUnitControl('survey')+
+        '<div class="bi-donut" style="background:'+donutColor+'"><div class="bi-donut-center">'+
+          '<strong>'+(biUnitMode('survey')==='persentase'?(all.length?percent(count.submitted,all.length):'—'):format.format(count.submitted))+'</strong>'+
+          '<small>Sudah Submit</small>'+
+          '<span>'+format.format(count.submitted)+' / '+format.format(all.length)+'</span>'+
+        '</div></div>'+
+      '</div>'+
+    '</div>'+
+    '<div class="bi-survey-hero-legend">'+biLegend(all)+'</div>'+
+  '</section>';
   return head+biKpis(all)+biProgressNavigation(survey,all)+biPplDetailPanel(survey);
 }
 function biProgressNavigation(survey,rows){
