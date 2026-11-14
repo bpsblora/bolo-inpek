@@ -440,7 +440,7 @@
   #markAssignmentExternal{font-size:10px}#markListBody .bi-mark-modal-intro{display:block}}
 </style>
 
-<link rel="stylesheet" href="./dashboard-interaktif.css?v=20">
+<link rel="stylesheet" href="./dashboard-interaktif.css?v=21">
 </head>
 <body>
   <!-- HEADER: identitas BOLO INPEK dan BPS Kabupaten Blora -->
@@ -543,7 +543,7 @@
   </main>
   <footer>BOLO INPEK · Sumber: Google Sheets · Persentase dihitung dari seluruh assignment pada kelompok yang sedang dibuka. Data pendataan diperbarui setelah operator menjalankan Python. · <a href="./kebijakan-privasi.html">Kebijakan Privasi</a></footer>
   <noscript>Aktifkan JavaScript untuk menggunakan dashboard ini.</noscript>
-  <script src="./dashboard-interaktif.js?v=20"></script>
+  <script src="./dashboard-interaktif.js?v=21"></script>
   <script>
     // ========================================================
     // STATUS DASHBOARD: setiap assignment dihitung satu kali.
@@ -561,16 +561,13 @@
     ];
     const statusKapital = value => String(value || '').trim().replace(/\s+/g,' ').toUpperCase() || 'STATUS TIDAK TERSEDIA';
     function statusColor(code){
+      // Selaraskan warna status rinci FASIH dengan grafik progres pastel.
       const s=statusKapital(code);
-      if(s.startsWith('REJECTED'))return '#c93643';
-      if(s.startsWith('COMPLETED'))return '#166534';
-      if(s.startsWith('REVOKED'))return '#d97706';
-      if(s.startsWith('APPROVED BY ADMIN PROVINSI'))return '#148578';
-      if(s.startsWith('APPROVED BY ADMIN KABUPATEN'))return '#2563a5';
-      if(s.startsWith('APPROVED'))return '#6b9e34';
-      if(s.startsWith('SUBMITTED'))return '#3b82f6';
-      if(s==='OPEN'||s==='DRAFT')return '#94a3b8';
-      return '#64748b';
+      if(s==='OPEN'||s==='DRAFT')return '#f2b3b3';
+      if(s.startsWith('REJECTED')||s.startsWith('REVOKED'))return '#f6dc85';
+      if(s.startsWith('COMPLETED')||s.startsWith('APPROVED'))return '#9ad9a5';
+      if(s.startsWith('SUBMITTED'))return '#8cbcf0';
+      return '#c7d3df';
     }
     function daftarStatus(rows){
       const active=[...new Set(rows.map(r=>r.status).filter(Boolean))];
