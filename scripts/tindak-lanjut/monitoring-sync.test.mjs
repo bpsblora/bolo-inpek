@@ -104,6 +104,7 @@ test('IMK Tahunan appears and unknown PPL candidate is flagged without fake FASI
  assert.equal(f.data.sumber_assignment[2][3],'VIMK_TH26');
  assert.match(f.data.sumber_assignment[2][7],/^monitor:[0-9a-f]{32}$/);
  assert.equal(f.data.sumber_assignment[2][9],'fasih-budi');
+ assert.equal(f.data.sumber_assignment[1][7],'fasih-sari','Verified matching ID is reused for existing staff');
  assert.equal(f.data.petugas.length,3);
  assert.equal(f.data.kontak[1][1],'Jangan diubah');
  assert.equal(f.data.tindak_lanjut[1][1],'Jangan diubah');
@@ -135,13 +136,21 @@ test('only Admin can synchronize and malformed source data are rejected',()=>{
  assert.throws(()=>f.api.run('admin'),/tidak valid\/ganda/);
 });
 
-test('one registered petugas takes priority over conflicting sumber_petugas with same name',()=>{
+test('same name but conflicting FASIH ID requires confirmation, not auto-link',()=>{
  const f=fixture();
  f.data.sumber_petugas.push(['external-wrong-sari','Sari','','']);
  const res=f.api.run('admin');
  assert.equal(res.success,true);
+ const alias=f.data.sumber_assignment[1][7];
+ assert.match(alias,/^monitor:[a-f0-9]{32}$/);
+ assert.equal(res.calon_petugas,2,'Conflicted Sari and new Baru require verification');
+ // Admin-confirmed mapping survives the next survey refresh.
+ f.data.padanan_petugas=[
+   ['alias_monitoring','petugas_id','nama_monitoring','waktu_taut','ditautkan_oleh'],
+   [alias,'fasih-sari','Sari','2026-11-15T00:00:00Z','admin@bps.go.id']
+ ];
+ assert.equal(f.api.run('admin').success,true);
  assert.equal(f.data.sumber_assignment[1][7],'fasih-sari');
- assert.equal(res.calon_petugas,1,'Only Baru should require registration');
 });
 test('same-name collision among registered profiles is not automatically merged',()=>{
  const f=fixture();
