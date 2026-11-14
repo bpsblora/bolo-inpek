@@ -112,7 +112,7 @@ function biRoleContent(rows,key){
     const body=names.map(person=>{
       const group=rows.filter(r=>name(r,key)===person),c=biCounts(group);
       return '<tr><td><button class="bi-link" data-level="'+key+'" data-value="'+esc(person)+'">'+esc(person)+' →</button></td>'+
-        '<td>'+group.length+'</td><td><strong>'+c[metric]+'</strong></td>'+
+        '<td>'+group.length+'</td><td><strong>'+biUnitText(c[metric],group.length,key)+'</strong></td>'+
         biBuckets.map(b=>'<td>'+c[b.id]+'</td>').join('')+'</tr>';
     }).join('');
     return '<div class="tablebox"><table class="bi-table"><thead><tr><th>'+key.toUpperCase()+'</th><th>Total</th>'+
@@ -123,8 +123,8 @@ function biRoleContent(rows,key){
     const group=rows.filter(r=>name(r,key)===person),counts=biCounts(group);
     return '<button type="button" class="bi-bar-row" data-level="'+key+'" data-value="'+esc(person)+'">'+
       '<span class="bi-name">'+esc(person)+'</span>'+biBar(group,person)+
-      '<span class="bi-row-stat"><strong>'+counts[metric]+' '+(key==='pml'?'approve':'submit')+'</strong>'+
-      group.length+' assignment · '+counts.pending+' belum</span></button>';
+      '<span class="bi-row-stat"><strong>'+biUnitText(counts[metric],group.length,key)+'</strong>'+
+      '<span>'+(key==='pml'?'Approved / Completed':'Sudah Submit')+'</span></span></button>';
   }).join('')+'</div>';
 }
 function biPanel(rows,key){
@@ -132,7 +132,8 @@ function biPanel(rows,key){
   const rank=key==='pml'?'Approved / Completed':'Sudah Submit';
   return '<section class="bi-panel"><div class="bi-role-head"><div><h2>Progres '+label+'</h2>'+
     '<small>Urutan: '+rank+' terbanyak ke paling sedikit.</small></div>'+
-    '<small>'+biRoleNames(rows,key).length+' petugas</small></div>'+
+    '<div class="bi-panel-tools"><small>'+biRoleNames(rows,key).length+' petugas</small>'+
+    biUnitControl(key)+'</div></div>'+
     biRoleContent(rows,key)+(biView.mode==='grafik'?biLegend():'')+'</section>';
 }
 function biKpis(rows){
@@ -171,7 +172,10 @@ function biSurveyDashboard(survey){
   },{end:0,parts:[]}).parts.join(',')+')'):'#e3ecf6';
   const head='<div class="bi-survey-head card"><div style="display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap">'+
     '<div>'+title('Progres '+survey,'Grafik progres dan rincian petugas dari FASIH.',all.length)+periodeHtml(survey)+'</div>'+
-    '<div class="bi-donut" style="background:'+donutColor+'"><div class="bi-donut-center"><strong>'+percent(count.submitted,all.length)+'</strong><small>Sudah Submit</small></div></div></div>'+
+    '<div class="bi-donut-area">'+biUnitControl('survey')+
+    '<div class="bi-donut" style="background:'+donutColor+'"><div class="bi-donut-center"><strong>'+
+    (biUnitMode('survey')==='persentase'?(all.length?percent(count.submitted,all.length):'—'):format.format(count.submitted))+
+    '</strong><small>Sudah Submit</small><span>'+format.format(count.submitted)+' / '+format.format(all.length)+'</span></div></div></div></div>'+
     '<div class="bi-head-actions">'+exportButtons(survey)+tombolTindakLanjut(survey)+
     '<p class="export-feedback" role="status" aria-live="polite"></p></div></div>';
   const controls=biControls(all);
@@ -182,12 +186,14 @@ function biSurveyDashboard(survey){
 function biOverview(){
   const surveys=biSurveyList();
   return '<div class="bi-panel"><div class="bi-role-head"><h2>Grafik Progres Seluruh Survei</h2>'+
-    '<small>Pilih survei untuk membuka PML/PPL</small></div>'+
+    '<div class="bi-panel-tools"><small>Pilih survei untuk membuka PML/PPL</small>'+
+    biUnitControl('overview')+'</div></div>'+
     '<div class="bi-bars">'+surveys.map(survey=>{
-      const rows=DATA.filter(r=>r.survei===survey),pending=biCounts(rows).pending;
+      const rows=DATA.filter(r=>r.survei===survey),submitted=biCounts(rows).submitted;
       return '<button class="bi-bar-row" data-level="survey" data-value="'+esc(survey)+'">'+
         '<span class="bi-name">'+esc(survey)+'</span>'+biBar(rows,survey)+
-        '<span class="bi-row-stat"><strong>'+pending+' belum</strong>'+rows.length+' assignment</span></button>';
+        '<span class="bi-row-stat"><strong>'+biUnitText(submitted,rows.length,'overview')+'</strong>'+
+          '<span>Sudah Submit</span></span></button>';
     }).join('')+'</div>'+biLegend()+'</div>';
 }
 
