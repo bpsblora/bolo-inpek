@@ -561,7 +561,7 @@ body.bolo-loading-active{overflow:hidden}
 }
 </style>
 
-<link rel="stylesheet" href="./dashboard-interaktif.css?v=29">
+<link rel="stylesheet" href="./dashboard-interaktif.css?v=30">
 </head>
 <body>
 <div id="boloLoading" class="bolo-loading" role="status" aria-live="polite" aria-label="BOLO INPEK sedang memuat data" hidden>
@@ -634,6 +634,30 @@ body.bolo-loading-active{overflow:hidden}
     referrerpolicy="strict-origin-when-cross-origin" hidden></iframe>
 </dialog>
 
+
+<!-- Navigasi progres: dialog mandiri tanpa mengubah filter maupun data dashboard. -->
+<dialog class="bi-popup-dialog" id="biProgressModal" aria-labelledby="biProgressTitle">
+  <div class="bi-popup-shell">
+    <div class="bi-popup-head"><strong id="biProgressTitle">Progres Petugas</strong>
+      <button type="button" class="bi-popup-close" data-bi-popup-close="biProgressModal">Tutup ×</button></div>
+    <div id="biProgressBody" class="bi-popup-body"></div>
+  </div>
+</dialog>
+<dialog class="bi-popup-dialog" id="biPmlPeopleModal" aria-labelledby="biPmlPeopleTitle">
+  <div class="bi-popup-shell">
+    <div class="bi-popup-head"><strong id="biPmlPeopleTitle">PPL menurut PML</strong>
+      <button type="button" class="bi-popup-close" data-bi-popup-close="biPmlPeopleModal">Kembali ×</button></div>
+    <div id="biPmlPeopleBody" class="bi-popup-body"></div>
+  </div>
+</dialog>
+<dialog class="bi-popup-dialog" id="biStatusModal" aria-labelledby="biStatusTitle">
+  <div class="bi-popup-shell">
+    <div class="bi-popup-head"><strong id="biStatusTitle">Rincian Status FASIH</strong>
+      <button type="button" class="bi-popup-close" data-bi-popup-close="biStatusModal">Kembali ×</button></div>
+    <div id="biStatusBody" class="bi-popup-body"></div>
+  </div>
+</dialog>
+
   <main>
     <div class="notice" id="connection" role="status" aria-live="polite">Memuat data monitoring dari spreadsheet…</div>
     <!-- Dua kotak sejajar: waktu dan keterangan status -->
@@ -676,7 +700,7 @@ body.bolo-loading-active{overflow:hidden}
   </main>
   <footer>BOLO INPEK · Sumber: Google Sheets · Persentase dihitung dari seluruh assignment pada kelompok yang sedang dibuka. Data pendataan diperbarui setelah operator menjalankan Python. · <a href="./kebijakan-privasi.html">Kebijakan Privasi</a></footer>
   <noscript>Aktifkan JavaScript untuk menggunakan dashboard ini.</noscript>
-  <script src="./dashboard-interaktif.js?v=29"></script>
+  <script src="./dashboard-interaktif.js?v=30"></script>
   <script>
     // ========================================================
     // STATUS DASHBOARD: setiap assignment dihitung satu kali.
@@ -1086,6 +1110,7 @@ body.bolo-loading-active{overflow:hidden}
 
     async function loadData({preserveView=false}={}){
       if(loading)return;
+      biPopupCloseAll();
       showBoloSplash();
       const snapshot=preserveView?{
         data:DATA, allAssignments:ALL_ASSIGNMENTS, registry:REGISTRY, surveys:SURVEYS,
@@ -1786,6 +1811,30 @@ body.bolo-loading-active{overflow:hidden}
       loadData({preserveView:true});
     });
     document.addEventListener('click',event=>{
+      const closePopup=event.target.closest('button[data-bi-popup-close]');
+      if(closePopup){biPopupClose(closePopup.dataset.biPopupClose);return;}
+      const navPopup=event.target.closest('button[data-bi-popup-nav]');
+      if(navPopup){
+        biPopupOpen(navPopup.dataset.biPopupNav,navPopup.dataset.biPopupSurvey,navPopup);
+        return;
+      }
+      const popupUnit=event.target.closest('button[data-bi-popup-unit]');
+      if(popupUnit){
+        const scope=popupUnit.dataset.biPopupScope,unit=popupUnit.dataset.biPopupUnit;
+        if(Object.prototype.hasOwnProperty.call(biView.units,scope)&&['angka','persentase'].includes(unit)){
+          biView.units[scope]=unit;biPopupPaint();
+          if(document.getElementById('biPmlPeopleModal').open)biPopupPaintPmlPeople();
+        }
+        return;
+      }
+      const popupPml=event.target.closest('button[data-bi-popup-pml]');
+      if(popupPml){biPopupOpenPml(popupPml.dataset.biPopupPml,popupPml);return;}
+      const popupPair=event.target.closest('button[data-bi-popup-pml-pair]');
+      if(popupPair){biPopupOpenDetail('pml-pair',Number(popupPair.dataset.biPopupPmlPair),popupPair);return;}
+      const popupPerson=event.target.closest('button[data-bi-popup-person]');
+      if(popupPerson){biPopupOpenDetail('modal-person',popupPerson.dataset.biPopupPerson,popupPerson);return;}
+      const detailRow=event.target.closest('tr[data-bi-detail-pair]');
+      if(detailRow){biPopupOpenDetail('main-pair',Number(detailRow.dataset.biDetailPair),detailRow);return;}
       const exportButton=event.target.closest('button[data-export]');
       if(exportButton){if(!exportButton.disabled)handleExport(exportButton);return;}
       if(event.target.closest('#retry')){loadData();return;}
@@ -1836,6 +1885,19 @@ body.bolo-loading-active{overflow:hidden}
       if(button.dataset.level==='ppl' && biView.pml && state.survey && !state.pml)state.pml=biView.pml;
       go(button.dataset.level,button.dataset.value);
     });
+    document.addEventListener('keydown',event=>{
+      const row=event.target.closest('tr[data-bi-detail-pair]');
+      if(!row||!['Enter',' '].includes(event.key))return;
+      event.preventDefault();
+      biPopupOpenDetail('main-pair',Number(row.dataset.biDetailPair),row);
+    });
+    for(const id of ['biProgressModal','biPmlPeopleModal','biStatusModal']){
+      document.getElementById(id).addEventListener('close',()=>{
+        const origin=biPopupState.focus[id];
+        if(origin?.isConnected)origin.focus({preventScroll:true});
+        biPopupState.focus[id]=null;
+      });
+    }
     document.addEventListener('change',event=>{
       const field=event.target.closest('select[data-bi-person]');
       if(!field)return;
