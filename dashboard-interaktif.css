@@ -635,3 +635,11 @@
   .bi-kpi,.bi-kpi::after{animation:none!important;transition:none!important}
   .bi-kpi:hover{transform:none}
 }
+
+/* v39 — Donat selalu menampilkan persentase + jumlah, tanpa tombol mode. */
+.bi-survey-donut-panel{gap:0;min-height:176px;padding:12px}
+@media(max-width:640px){
+  .bi-survey-donut-panel{display:flex;align-items:center;justify-content:center;
+    min-height:146px;padding:13px}
+  .bi-survey-donut-panel .bi-donut{grid-column:auto;grid-row:auto}
+}
