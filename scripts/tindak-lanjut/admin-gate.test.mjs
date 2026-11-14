@@ -14,7 +14,7 @@ const controller=page.slice(begin+'<script>\n'.length,end);
 
 function sandbox(){
   const allIds=['tlPopup','tlFrame','adminEnter','adminTools','adminExit','adminTlMenu',
-    'adminInfo','tlPopupTitle','tlClose','boloUpdaterOpen'];
+    'adminInfo','tlPopupTitle','tlClose','boloUpdaterOpen','adminStaffMenu'];
   const el=id=>({
     id,hidden:false,open:false,src:'',textContent:'',
     listeners:{},addEventListener(type,cb){this.listeners[type]=cb;},
@@ -50,6 +50,7 @@ function sandbox(){
 }
 function grantEvent(s,overrides={}){
   return {isTrusted:true,origin:'https://n-abc-script.googleusercontent.com',
+    source:{postMessage(message,origin){s.lastMessage={message,origin};}},
     data:{type:'BOLO_INPEK_ADMIN_VERIFIED',nonce:s.admin.nonce,
       peran:'ADMIN',nama:'Admin INPEK',email:'admin@bps.go.id'},...overrides};
 }
@@ -83,6 +84,10 @@ test('frontend accepts only trusted origin, correct nonce and ADMIN role',()=>{
   assert.equal(s.elements.tlFrame.src,firstSrc,'Login iframe retained with server-side session');
   s.elements.adminTlMenu.click();
   assert.equal(s.elements.tlPopup.open,true);
+  s.elements.adminStaffMenu.click();
+  assert.equal(s.lastMessage.message.type,'BOLO_INPEK_ADMIN_SHOW_PETUGAS');
+  assert.equal(s.lastMessage.message.nonce,s.admin.nonce);
+  assert.equal(s.lastMessage.origin,'https://n-abc-script.googleusercontent.com');
   assert.equal(s.elements.tlFrame.src,firstSrc,'Tindak Lanjut reuses authenticated iframe');
   s.elements.adminExit.click();
   assert.equal(s.admin.verified,false);
