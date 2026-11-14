@@ -1,5 +1,11 @@
 # Integrasi Backend Tindak Lanjut — BOLO INPEK
 
+## Kelola Biodata Petugas
+
+[**Panduan Kelola Petugas dan pemasangan backend satu kali**](./KELOLA-PETUGAS.md) · [kode `TindakLanjut_KelolaPetugas.gs`](./TindakLanjut_KelolaPetugas.gs).
+
+Menu ini menampilkan biodata petugas lama (termasuk nonaktif), mendukung penambahan/ubah biodata dan status aktif, serta membaca kandidat dari FASIH. Menjaga ID petugas dan histori agar catatan lama tetap terhubung. **Agar tombol Simpan bekerja, fungsi Apps Script tambahan harus dipasang satu kali dan deployment lama diperbarui.** GitHub Loader yang sudah aktif hanya mengubah HTML, bukan backend.
+
 ## Pintu Masuk Admin INPEK
 
 [**Satu pintu masuk Admin INPEK untuk menu monitoring dan tindak lanjut**](./ADMIN-INPEK-GATE.md) — menggunakan `apiLogin` yang sudah berjalan, dengan validasi peran `ADMIN`. Login ini **berbasis alamat email terdaftar**, bukan OTP/OAuth. Baca batasan keamanan dan prosedur pengujian pada panduan.
