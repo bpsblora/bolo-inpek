@@ -14,7 +14,7 @@ const controller=page.slice(begin+'<script>\n'.length,end);
 
 function sandbox(){
   const allIds=['tlPopup','tlFrame','adminEnter','adminTools','adminExit','adminTlMenu',
-    'adminInfo','tlPopupTitle','tlClose','boloUpdaterOpen','adminStaffMenu'];
+    'adminInfo','tlPopupTitle','tlClose','boloUpdaterOpen','adminStaffMenu','adminStaffPending'];
   const el=id=>({
     id,hidden:false,open:false,src:'',textContent:'',
     listeners:{},addEventListener(type,cb){this.listeners[type]=cb;},
@@ -84,6 +84,11 @@ test('frontend accepts only trusted origin, correct nonce and ADMIN role',()=>{
   assert.equal(s.elements.tlFrame.src,firstSrc,'Login iframe retained with server-side session');
   s.elements.adminTlMenu.click();
   assert.equal(s.elements.tlPopup.open,true);
+  s.window.listeners.message(grantEvent(s,{
+    data:{...grantEvent(s).data,type:'BOLO_INPEK_PETUGAS_PENDING',jumlah:3,id_kosong:2}
+  }));
+  assert.equal(s.elements.adminStaffPending.textContent,'3');
+  assert.equal(s.elements.adminStaffPending.hidden,false);
   s.elements.adminStaffMenu.click();
   assert.equal(s.lastMessage.message.type,'BOLO_INPEK_ADMIN_SHOW_PETUGAS');
   assert.equal(s.lastMessage.message.nonce,s.admin.nonce);
@@ -93,6 +98,7 @@ test('frontend accepts only trusted origin, correct nonce and ADMIN role',()=>{
   assert.equal(s.admin.verified,false);
   assert.equal(s.elements.adminTools.hidden,true);
   assert.equal(s.elements.tlFrame.src,'about:blank');
+  assert.equal(s.elements.adminStaffPending.hidden,true);
 });
 test('cancelled Admin login ignores delayed iframe success callback',()=>{
   const s=sandbox();
