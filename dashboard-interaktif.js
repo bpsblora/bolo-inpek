@@ -124,7 +124,7 @@ function biSurveyDashboard(survey){
     const bucket=biBuckets.find(b=>b.id===id);const start=agg.end;const end=start+n/all.length*100;
     agg.parts.push(bucket.color+' '+start+'% '+end+'%');agg.end=end;return agg;
   },{end:0,parts:[]}).parts.join(',')+')'):'#e3ecf6';
-  const head='<div class="bi-survey-head"><div style="display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap">'+
+  const head='<div class="bi-survey-head card"><div style="display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap">'+
     '<div>'+title('Progres '+survey,'Grafik progres dan rincian petugas dari FASIH.',all.length)+periodeHtml(survey)+'</div>'+
     '<div class="bi-donut" style="background:'+donutColor+'"><div class="bi-donut-center"><strong>'+percent(count.approved,all.length)+'</strong><small>Disetujui / Selesai</small></div></div></div>'+
     '<div class="bi-head-actions">'+exportButtons(survey)+tombolTindakLanjut(survey)+
