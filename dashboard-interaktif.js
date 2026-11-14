@@ -534,8 +534,7 @@ function biPopupGroupButton(title,rows,scope,attrs,meta){
   return '<button class="bi-popup-group" type="button" '+attrs+'>'+
     '<span class="bi-popup-group-top"><strong>'+esc(title)+'</strong>'+
       '<b>'+biUnitText(count.submitted,total,scope)+'</b></span>'+
-    '<span class="bi-popup-group-meta">'+esc(meta||'')+' · APPROVED: '+count.approvedStage+
-      ' dari '+total+'</span>'+biBar(rows,title)+'</button>';
+    '<span class="bi-popup-group-meta">'+(meta?esc(meta)+' · ':'')+'APPROVED '+count.approvedStage+' / '+total+'</span>'+biBar(rows,title)+'</button>';
 }
 function biPopupPaint(){
   const view=biPopupState.view,survey=biPopupState.survey,rows=biPopupRows();
@@ -544,7 +543,7 @@ function biPopupPaint(){
   document.getElementById('biProgressTitle').textContent=title+' · '+survey;
   const names=biRoleNames(rows,key,scope);
   let content='<div class="bi-popup-toolbar"><span>'+names.length+' '+(key==='ppl'?'PPL':'PML')+
-    ' · Sudah Submit tertinggi, lalu APPROVED</span>'+biPopupUnitControls(scope)+'</div>';
+    '</span>'+biPopupUnitControls(scope)+'</div>';
   if(!names.length)content+='<div class="bi-empty">Belum ada assignment untuk pilihan ini.</div>';
   else{
     content+='<div class="'+(view==='by-pml'?'bi-popup-group-grid':'bi-popup-group-list')+'">'+
@@ -552,9 +551,7 @@ function biPopupPaint(){
         const group=rows.filter(row=>name(row,key)===person);
         const attrs=view==='by-pml'?'data-bi-popup-pml="'+esc(person)+'"':
           'data-bi-popup-person="'+esc(person)+'" data-bi-popup-person-role="'+key+'"';
-        const meta=view==='by-pml'
-          ?biPplPmlPairs(group,'cards').length+' PPL · '+group.length+' assignment · Pilih untuk rincian'
-          :group.length+' assignment · Ketuk untuk rincian status';
+        const meta=view==='by-pml'?biPplPmlPairs(group,'cards').length+' PPL':'';
         return biPopupGroupButton(person,group,scope,attrs,meta);
       }).join('')+'</div>';
   }
@@ -576,14 +573,14 @@ function biPopupPaintPmlPeople(){
   const pairs=biPplPmlPairs(rows,'cards');
   document.getElementById('biPmlPeopleTitle').textContent='PPL di bawah PML · '+pml;
   const body='<div class="bi-popup-toolbar"><span>'+pairs.length+
-    ' PPL · '+rows.length+' assignment · '+esc(survey)+'</span>'+
+    ' PPL · '+rows.length+' assignment</span>'+
     biPopupUnitControls('cards')+'</div>'+
     '<div class="bi-popup-group-list">'+pairs.map((entry,i)=>
       biPopupGroupButton(entry.ppl,entry.rows,'cards',
-        'data-bi-popup-pml-pair="'+i+'"',entry.rows.length+' assignment · Buka rincian status')
+        'data-bi-popup-pml-pair="'+i+'"','')
     ).join('')+'</div>'+biLegend()+
     '<div class="bi-pml-card bi-popup-report-export"><div class="bi-popup-export-line">'+
-      '<span>Ekspor progres PPL untuk PML ini</span>'+biExportButtons(survey,pml)+'</div>'+
+      '<span>Laporan PPL</span>'+biExportButtons(survey,pml)+'</div>'+
       '<p class="bi-feedback" role="status" aria-live="polite"></p></div>';
   document.getElementById('biPmlPeopleBody').innerHTML=body;
 }
@@ -604,8 +601,7 @@ function biPopupDetailHtml(rows,title,context){
       '<div><span>Sudah Submit</span><strong>'+biUnitText(c.submitted,n,'report')+'</strong></div>'+
       '<div><span>APPROVED</span><strong>'+c.approvedStage+'</strong></div>'+
     '</div>'+
-    '<div class="bi-popup-status-heading"><strong>Komposisi Status FASIH</strong><small>'+
-       'Setiap assignment dihitung satu kali</small></div>'+
+    '<div class="bi-popup-status-heading"><strong>Komposisi Status FASIH</strong></div>'+
     '<div class="bi-popup-mainbar">'+biBar(rows,title)+'</div>'+
     '<div class="bi-popup-status-list">'+biBuckets.map(bucket=>{
       const count=c[bucket.id],pct=n?percent(count,n):'—';
@@ -616,8 +612,7 @@ function biPopupDetailHtml(rows,title,context){
           '%;background:'+bucket.color+'"></span></span>'+
         '<strong>'+pct+'</strong><small>'+count+' / '+n+'</small></div>';
     }).join('')+'</div>'+
-    '<p class="bi-popup-info">Sudah Submit mencakup SUBMITTED, APPROVED, REJECTED, REVOKED, dan COMPLETED. '+
-    'OPEN/DRAFT belum submit. APPROVED untuk pembeda urutan tidak digabung dengan COMPLETED.</p>';
+    '';
 }
 function biPopupOpenDetail(kind,value,trigger){
   const survey=state.survey||biPopupState.survey;
