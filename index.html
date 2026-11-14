@@ -440,9 +440,148 @@
   #markAssignmentExternal{font-size:10px}#markListBody .bi-mark-modal-intro{display:block}}
 </style>
 
-<link rel="stylesheet" href="./dashboard-interaktif.css?v=28">
+
+<style>
+/* BOLO INPEK · Splash pembaruan data: dua logo bertemu, lalu berputar. */
+.bolo-loading[hidden]{display:none!important}
+.bolo-loading{
+  position:fixed;inset:0;z-index:10020;display:grid;place-items:center;
+  padding:24px;background:radial-gradient(circle at 20% 25%,#d9eaff 0%,transparent 44%),
+    radial-gradient(circle at 85% 80%,#dce7fc 0%,transparent 46%),
+    linear-gradient(135deg,#f5f9ff,#e5effc);
+  color:#163c6b;isolation:isolate;overflow:auto;overscroll-behavior:contain;
+  opacity:1;transition:opacity .35s ease,visibility .35s ease;
+}
+.bolo-loading.is-hiding{opacity:0;visibility:hidden;pointer-events:none}
+body.bolo-loading-active{overflow:hidden}
+.bolo-loading::before,.bolo-loading::after{
+  content:"";position:absolute;width:clamp(220px,36vw,450px);aspect-ratio:1;
+  border:1px solid rgba(72,127,194,.14);border-radius:50%;
+  pointer-events:none;
+}
+.bolo-loading::before{transform:translate(-37vw,-25vh);box-shadow:0 0 0 44px rgba(255,255,255,.12)}
+.bolo-loading::after{transform:translate(32vw,26vh);box-shadow:0 0 0 64px rgba(255,255,255,.1)}
+.bolo-loading-card{
+  width:min(550px,100%);padding:28px 28px 25px;text-align:center;position:relative;
+  border-radius:24px;border:1px solid rgba(179,206,237,.9);
+  background:rgba(255,255,255,.93);box-shadow:0 24px 70px rgba(33,76,133,.13);
+}
+.bolo-loading-kicker{margin:0;font-size:11px;letter-spacing:.16em;font-weight:850;color:#5483b5}
+.bolo-loading-stage{position:relative;height:215px;margin:2px auto 0;max-width:420px;
+  background:radial-gradient(circle at center,rgba(202,225,255,.45),transparent 60%)}
+.bolo-loading-stage::before{content:"";position:absolute;left:50%;top:50%;width:162px;height:162px;
+  transform:translate(-50%,-50%);border:1px dashed #b7d4f3;border-radius:50%;
+  animation:boloLoadingRing 5s linear infinite;opacity:.9}
+.bolo-loading-logo{
+  position:absolute;left:50%;top:50%;width:128px;height:120px;display:flex;
+  align-items:center;justify-content:center;flex-direction:column;gap:6px;
+  background:white;border:1px solid #d8e5f6;border-radius:19px;
+  box-shadow:0 12px 30px rgba(23,67,123,.16);padding:11px;
+  will-change:transform;
+}
+.bolo-loading-logo img{display:block;max-width:100%;width:100px;height:70px;object-fit:contain}
+.bolo-loading-logo span{font-size:10px;font-weight:850;letter-spacing:.03em;color:#335d8b}
+.bolo-loading-logo.bps{animation:boloBpsFlight 3.15s cubic-bezier(.28,.68,.24,1) both}
+.bolo-loading-logo.inpek{animation:boloInpekFlight 3.15s cubic-bezier(.28,.68,.24,1) both}
+.bolo-loading-title{margin:0;font-size:clamp(26px,5vw,36px);line-height:1.15;
+  font-weight:900;letter-spacing:.07em;color:#153e73;
+  animation:boloLoadingReveal .7s 1.3s ease-out both}
+.bolo-loading-title span{color:#3889cb}
+.bolo-loading-subtitle{margin:8px auto 0;font-size:clamp(12px,2.6vw,15px);
+  line-height:1.5;color:#547695;max-width:400px;font-weight:650;
+  animation:boloLoadingReveal .7s 1.55s ease-out both}
+.bolo-loading-status{display:flex;justify-content:center;align-items:center;gap:9px;
+  margin:24px 0 5px;color:#275f97;font-size:13px;font-weight:800;
+  animation:boloLoadingReveal .6s 1.7s ease-out both}
+.bolo-loading-dots{display:inline-flex;gap:5px}
+.bolo-loading-dots i{display:block;width:6px;height:6px;background:#6da8df;
+  border-radius:50%;animation:boloLoadingDot .92s infinite ease-in-out}
+.bolo-loading-dots i:nth-child(2){animation-delay:.16s}
+.bolo-loading-dots i:nth-child(3){animation-delay:.32s}
+.bolo-loading-skip{margin-top:12px;border:0;background:none;color:#6583a5;
+  font-size:11px;font-weight:700;text-decoration:underline;text-underline-offset:3px;
+  cursor:pointer;animation:boloLoadingReveal .5s 2.8s ease both}
+.bolo-loading-skip:hover{color:#174f87}
+.bolo-loading-skip:focus-visible{outline:2px solid #245f9e;outline-offset:4px}
+@keyframes boloBpsFlight{
+  0%{opacity:0;transform:translate(-50%,-50%) translate(-70vw,0) rotate(-35deg) scale(.62)}
+  24%{opacity:1;transform:translate(-50%,-50%) translate(-14px,0) rotate(8deg) scale(1.04)}
+  31%{transform:translate(-50%,-50%) translate(0,0) rotate(-10deg) scale(1.14)}
+  41%{transform:translate(-50%,-50%) translate(71px,-26px) rotate(95deg) scale(.92)}
+  56%{transform:translate(-50%,-50%) translate(10px,-70px) rotate(195deg) scale(.94)}
+  72%{transform:translate(-50%,-50%) translate(-95px,-14px) rotate(325deg) scale(1)}
+  100%{opacity:1;transform:translate(-50%,-50%) translate(-100px,0) rotate(360deg) scale(1)}
+}
+@keyframes boloInpekFlight{
+  0%{opacity:0;transform:translate(-50%,-50%) translate(70vw,0) rotate(35deg) scale(.62)}
+  24%{opacity:1;transform:translate(-50%,-50%) translate(14px,0) rotate(-8deg) scale(1.04)}
+  31%{transform:translate(-50%,-50%) translate(0,0) rotate(10deg) scale(1.14)}
+  41%{transform:translate(-50%,-50%) translate(-71px,26px) rotate(-95deg) scale(.92)}
+  56%{transform:translate(-50%,-50%) translate(-10px,70px) rotate(-195deg) scale(.94)}
+  72%{transform:translate(-50%,-50%) translate(95px,14px) rotate(-325deg) scale(1)}
+  100%{opacity:1;transform:translate(-50%,-50%) translate(100px,0) rotate(-360deg) scale(1)}
+}
+@keyframes boloLoadingRing{to{transform:translate(-50%,-50%) rotate(360deg)}}
+@keyframes boloLoadingReveal{from{opacity:0;transform:translateY(13px)}to{opacity:1;transform:translateY(0)}}
+@keyframes boloLoadingDot{0%,70%,100%{opacity:.35;transform:translateY(0)}35%{opacity:1;transform:translateY(-5px)}}
+@media(max-width:480px){
+  .bolo-loading-card{padding:21px 14px}
+  .bolo-loading-stage{height:183px}
+  .bolo-loading-logo{width:106px;height:108px;padding:9px}
+  .bolo-loading-logo img{width:83px;height:63px}
+  .bolo-loading-logo span{font-size:9px}
+  .bolo-loading-stage::before{width:135px;height:135px}
+  /* Preserve the collision and orbit, but reduce final distance on narrow screens. */
+  .bolo-loading-logo.bps{animation-name:boloBpsFlightMobile}
+  .bolo-loading-logo.inpek{animation-name:boloInpekFlightMobile}
+}
+@keyframes boloBpsFlightMobile{
+  0%{opacity:0;transform:translate(-50%,-50%) translate(-90vw,0) rotate(-35deg) scale(.62)}
+  25%{opacity:1;transform:translate(-50%,-50%) translate(-9px,0) rotate(8deg) scale(1)}
+  31%{transform:translate(-50%,-50%) rotate(-12deg) scale(1.12)}
+  48%{transform:translate(-50%,-50%) translate(45px,-27px) rotate(130deg)}
+  66%{transform:translate(-50%,-50%) translate(-55px,-12px) rotate(300deg)}
+  100%{opacity:1;transform:translate(-50%,-50%) translate(-71px,0) rotate(360deg)}
+}
+@keyframes boloInpekFlightMobile{
+  0%{opacity:0;transform:translate(-50%,-50%) translate(90vw,0) rotate(35deg) scale(.62)}
+  25%{opacity:1;transform:translate(-50%,-50%) translate(9px,0) rotate(-8deg) scale(1)}
+  31%{transform:translate(-50%,-50%) rotate(12deg) scale(1.12)}
+  48%{transform:translate(-50%,-50%) translate(-45px,27px) rotate(-130deg)}
+  66%{transform:translate(-50%,-50%) translate(55px,12px) rotate(-300deg)}
+  100%{opacity:1;transform:translate(-50%,-50%) translate(71px,0) rotate(-360deg)}
+}
+@media(prefers-reduced-motion:reduce){
+  .bolo-loading,.bolo-loading-logo,.bolo-loading-title,.bolo-loading-subtitle,
+  .bolo-loading-status,.bolo-loading-skip,.bolo-loading-stage::before,.bolo-loading-dots i{
+    animation:none!important;transition:none!important}
+  .bolo-loading-logo.bps{transform:translate(-50%,-50%) translate(-100px,0)}
+  .bolo-loading-logo.inpek{transform:translate(-50%,-50%) translate(100px,0)}
+}
+</style>
+<style>
+@media(prefers-reduced-motion:reduce) and (max-width:480px){
+ .bolo-loading-logo.bps{transform:translate(-50%,-50%) translate(-71px,0)}
+ .bolo-loading-logo.inpek{transform:translate(-50%,-50%) translate(71px,0)}
+}
+</style>
+
+<link rel="stylesheet" href="./dashboard-interaktif.css?v=29">
 </head>
 <body>
+<div id="boloLoading" class="bolo-loading" role="status" aria-live="polite" aria-label="BOLO INPEK sedang memuat data" hidden>
+  <div class="bolo-loading-card">
+    <p class="bolo-loading-kicker">BPS KABUPATEN BLORA</p>
+    <div class="bolo-loading-stage" aria-hidden="true">
+      <div class="bolo-loading-logo bps"><img src="./logo-bps-blora.jpg" alt=""><span>BPS BLORA</span></div>
+      <div class="bolo-loading-logo inpek"><img src="./favicon.png" alt=""><span>BOLO INPEK</span></div>
+    </div>
+    <h2 class="bolo-loading-title">BOLO <span>INPEK</span></h2>
+    <p class="bolo-loading-subtitle">Blora Pengelolaan Statistik INPEK</p>
+    <div class="bolo-loading-status">Loading<span class="bolo-loading-dots" aria-hidden="true"><i></i><i></i><i></i></span></div>
+    <button class="bolo-loading-skip" id="boloLoadingSkip" type="button">Lewati animasi</button>
+  </div>
+</div>
   <!-- HEADER: identitas BOLO INPEK dan BPS Kabupaten Blora -->
 <header class="site-header">
   <div class="header-inner">
@@ -543,7 +682,7 @@
   </main>
   <footer>BOLO INPEK · Sumber: Google Sheets · Persentase dihitung dari seluruh assignment pada kelompok yang sedang dibuka. Data pendataan diperbarui setelah operator menjalankan Python. · <a href="./kebijakan-privasi.html">Kebijakan Privasi</a></footer>
   <noscript>Aktifkan JavaScript untuk menggunakan dashboard ini.</noscript>
-  <script src="./dashboard-interaktif.js?v=28"></script>
+  <script src="./dashboard-interaktif.js?v=29"></script>
   <script>
     // ========================================================
     // STATUS DASHBOARD: setiap assignment dihitung satu kali.
@@ -794,6 +933,37 @@
     let PERIODE_SURVEI = [];
     let lastFetched = null;
     let loading = false;
+    // Splash hanya berjalan saat data dimuat dari API, bukan saat ganti filter/tab.
+    const boloSplash=document.getElementById('boloLoading');
+    let boloSplashToken=0,boloSplashStarted=0,boloSplashTimer=null;
+    function showBoloSplash(){
+      if(!boloSplash)return;
+      clearTimeout(boloSplashTimer);
+      ++boloSplashToken;
+      boloSplashStarted=Date.now();
+      boloSplash.classList.remove('is-hiding');
+      boloSplash.hidden=false;
+      document.body.classList.add('bolo-loading-active');
+    }
+    function hideBoloSplash(skip=false){
+      if(!boloSplash||boloSplash.hidden)return;
+      const token=boloSplashToken;
+      const reduceMotion=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      const minimum=skip||reduceMotion?0:3200;
+      const remaining=Math.max(0,minimum-(Date.now()-boloSplashStarted));
+      clearTimeout(boloSplashTimer);
+      boloSplashTimer=setTimeout(()=>{
+        if(token!==boloSplashToken)return;
+        boloSplash.classList.add('is-hiding');
+        document.body.classList.remove('bolo-loading-active');
+        boloSplashTimer=setTimeout(()=>{
+          if(token!==boloSplashToken)return;
+          boloSplash.hidden=true;
+          boloSplash.classList.remove('is-hiding');
+        },reduceMotion?0:360);
+      },remaining);
+    }
+    document.getElementById('boloLoadingSkip').addEventListener('click',()=>hideBoloSplash(true));
 
     function validatePayload(payload){
       if(!payload || payload.success!==true || !Array.isArray(payload.data)){
@@ -923,6 +1093,7 @@
 
     async function loadData({preserveView=false}={}){
       if(loading)return;
+      showBoloSplash();
       const snapshot=preserveView?{
         data:DATA, allAssignments:ALL_ASSIGNMENTS, registry:REGISTRY, surveys:SURVEYS,
         markers:MARKER_RULES, markersAvailable:MARKERS_AVAILABLE,
@@ -1048,6 +1219,7 @@
       }finally{
         clearTimeout(timer);loading=false;view.setAttribute('aria-busy','false');
         if(reloadButton){reloadButton.disabled=false;reloadButton.textContent='↻ Muat Ulang Data';}
+        hideBoloSplash();
       }
     }
     const name = (row,key) => row[key] || UNASSIGNED;
@@ -1352,7 +1524,7 @@
       const view=document.getElementById('view'),rows=selected(),top=biSummary();
       if(state.survey===null){
         view.innerHTML=top+title('Progres Pendataan Survei INPEK 2026',
-          'Klik survei di filter atas untuk melihat progres PML dan PPL.',DATA.length)+biUnassignedPanel(null)+biOverview();
+          '',DATA.length)+biUnassignedPanel(null)+biOverview();
       }else if(state.status!==null){
         view.innerHTML=top+title('Assignment · '+state.status,
           [state.survey,state.pml,state.ppl].filter(Boolean).join(' · '),rows.length)+assignmentTable(rows);
