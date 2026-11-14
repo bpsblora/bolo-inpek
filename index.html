@@ -440,7 +440,7 @@
   #markAssignmentExternal{font-size:10px}#markListBody .bi-mark-modal-intro{display:block}}
 </style>
 
-<link rel="stylesheet" href="./dashboard-interaktif.css?v=21">
+<link rel="stylesheet" href="./dashboard-interaktif.css?v=26">
 </head>
 <body>
   <!-- HEADER: identitas BOLO INPEK dan BPS Kabupaten Blora -->
@@ -543,7 +543,7 @@
   </main>
   <footer>BOLO INPEK · Sumber: Google Sheets · Persentase dihitung dari seluruh assignment pada kelompok yang sedang dibuka. Data pendataan diperbarui setelah operator menjalankan Python. · <a href="./kebijakan-privasi.html">Kebijakan Privasi</a></footer>
   <noscript>Aktifkan JavaScript untuk menggunakan dashboard ini.</noscript>
-  <script src="./dashboard-interaktif.js?v=25"></script>
+  <script src="./dashboard-interaktif.js?v=26"></script>
   <script>
     // ========================================================
     // STATUS DASHBOARD: setiap assignment dihitung satu kali.
@@ -563,10 +563,13 @@
     function statusColor(code){
       // Selaraskan warna status rinci FASIH dengan grafik progres pastel.
       const s=statusKapital(code);
-      if(s==='OPEN'||s==='DRAFT')return '#f2b3b3';
-      if(s.startsWith('REJECTED')||s.startsWith('REVOKED'))return '#f6dc85';
-      if(s.startsWith('COMPLETED')||s.startsWith('APPROVED'))return '#9ad9a5';
+      if(s==='OPEN')return '#e9a4ad';
+      if(s==='DRAFT')return '#f4c6d2';
       if(s.startsWith('SUBMITTED'))return '#8cbcf0';
+      if(s.startsWith('APPROVED'))return '#9ad9a5';
+      if(s.startsWith('REJECTED'))return '#f6dc85';
+      if(s.startsWith('REVOKED'))return '#f7bd90';
+      if(s.startsWith('COMPLETED'))return '#72cdbb';
       return '#c7d3df';
     }
     function daftarStatus(rows){
