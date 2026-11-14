@@ -520,8 +520,10 @@ function biCanvasPage(survey,pml,pairs,pageIndex,pages,totalCounts){
   ctx.fillStyle='#ffffff';ctx.font='bold 38px Arial';ctx.textAlign='left';
   ctx.fillText('BOLO INPEK  /  PROGRES PPL',58,64);
   ctx.font='20px Arial';ctx.fillStyle='#dcecff';
-  biCanvasText(ctx,'Survei: '+survey,58,104,1250);
-  biCanvasText(ctx,'Cakupan: '+(pml===null?'Seluruh PPL':('PML '+pml)),58,135,1300);
+  biCanvasText(ctx,'Survei: '+survey,58,98,1250);
+  biCanvasText(ctx,'Cakupan: '+(pml===null?'Seluruh PPL':('PML '+pml)),58,122,1300);
+  ctx.font='bold 17px Arial';ctx.fillStyle='#ffffff';
+  biCanvasText(ctx,'DATA TERAKHIR DIAMBIL: '+(typeof exportTime==='function'?exportTime():'Belum tercatat'),58,150,1525);
   ctx.textAlign='right';ctx.font='bold 24px Arial';ctx.fillStyle='#ffffff';
   ctx.fillText('BPS KABUPATEN BLORA',1620,55);ctx.textAlign='left';
   ctx.fillStyle='#edf5ff';ctx.fillRect(58,186,1568,101);
@@ -575,9 +577,9 @@ function biCanvasPage(survey,pml,pairs,pageIndex,pages,totalCounts){
   const footY=1120;
   ctx.fillStyle='#607991';ctx.font='16px Arial';
   ctx.fillText('Belum Submit = OPEN / DRAFT   |   Sudah Submit termasuk REJECTED / REVOKED (Perbaikan)',65,footY);
-  ctx.fillText('Data terakhir FASIH: '+(typeof exportTime==='function'?exportTime():'Sesuai monitoring')+
+  biCanvasText(ctx,'Data terakhir diambil: '+(typeof exportTime==='function'?exportTime():'Belum tercatat')+
     (totalCounts.manual?' | '+totalCounts.manual+' assignment memakai status manual':''),
-    65,footY+31);
+    65,footY+31,1500);
   ctx.textAlign='right';ctx.fillStyle='#1c578f';
   ctx.fillText('Halaman '+(pageIndex+1)+' / '+pages+' · '+pairs.length+' pasangan PPL–PML',1618,footY+31);
   ctx.textAlign='left';
