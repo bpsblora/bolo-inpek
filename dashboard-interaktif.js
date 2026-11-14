@@ -31,6 +31,51 @@ const biBuckets=[
   {id:'completed',label:'COMPLETED',color:'#72cdbb'},
   {id:'other',label:'LAINNYA',color:'#c7d3df'}
 ];
+const BI_STATUS_COLORS={
+  'OPEN':'#e79ba9',
+  'DRAFT':'#f1c5d1',
+  'SUBMITTED BY PENCACAH':'#86b5ef',
+  'REVOKED BY PENGAWAS':'#eeaa77',
+  'APPROVED BY PENGAWAS':'#8fd3a3',
+  'REJECTED BY PENGAWAS':'#f2d06e',
+  'REVOKED BY ADMIN KABUPATEN':'#dc907e',
+  'APPROVED BY ADMIN KABUPATEN':'#66c3a3',
+  'REJECTED BY ADMIN KABUPATEN':'#d5af69',
+  'COMPLETED BY ADMIN KABUPATEN':'#55b9b6',
+  'REVOKED BY ADMIN PROVINSI':'#b5a1dc',
+  'APPROVED BY ADMIN PROVINSI':'#80b3bd',
+  'REJECTED BY ADMIN PROVINSI':'#d3a3b6',
+  'COMPLETED BY ADMIN PROVINSI':'#789fca',
+  'STATUS TIDAK TERSEDIA':'#b7c6d7',
+  'STATUS BELUM DIRINCI':'#a4b5c9'
+};
+const BI_STATUS_PRIORITY=Object.keys(BI_STATUS_COLORS);
+function biRawCode(value){
+  return String(value||'').trim().replace(/\s+/g,' ').toUpperCase()||'STATUS TIDAK TERSEDIA';
+}
+function biStatusColor(status){
+  const code=biRawCode(status);
+  if(Object.prototype.hasOwnProperty.call(BI_STATUS_COLORS,code))return BI_STATUS_COLORS[code];
+  // New FASIH stages are visually distinct yet remain muted; stable across refreshes.
+  let hash=2166136261;
+  for(const ch of code){hash^=ch.charCodeAt(0);hash=Math.imul(hash,16777619);}
+  const hue=((hash>>>0)*137.508)%360;
+  const sat=49+((hash>>>8)&7);
+  const light=70+((hash>>>16)&7);
+  return 'hsl('+hue.toFixed(1)+' '+sat+'% '+light+'%)';
+}
+function biRawStatusStats(rows){
+  const raw=new Map();
+  rows.forEach(row=>{
+    const code=biRawCode(row.status);
+    raw.set(code,(raw.get(code)||0)+1);
+  });
+  return [...raw].sort(([a],[b])=>{
+    const pa=BI_STATUS_PRIORITY.indexOf(a),pb=BI_STATUS_PRIORITY.indexOf(b);
+    return (pa<0?BI_STATUS_PRIORITY.length:pa)-(pb<0?BI_STATUS_PRIORITY.length:pb)||
+      a.localeCompare(b,'id');
+  }).map(([label,count])=>({label,count,color:biStatusColor(label)}));
+}
 function biStatusBucket(value){
   const s=String(value||'').trim().toUpperCase();
   if(s==='OPEN')return 'open';
@@ -245,17 +290,21 @@ function biMarkListContent(survey){
 
 function biSurveyList(){return surveiUrutDeadline().filter(surveiMasihAktif);}
 function biBar(rows,label){
-  const counts=biCounts(rows);
-  const segments=biBuckets.map(b=>{
-    const n=counts[b.id];if(!n)return '';
-    const width=(n/rows.length*100).toFixed(3);
-    return '<span class="bi-seg" style="width:'+width+'%;background:'+b.color+'" title="'+esc(b.label+': '+n)+'"></span>';
+  const states=biRawStatusStats(rows);
+  const segments=states.map(status=>{
+    if(!status.count||!rows.length)return '';
+    const width=(status.count/rows.length*100).toFixed(3);
+    return '<span class="bi-seg" style="width:'+width+'%;background:'+status.color+
+      '" title="'+esc(status.label+': '+status.count)+'"></span>';
   }).join('');
-  return '<span class="bi-stack" role="img" aria-label="'+esc(label+' — '+biBuckets.map(b=>b.label+': '+counts[b.id]).join('; '))+'">'+segments+'</span>';
+  return '<span class="bi-stack" role="img" aria-label="'+esc(label+' — '+
+    states.map(s=>s.label+': '+s.count).join('; '))+'">'+segments+'</span>';
 }
-function biLegend(){
-  return '<div class="bi-legend">'+biBuckets.map(b=>
-    '<span><i style="background:'+b.color+'"></i>'+esc(b.label)+'</span>').join('')+'</div>';
+function biLegend(rows){
+  const states=biRawStatusStats(rows||DATA);
+  return '<div class="bi-legend bi-legend-raw" role="list" aria-label="Legenda status FASIH">'+
+    states.map(s=>'<span role="listitem" title="'+esc(s.label)+'"><i style="background:'+s.color+
+      '"></i>'+esc(s.label)+'</span>').join('')+'</div>';
 }
 function biSummarySurveyList(){
   // Ranking utama: belum 100% di kiri, sudah 100% di kanan.
@@ -370,7 +419,7 @@ function biPanel(rows,key){
     '<small>Urutan: '+orderLabel+'</small></div>'+
     '<div class="bi-panel-tools"><small>'+biRoleNames(rows,key).length+' petugas</small>'+
     biUnitControl(key)+'</div></div>'+
-    biRoleContent(rows,key)+(biView.mode==='grafik'?biLegend():'')+'</section>';
+    biRoleContent(rows,key)+biLegend(rows)+'</section>';
 }
 function biKpis(rows){
   const c=biCounts(rows);
@@ -445,7 +494,7 @@ function biOverview(){
         '<span class="bi-name">'+esc(survey)+'</span>'+biBar(rows,survey)+
         '<span class="bi-row-stat"><strong>'+biUnitText(submitted,rows.length,'overview')+'</strong>'+
           '<span>Sudah Submit</span></span></button>';
-    }).join('')+'</div>'+biLegend()+'</div>';
+    }).join('')+'</div>'+biLegend(DATA.filter(r=>surveys.includes(r.survei)))+'</div>';
 }
 
 
@@ -572,7 +621,7 @@ function biPopupPaint(){
         return biPopupGroupButton(person,group,scope,attrs,meta);
       }).join('')+'</div>';
   }
-  content+=biLegend();
+  content+=biLegend(rows);
   document.getElementById('biProgressBody').innerHTML=content;
 }
 function biPopupOpen(view,survey,trigger){
@@ -595,7 +644,7 @@ function biPopupPaintPmlPeople(){
     '<div class="bi-popup-group-list">'+pairs.map((entry,i)=>
       biPopupGroupButton(entry.ppl,entry.rows,'cards',
         'data-bi-popup-pml-pair="'+i+'"','')
-    ).join('')+'</div>'+biLegend()+
+    ).join('')+'</div>'+biLegend(rows)+
     '<div class="bi-pml-card bi-popup-report-export"><div class="bi-popup-export-line">'+
       '<span>Laporan PPL</span>'+biExportButtons(survey,pml)+'</div>'+
       '<p class="bi-feedback" role="status" aria-live="polite"></p></div>';
@@ -611,7 +660,7 @@ function biPopupOpenPml(pml,trigger){
   if(!dialog.open)dialog.showModal();
 }
 function biPopupDetailHtml(rows,title,context){
-  const n=rows.length,c=biCounts(rows);
+  const n=rows.length,c=biCounts(rows),statuses=biRawStatusStats(rows);
   return '<div class="bi-popup-detail-subtitle">'+esc(context)+'</div>'+
     '<div class="bi-popup-stats-grid">'+
       '<div><span>Total Assignment</span><strong>'+n+'</strong></div>'+
@@ -620,13 +669,13 @@ function biPopupDetailHtml(rows,title,context){
     '</div>'+
     '<div class="bi-popup-status-heading"><strong>Komposisi Status FASIH</strong></div>'+
     '<div class="bi-popup-mainbar">'+biBar(rows,title)+'</div>'+
-    '<div class="bi-popup-status-list">'+biBuckets.map(bucket=>{
-      const count=c[bucket.id],pct=n?percent(count,n):'—';
+    '<div class="bi-popup-status-list">'+statuses.map(status=>{
+      const count=status.count,pct=n?percent(count,n):'—';
       return '<div class="bi-popup-status-item">'+
-        '<span class="bi-popup-status-dot" style="background:'+bucket.color+'"></span>'+
-        '<span class="bi-popup-status-label">'+esc(bucket.label)+'</span>'+
+        '<span class="bi-popup-status-dot" style="background:'+status.color+'"></span>'+
+        '<span class="bi-popup-status-label">'+esc(status.label)+'</span>'+
         '<span class="bi-popup-status-track"><span style="width:'+(n?count/n*100:0).toFixed(3)+
-          '%;background:'+bucket.color+'"></span></span>'+
+          '%;background:'+status.color+'"></span></span>'+
         '<strong>'+pct+'</strong><small>'+count+' / '+n+'</small></div>';
     }).join('')+'</div>'+
     '';
@@ -758,8 +807,9 @@ function biCanvasPage(survey,pml,pairs,pageIndex,pages,totalCounts){
     biCanvasText(ctx,biUnitText(c.submitted,entry.rows.length,pml===null?'report':'cards'),barX,y+19,barW);
     ctx.fillStyle='#dce5f1';ctx.fillRect(barX,barY,barW,barH);
     let left=0;
-    for(const b of biBuckets){const n=c[b.id];if(!n)continue;
-      const length=barW*n/entry.rows.length;ctx.fillStyle=b.color;
+    for(const status of biRawStatusStats(entry.rows)){
+      if(!status.count)continue;
+      const length=barW*status.count/entry.rows.length;ctx.fillStyle=status.color;
       ctx.fillRect(barX+left,barY,length,barH);left+=length;
     }
     ctx.fillStyle='#184875';biCanvasText(ctx,entry.pml,1303,y+28,300);
