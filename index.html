@@ -1273,6 +1273,7 @@
       if(focus){const heading=view.querySelector('h1');if(heading)heading.focus({preventScroll:true});}
     }
 
+    let markPanelRequested=false;
     document.getElementById('openSurveyAdmin').addEventListener('click',async()=>{
       const modal=document.getElementById('surveyAdminModal');
       const frame=document.getElementById('surveyAdminFrame');
@@ -1287,8 +1288,11 @@
         const url=String(cfg.admin_webapp_url||'').trim();
         const ok=url.startsWith('https://script.google.com/macros/s/') && /\/exec([?].*)?$/.test(url);
         if(!ok)return;
-        setup.hidden=true;frame.hidden=false;frame.src=url;
-        const external=document.getElementById('surveyAdminExternal');external.href=url;external.style.display='inline';
+        const target=new URL(url);
+        if(markPanelRequested)target.searchParams.set('mark_panel','1');
+        markPanelRequested=false;
+        setup.hidden=true;frame.hidden=false;frame.src=target.href;
+        const external=document.getElementById('surveyAdminExternal');external.href=target.href;external.style.display='inline';
       }catch(e){console.warn('Panel admin belum terhubung:',e.message)}
     });
     document.getElementById('closeSurveyAdmin').addEventListener('click',()=>document.getElementById('surveyAdminModal').close());
@@ -1304,7 +1308,11 @@
       if(exportButton){if(!exportButton.disabled)handleExport(exportButton);return;}
       if(event.target.closest('#retry')){loadData();return;}
       const markButton=event.target.closest('button[data-bi-open-marks]');
-      if(markButton){document.getElementById('openSurveyAdmin').click();return;}
+      if(markButton){
+        markPanelRequested=true;
+        document.getElementById('openSurveyAdmin').click();
+        return;
+      }
       const reportButton=event.target.closest('button[data-bi-export]');
       if(reportButton){biExportProgress(reportButton);return;}
       const unitButton=event.target.closest('button[data-bi-unit]');
