@@ -1240,6 +1240,8 @@
       const exportButton=event.target.closest('button[data-export]');
       if(exportButton){if(!exportButton.disabled)handleExport(exportButton);return;}
       if(event.target.closest('#retry')){loadData();return;}
+      const reportButton=event.target.closest('button[data-bi-export]');
+      if(reportButton){biExportProgress(reportButton);return;}
       const mode=event.target.closest('button[data-bi-mode]');
       if(mode){biView.mode=mode.dataset.biMode;render(false);return;}
       const button=event.target.closest('button[data-level]');

@@ -131,7 +131,8 @@ function biSurveyDashboard(survey){
     '<p class="export-feedback" role="status" aria-live="polite"></p></div></div>';
   const controls=biControls(all);
   const filtered=all.filter(r=>(!biView.pml||name(r,'pml')===biView.pml)&&(!biView.ppl||name(r,'ppl')===biView.ppl));
-  return head+biKpis(all)+controls+biPanel(filtered,'pml')+biPanel(filtered,'ppl');
+  return head+biKpis(all)+controls+biPanel(filtered,'pml')+biPanel(filtered,'ppl')+
+    biPplDetailPanel(survey)+biPmlCards(survey);
 }
 function biOverview(){
   const surveys=biSurveyList();
@@ -143,4 +144,222 @@ function biOverview(){
         '<span class="bi-name">'+esc(survey)+'</span>'+biBar(rows,survey)+
         '<span class="bi-row-stat"><strong>'+pending+' belum</strong>'+rows.length+' assignment</span></button>';
     }).join('')+'</div>'+biLegend()+'</div>';
+}
+
+
+/* Report khusus PPL: pasangan (PPL, PML) tidak boleh digabung lintas pengawas. */
+function biPplPmlPairs(rows){
+  const map=new Map();
+  rows.forEach(row=>{
+    const ppl=name(row,'ppl'),pml=name(row,'pml');
+    const key=JSON.stringify([ppl,pml]);
+    if(!map.has(key))map.set(key,{ppl,pml,rows:[]});
+    map.get(key).rows.push(row);
+  });
+  return [...map.values()].sort((a,b)=>
+    a.pml.localeCompare(b.pml,'id')||a.ppl.localeCompare(b.ppl,'id'));
+}
+function biExportButtons(survey,pml){
+  const attrs=' data-survey="'+esc(survey)+'" data-scope="'+(pml===null?'all':'pml')+'"'+
+    (pml===null?'':' data-pml="'+esc(pml)+'"');
+  const target=pml===null?'semua PPL':'PPL pada PML '+pml;
+  return '<span class="bi-export-buttons">'+
+    '<button type="button" class="bi-export-btn" data-bi-export="png"'+attrs+
+    ' aria-label="Unduh gambar progres '+esc(target)+'">▧ Gambar</button>'+
+    '<button type="button" class="bi-export-btn pdf" data-bi-export="pdf"'+attrs+
+    ' aria-label="Unduh PDF progres '+esc(target)+'">↓ PDF</button></span>';
+}
+function biPplDetailPanel(survey){
+  const rows=DATA.filter(row=>row.survei===survey);
+  const pairs=biPplPmlPairs(rows);
+  return '<section class="bi-panel" aria-label="Rincian progres PPL dengan PML">'+
+    '<div class="bi-role-head"><div><h2>Rincian Progres Seluruh PPL</h2>'+
+    '<small>Nama PML ditampilkan pada kolom paling kanan. Klik Unduh untuk menyimpan laporan.</small></div>'+
+    '<small>'+pairs.length+' pasangan PPL–PML</small></div>'+
+    '<div class="bi-export-banner"><div><h3>Laporan Seluruh PPL · '+esc(survey)+'</h3>'+
+    '<p>Gambar dan PDF memuat progres setiap PPL, status assignment, grafik, serta PML penanggung jawab. Ekspor seluruh survei, tidak terpengaruh filter layar.</p></div>'+
+    biExportButtons(survey,null)+'<p class="bi-feedback" role="status" aria-live="polite"></p></div>'+
+    (pairs.length?'<div class="tablebox"><table class="bi-ppl-table"><thead><tr>'+
+      '<th>PPL</th><th>Assignment</th><th>Belum Submit</th><th>Terkirim</th><th>Disetujui</th><th>Perbaikan</th><th>Progres</th><th>PML</th>'+
+      '</tr></thead><tbody>'+pairs.map(entry=>{
+        const c=biCounts(entry.rows);
+        return '<tr><td>'+esc(entry.ppl)+'</td><td>'+entry.rows.length+'</td><td>'+c.pending+'</td>'+
+          '<td>'+c.sent+'</td><td>'+c.approved+'</td><td>'+c.revision+'</td>'+
+          '<td class="bi-mini-stack">'+biBar(entry.rows,entry.ppl)+'</td>'+
+          '<td>'+esc(entry.pml)+'</td></tr>';
+      }).join('')+'</tbody></table></div>':
+      '<div class="bi-empty">Belum ada PPL untuk survei ini.</div>')+
+    '<p class="bi-ppl-footnote">Jika satu PPL bekerja di bawah dua PML, tampil sebagai dua baris berbeda agar assignment dan progres masing-masing pengawas tidak tertukar. Status Lain tetap dihitung dalam total/grafik.</p></section>';
+}
+function biPmlCards(survey){
+  const rows=DATA.filter(row=>row.survei===survey);
+  const names=biRoleNames(rows,'pml');
+  return '<section class="bi-pml-collection"><div class="bi-role-head"><div>'+
+    '<h2>Progres PPL per PML</h2><small>Pilih kartu untuk melihat PPL binaan. Setiap PML bisa mengunduh laporan sendiri.</small>'+
+    '</div><small>'+names.length+' PML</small></div>'+
+    (names.length?'<div class="bi-pml-grid">'+names.map(pml=>{
+      const group=rows.filter(row=>name(row,'pml')===pml);
+      const pairs=biPplPmlPairs(group),stats=biCounts(group);
+      return '<article class="bi-pml-card"><div class="bi-pml-top"><div><strong>'+esc(pml)+'</strong>'+
+        '<small>'+pairs.length+' PPL · '+group.length+' assignment</small></div>'+
+        '<span class="bi-pml-count">'+stats.pending+' belum submit</span></div>'+
+        biBar(group,pml)+biExportButtons(survey,pml)+
+        '<p class="bi-feedback" role="status" aria-live="polite"></p>'+
+        '<details><summary>Lihat progres '+pairs.length+' PPL</summary>'+
+        pairs.map(item=>{
+          const n=biCounts(item.rows);
+          return '<div class="bi-pml-minirow"><span>'+esc(item.ppl)+'</span>'+
+            '<b>'+n.pending+' belum / '+item.rows.length+'</b></div>';
+        }).join('')+'</details></article>';
+    }).join('')+'</div>':'<div class="bi-empty">Belum ada PML pada survei ini.</div>')+
+    '</section>';
+}
+/* Semua gambar/PDF dibuat secara lokal di browser, tanpa mengirim data ke layanan lain. */
+let biPdfLibPromise;
+function biLoadPdfLib(){
+  if(window.jspdf&&window.jspdf.jsPDF)return Promise.resolve(window.jspdf.jsPDF);
+  if(!biPdfLibPromise){
+    biPdfLibPromise=new Promise((resolve,reject)=>{
+      const script=document.createElement('script');
+      script.src='https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js';
+      script.async=true;
+      script.onload=()=>window.jspdf?.jsPDF?resolve(window.jspdf.jsPDF):reject(new Error('Komponen PDF tidak tersedia.'));
+      script.onerror=()=>reject(new Error('Gagal memuat pustaka PDF. Periksa koneksi internet.'));
+      document.head.appendChild(script);
+    }).catch(err=>{biPdfLibPromise=null;throw err;});
+  }
+  return biPdfLibPromise;
+}
+function biReportName(s){
+  return String(s).normalize('NFKD').replace(/[^A-Za-z0-9_-]+/g,'_').replace(/^_+|_+$/g,'').slice(0,75)||'progres';
+}
+function biCanvasText(ctx,text,x,y,maxWidth){
+  let t=String(text);
+  if(ctx.measureText(t).width<=maxWidth){ctx.fillText(t,x,y);return;}
+  while(t.length>1&&ctx.measureText(t+'…').width>maxWidth)t=t.slice(0,-1);
+  ctx.fillText(t+'…',x,y);
+}
+function biCanvasPage(survey,pml,pairs,pageIndex,pages,totalCounts){
+  const width=1684,height=1191;
+  const canvas=document.createElement('canvas');
+  canvas.width=width;canvas.height=height;
+  const ctx=canvas.getContext('2d',{alpha:false});
+  if(!ctx)throw new Error('Canvas tidak tersedia untuk membuat laporan.');
+  ctx.fillStyle='#ffffff';ctx.fillRect(0,0,width,height);
+  ctx.fillStyle='#174679';ctx.fillRect(0,0,width,160);
+  ctx.fillStyle='#ffffff';ctx.font='bold 38px Arial';ctx.textAlign='left';
+  ctx.fillText('BOLO INPEK  /  PROGRES PPL',58,64);
+  ctx.font='20px Arial';ctx.fillStyle='#dcecff';
+  biCanvasText(ctx,'Survei: '+survey,58,104,1250);
+  biCanvasText(ctx,'Cakupan: '+(pml===null?'Seluruh PPL':('PML '+pml)),58,135,1300);
+  ctx.textAlign='right';ctx.font='bold 24px Arial';ctx.fillStyle='#ffffff';
+  ctx.fillText('BPS KABUPATEN BLORA',1620,55);ctx.textAlign='left';
+  ctx.fillStyle='#edf5ff';ctx.fillRect(58,186,1568,101);
+  const stats=[
+    ['ASSIGNMENT',totalCounts.total],
+    ['BELUM SUBMIT',totalCounts.pending],
+    ['TERKIRIM',totalCounts.sent],
+    ['DISETUJUI',totalCounts.approved],
+    ['PERBAIKAN',totalCounts.revision],
+    ['LAINNYA',totalCounts.other]
+  ];
+  stats.forEach(([label,n],i)=>{
+    const x=75+i*259;
+    ctx.fillStyle='#5c7390';ctx.font='bold 14px Arial';ctx.fillText(label,x,220);
+    ctx.font='bold 30px Arial';ctx.fillStyle=i===1?'#b75c21':'#174679';
+    ctx.fillText(String(n),x,260);
+  });
+  const headings=[
+    ['PPL',68],['TOTAL',355],['BELUM',435],['KIRIM',530],
+    ['SETUJU',625],['REVISI',730],['LAIN',821],['GRAFIK PROGRES',927],['PML',1303]
+  ];
+  ctx.fillStyle='#d9e9fa';ctx.fillRect(58,311,1568,51);
+  ctx.fillStyle='#184574';ctx.font='bold 17px Arial';
+  headings.forEach(([text,x])=>ctx.fillText(text,x,342));
+  const first=pageIndex*17,part=pairs.slice(first,first+17);
+  part.forEach((entry,i)=>{
+    const y=362+i*43;
+    ctx.fillStyle=i%2?'#f6f9fd':'#ffffff';
+    ctx.fillRect(58,y,1568,43);
+    const c=biCounts(entry.rows);
+    ctx.font='18px Arial';ctx.fillStyle='#163e68';
+    biCanvasText(ctx,entry.ppl,68,y+28,266);
+    const values=[entry.rows.length,c.pending,c.sent,c.approved,c.revision,c.other];
+    [355,435,530,625,730,821].forEach((x,j)=>{ctx.fillStyle=j===1?'#ad5520':'#183e63';ctx.fillText(String(values[j]),x,y+28);});
+    const barX=927,barY=y+15,barW=326,barH=14;
+    ctx.fillStyle='#dce5f1';ctx.fillRect(barX,barY,barW,barH);
+    let left=0;
+    for(const b of biBuckets){const n=c[b.id];if(!n)continue;
+      const length=barW*n/entry.rows.length;ctx.fillStyle=b.color;
+      ctx.fillRect(barX+left,barY,length,barH);left+=length;
+    }
+    ctx.fillStyle='#184875';biCanvasText(ctx,entry.pml,1303,y+28,300);
+    ctx.fillStyle='#edf2f8';ctx.fillRect(58,y+42,1568,1);
+  });
+  const footY=1120;
+  ctx.fillStyle='#607991';ctx.font='16px Arial';
+  ctx.fillText('Belum Submit = OPEN / DRAFT   |   Perbaikan = REJECTED / REVOKED',65,footY);
+  ctx.fillText('Data terakhir FASIH: '+(typeof exportTime==='function'?exportTime():'Sesuai monitoring'),65,footY+31);
+  ctx.textAlign='right';ctx.fillStyle='#1c578f';
+  ctx.fillText('Halaman '+(pageIndex+1)+' / '+pages+' · '+pairs.length+' pasangan PPL–PML',1618,footY+31);
+  ctx.textAlign='left';
+  return canvas;
+}
+function biDownloadBlob(blob,filename){
+  if(!blob)throw new Error('Tidak dapat menghasilkan gambar.');
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
+function biCanvasBlob(canvas,type,quality){
+  return new Promise((resolve,reject)=>canvas.toBlob(blob=>
+    blob?resolve(blob):reject(new Error('Ekspor gambar tidak berhasil.')),type,quality));
+}
+async function biExportProgress(button){
+  if(button.disabled)return;
+  const survey=button.dataset.survey;
+  const pml=button.dataset.scope==='pml'?button.dataset.pml:null;
+  const rows=DATA.filter(r=>r.survei===survey&&(pml===null||name(r,'pml')===pml));
+  const pairs=biPplPmlPairs(rows);
+  const feedback=button.closest('.bi-export-banner, .bi-pml-card')?.querySelector('.bi-feedback');
+  const siblings=button.closest('.bi-export-buttons')?.querySelectorAll('button')||[button];
+  if(!pairs.length){if(feedback)feedback.textContent='Belum ada assignment PPL untuk diekspor.';return;}
+  const c=biCounts(rows),summary={...c,total:rows.length};
+  const pages=Math.ceil(pairs.length/17),namePart=biReportName(survey)+'_'+biReportName(pml||'Seluruh_PPL');
+  siblings.forEach(x=>x.disabled=true);
+  if(feedback)feedback.textContent='Menyiapkan laporan '+(button.dataset.biExport==='pdf'?'PDF':'gambar')+' untuk '+pairs.length+' pasangan PPL–PML…';
+  try{
+    if(button.dataset.biExport==='pdf'){
+      const JsPDF=await biLoadPdfLib();
+      const doc=new JsPDF({orientation:'landscape',unit:'mm',format:'a4',compress:true});
+      for(let i=0;i<pages;i++){
+        const canvas=biCanvasPage(survey,pml,pairs,i,pages,summary);
+        if(i>0)doc.addPage('a4','landscape');
+        doc.addImage(canvas.toDataURL('image/jpeg',0.88),'JPEG',0,0,297,210);
+      }
+      doc.save('BOLO_INPEK_Progres_PPL_'+namePart+'.pdf');
+    }else{
+      // Satu gambar tinggi jika memungkinkan; untuk laporan sangat panjang,
+      // beberapa berkas PNG per 5 halaman menghindari batas ukuran canvas Windows.
+      let startPage=0,part=1;
+      while(startPage<pages){
+        const portion=Math.min(5,pages-startPage);
+        const combined=document.createElement('canvas');
+        combined.width=1684;combined.height=1191*portion;
+        const context=combined.getContext('2d',{alpha:false});
+        if(!context)throw new Error('Canvas laporan tidak tersedia.');
+        for(let j=0;j<portion;j++){
+          const pg=biCanvasPage(survey,pml,pairs,startPage+j,pages,summary);
+          context.drawImage(pg,0,j*1191);
+        }
+        const blob=await biCanvasBlob(combined,'image/png');
+        biDownloadBlob(blob,'BOLO_INPEK_Progres_PPL_'+namePart+(pages>5?'_Bagian_'+part:'')+'.png');
+        startPage+=portion;part++;
+      }
+    }
+    if(feedback)feedback.textContent='Laporan berhasil dibuat. Silakan periksa unduhan browser.'+
+      (button.dataset.biExport==='png'&&pages>5?' Laporan panjang dibagi menjadi beberapa gambar.':'');
+  }catch(error){
+    if(feedback)feedback.textContent='Gagal ekspor: '+(error.message||String(error));
+  }finally{siblings.forEach(x=>x.disabled=false);}
 }

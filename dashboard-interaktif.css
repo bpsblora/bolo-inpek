@@ -67,3 +67,37 @@
 .bi-survey-head{max-width:none!important}
 @media(max-width:900px){.bi-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.bi-bar-row{grid-template-columns:minmax(90px,1fr) minmax(100px,1.5fr) 82px}}
 @media(max-width:600px){.bi-summary,.bi-filters,.bi-panel,.bi-survey-head{padding:15px}.bi-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.bi-bar-row{grid-template-columns:minmax(0,1fr) 95px}.bi-name{grid-column:1;grid-row:1}.bi-row-stat{grid-column:2;grid-row:1}.bi-stack{grid-column:1/-1;grid-row:2}.bi-select-row select{min-width:140px;max-width:43vw}}
+
+
+/* Ekspor progres PPL dan kartu per PML — nama PML selalu kolom paling kanan. */
+.bi-export-banner{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;background:#f1f7ff;border:1px solid #d1e3f6;border-radius:12px;padding:14px 16px;margin:0 0 15px}
+.bi-export-banner h3{margin:0;color:#163e72;font-size:16px}
+.bi-export-banner p{font-size:12px;color:#607994;margin:5px 0 0;max-width:610px}
+.bi-export-buttons{display:flex;gap:7px;flex-wrap:wrap}
+.bi-export-btn{font-size:12px;font-weight:800;padding:9px 12px;border:1px solid #bdd4ee;border-radius:9px;background:white;color:#174978;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+.bi-export-btn:hover{background:#e5f1ff;border-color:#488bcb}
+.bi-export-btn:disabled{opacity:.6;cursor:wait}
+.bi-export-btn.pdf{background:#174978;color:white;border-color:#174978}
+.bi-export-btn.pdf:hover{background:#103b66}
+.bi-feedback{flex-basis:100%;font-size:12px;color:#536e87;min-height:0;margin:1px 0 0}
+.bi-feedback:empty{display:none}
+.bi-ppl-table th:last-child,.bi-ppl-table td:last-child{background:#edf5ff;color:#194b7b;font-weight:750}
+.bi-ppl-table th,.bi-ppl-table td{padding:11px 13px}
+.bi-ppl-table td{font-size:12px}
+.bi-mini-stack{min-width:145px}
+.bi-pml-collection{margin:0 0 14px}
+.bi-pml-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.bi-pml-card{border:1px solid #d7e4f3;border-radius:13px;background:#fff;padding:15px 16px;box-shadow:0 3px 12px #1747770b;min-width:0}
+.bi-pml-top{display:flex;justify-content:space-between;gap:12px;align-items:start;margin-bottom:8px}
+.bi-pml-top strong{display:block;color:#174474;font-size:14px;overflow-wrap:anywhere}
+.bi-pml-top small{display:block;color:#75879c;font-size:11px;margin-top:4px}
+.bi-pml-count{white-space:nowrap;font-size:11px;color:#a4541c;background:#fff4e8;border-radius:7px;padding:7px;font-weight:800}
+.bi-pml-card .bi-stack{margin:9px 0 12px}
+.bi-pml-card .bi-export-buttons{margin:9px 0}
+.bi-pml-card details{border-top:1px solid #e7eef6;padding-top:9px;margin-top:9px}
+.bi-pml-card summary{font-size:12px;font-weight:800;color:#22588a;cursor:pointer;padding:5px 2px}
+.bi-pml-minirow{display:flex;align-items:center;justify-content:space-between;gap:9px;border-top:1px dashed #e0e8f1;padding:7px 0;color:#435b75;font-size:12px}
+.bi-pml-minirow span:first-child{overflow-wrap:anywhere;min-width:0}
+.bi-pml-minirow b{font-variant-numeric:tabular-nums;white-space:nowrap}
+.bi-ppl-footnote{font-size:11px;color:#6f8399;line-height:1.6;margin:12px 0 0}
+@media(max-width:780px){.bi-pml-grid{grid-template-columns:1fr}.bi-export-banner{padding:13px}.bi-export-btn{font-size:11px}}
