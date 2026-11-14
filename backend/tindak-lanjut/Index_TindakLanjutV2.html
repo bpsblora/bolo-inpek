@@ -1,0 +1,992 @@
+<!doctype html><html lang="id"><head><base target="_top"><meta name="viewport" content="width=device-width, initial-scale=1"><style>
+*{box-sizing:border-box}body{margin:0;background:#f3f7fc;color:#173858;font:14px/1.5 Arial,sans-serif}header{background:#173858;color:white;padding:18px 22px}h1{font-size:21px;margin:0}h2{font-size:18px;margin:0 0 12px}main{max-width:1100px;padding:20px;margin:auto}.panel{padding:18px;background:white;border:1px solid #cddced;border-radius:12px;margin-bottom:16px}label{display:block;font-weight:600;margin:10px 0 6px}input,select,textarea,button{font:inherit}input:not([type=checkbox]),select,textarea{width:100%;padding:10px;border:1px solid #aabed5;border-radius:7px;background:white;color:#173858}textarea{min-height:100px;resize:vertical}button,.btn{display:inline-block;padding:10px 14px;border:1px solid #173858;border-radius:8px;background:#173858;color:white;text-decoration:none;cursor:pointer;margin:5px 5px 5px 0}button.secondary,.btn.secondary{background:white;color:#173858}button:disabled{opacity:.5;cursor:not-allowed}button.danger{background:#9c2636;border-color:#9c2636}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.grid button{text-align:left;min-height:85px;margin:0}.muted{color:#61758a;font-size:12px}.error{color:#a01c30}#notice{white-space:pre-wrap}#notice:empty{display:none}#message{min-height:260px}.choice{display:flex;align-items:flex-start;gap:8px;padding:10px;background:#edf4ff;border-radius:7px;font-weight:400}.choice input{margin-top:5px}.record{border-bottom:1px solid #d6e1ed;padding:12px 0}.record p{margin:4px 0;white-space:pre-wrap;overflow-wrap:anywhere}pre{white-space:pre-wrap;font:inherit}#greeting{margin:5px 0 0}#context{font-weight:bold}[hidden]{display:none!important}:focus-visible{outline:3px solid #397cf5;outline-offset:2px}@media(max-width:600px){main{padding:10px}.panel{padding:12px}.grid{grid-template-columns:1fr}.grid button{min-height:50px}}
+
+.survey-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.survey-heading h2 {
+  margin: 0;
+}
+
+#logout.logout-button {
+  margin: 0;
+  flex-shrink: 0;
+  background: #b42332;
+  border-color: #b42332;
+  color: #ffffff;
+}
+
+#logout.logout-button:hover {
+  background: #8f1c28;
+  border-color: #8f1c28;
+}
+
+.pengingat-dropdown > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 18px;
+  font-weight: bold;
+  color: #173858;
+}
+
+.pengingat-dropdown > summary::-webkit-details-marker {
+  display: none;
+}
+
+.pengingat-dropdown > summary:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 5px;
+  border-radius: 4px;
+}
+
+.panah-pengingat {
+  flex-shrink: 0;
+  font-size: 14px;
+  transition: transform 0.2s ease;
+}
+
+.pengingat-dropdown[open] .panah-pengingat {
+  transform: rotate(180deg);
+}
+
+.pengingat-dropdown > #reminders {
+  margin-top: 20px;
+}
+
+
+/* BOLO INPEK: dialog konfirmasi terpadu, bukan alert bawaan browser. */
+.tl-confirm-dialog{
+  border:0;border-radius:21px;padding:0;
+  width:min(510px,calc(100vw - 26px));max-height:min(88vh,750px);
+  overflow:hidden;background:#fff;color:#193d60;
+  box-shadow:0 26px 80px rgba(12,43,83,.3);
+}
+.tl-confirm-dialog::backdrop{background:rgba(12,38,69,.64);backdrop-filter:blur(4px)}
+.tl-confirm-dialog[open]{animation:tlConfirmAppear .24s cubic-bezier(.2,.75,.35,1) both}
+@keyframes tlConfirmAppear{from{opacity:0;transform:translateY(13px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+.tl-confirm-shell{padding:24px 25px 23px;max-height:88vh;overflow:auto;
+  background:radial-gradient(circle at 94% 5%,#e7f2ff 0,transparent 40%),#fff}
+.tl-confirm-row{display:flex;align-items:center;gap:13px;margin-bottom:12px}
+.tl-confirm-symbol{display:grid;place-items:center;width:47px;height:47px;flex-shrink:0;
+  font-size:24px;font-weight:800;border-radius:15px;color:#155d9b;background:#e6f2ff;
+  border:1px solid #d2e5fa}
+.tl-confirm-dialog[data-tone="warning"] .tl-confirm-symbol{color:#9c6421;background:#fff1dc;border-color:#f1d5a1}
+.tl-confirm-kicker{display:block;font-size:10px;letter-spacing:.075em;
+  font-weight:850;text-transform:uppercase;color:#5480a9;margin-bottom:4px}
+.tl-confirm-dismiss{margin:0 0 0 auto;border:0;color:#5b7692;background:#eef4fa;border-radius:10px;
+  padding:4px;width:33px;height:33px;font-size:21px;line-height:1;cursor:pointer}
+.tl-confirm-dismiss:hover{background:#dceaf8;color:#174774}
+.tl-confirm-dialog h2{font-size:22px;line-height:1.24;letter-spacing:-.025em;
+  color:#143c69;margin:4px 0 14px;font-weight:850}
+.tl-confirm-target{display:block;padding:12px 14px;background:#ecf5ff;
+  border:1px solid #d6e5f7;border-left:4px solid #2d79c7;border-radius:11px;
+  color:#204c78;font-size:14px;font-weight:800;overflow-wrap:anywhere}
+.tl-confirm-dialog[data-tone="warning"] .tl-confirm-target{
+  background:#fff7ea;border-color:#f0dfc5;border-left-color:#c98538}
+.tl-confirm-text{margin:14px 0 10px;color:#385a78;font-size:13px;line-height:1.7}
+.tl-confirm-note{display:flex;gap:9px;margin:12px 0 17px;padding:11px 12px;
+  background:#f1faf4;border:1px solid #d1eadb;color:#2b6845;
+  border-radius:11px;font-size:12px;line-height:1.55}
+.tl-confirm-dialog[data-tone="warning"] .tl-confirm-note{
+  background:#fff9ee;border-color:#f1dfbb;color:#896121}
+.tl-confirm-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+.tl-confirm-actions button{margin:0;min-width:116px;font-weight:800;padding:11px 15px;
+  border-radius:10px;box-shadow:none}
+.tl-confirm-actions .tl-action-cancel{background:#f0f5fb;color:#2b5780;border:1px solid #d5e3f0}
+.tl-confirm-actions .tl-action-cancel:hover{background:#e0edf8}
+.tl-confirm-actions .tl-action-go{background:#2066ab;border:1px solid #2066ab;color:#fff}
+.tl-confirm-actions .tl-action-go:hover{background:#145087}
+.tl-confirm-dialog[data-tone="warning"] .tl-action-go{background:#ac6233;border-color:#ac6233}
+.tl-confirm-dialog[data-tone="warning"] .tl-action-go:hover{background:#874923}
+.tl-confirm-dialog :focus-visible{outline:3px solid #efa54c;outline-offset:3px}
+#notice:not(:empty){padding:11px 14px;margin:12px 0;border:1px solid #c9dff5;
+  border-left:4px solid #2d7abd;border-radius:10px;background:#eef6ff;
+  color:#295a85;font-weight:700}
+#notice.error:not(:empty){background:#fff1f0;border-color:#f0c7c5;
+  border-left-color:#bd4c52;color:#983844}
+.tl-copy-manual{margin-top:11px;padding:12px;border-radius:10px;
+  background:#f0f6ff;border:1px solid #cee0f3}
+.tl-copy-manual textarea{min-height:90px}
+@media(max-width:480px){.tl-confirm-shell{padding:19px 16px}
+  .tl-confirm-dialog h2{font-size:19px}.tl-confirm-actions{flex-direction:column-reverse}
+  .tl-confirm-actions button{width:100%}}
+@media(prefers-reduced-motion:reduce){.tl-confirm-dialog[open]{animation:none}}
+
+</style></head><body>
+<header><h1>Tindak Lanjut BOLO INPEK</h1><p id="greeting">Masuk Sebagai Admin INPEK</p></header>
+<main>
+  <input type="hidden" id="modeHalaman" value="<?= modeAwal ?>">
+
+<section id="halamanSelesai" class="panel" hidden>
+  <div class="survey-heading">
+    <h2>SURVEI INPEK SELESAI</h2>
+    <button type="button" id="keluarSelesai" class="logout-button">
+      Keluar
+    </button>
+  </div>
+
+  <p class="muted">Survei yang sudah ditutup dapat diaktifkan kembali tanpa menghapus arsip lama. Setelah dipulihkan, perbarui dashboard monitoring untuk menampilkan perubahan.</p>
+  <div id="daftarSurveiSelesai"></div>
+</section>
+  
+  <p id="notice" role="status" aria-live="polite"></p>
+<section id="login" class="panel"><h2>Masukkan email</h2><form id="loginForm"><label for="email">Email Admin INPEK BPS Blora</label><input id="email" type="email" autocomplete="email" required placeholder="nama@bps.go.id"><button id="loginBtn">Masuk</button></form></section>
+<div id="app" hidden>
+<div class="panel">
+  <div class="survey-heading">
+    <h2 id="context"></h2>
+
+    <button type="button" id="logout" class="logout-button">
+      Keluar
+    </button>
+  </div>
+
+  <select id="survey" hidden aria-hidden="true"></select>
+
+  <p id="sourceTime" class="muted"></p>
+</div>
+<nav class="grid" aria-label="Menu tindak lanjut"><button id="closeMenu">Arsipkan &amp; Tutup Survei</button><button id="remindMenu">Ingatkan Petugas</button><button id="noteMenu">Tambahkan Catatan Survei</button></nav>
+<details class="panel pengingat-dropdown" style="margin-top:16px">
+  <summary>
+    <span id="reminderTitle">
+      PENGINGAT OPERATOR · 0 PERLU DITINDAKLANJUTI
+    </span>
+    <span class="panah-pengingat" aria-hidden="true">▼</span>
+  </summary>
+
+  <div id="reminders"></div>
+</details>
+<section id="remindPanel" class="panel" hidden><h2>Ingatkan Petugas</h2><label for="person">Petugas</label><select id="person"></select><p id="phone"></p><div id="choices"></div><button id="draftBtn">Susun pesan pengingat</button>
+<div id="draftPanel" hidden><label for="message">
+  Pesan WhatsApp
+  <span style="font-weight: normal; font-style: italic;">
+    — Dapat Disesuaikan
+  </span>
+</label><textarea id="message"></textarea>
+
+<a id="wa"
+   class="btn"
+   target="_blank"
+   rel="noopener noreferrer">
+  Kirim via WhatsApp
+</a>
+
+<button type="button"
+        class="secondary"
+        onclick="document.getElementById('bantuanKirim').hidden = false">
+  Tidak berhasil membuka WhatsApp?
+</button>
+
+<div id="bantuanKirim" hidden>
+  <p>
+    Tidak terhubung ke WhatsApp? Salin nomor dan pesan,
+    lalu kirim secara manual.
+  </p>
+
+  <p id="nomorTujuanManual"></p>
+
+  <button type="button" class="secondary" id="copyMsg">
+    Salin pesan
+  </button>
+
+  <button type="button" class="secondary" id="copyPhone">
+    Salin nomor
+  </button>
+  <div id="copyManualBox" class="tl-copy-manual" hidden>
+    <label for="copyManualText">Salin manual menggunakan Ctrl+C</label>
+    <textarea id="copyManualText" readonly aria-describedby="copyManualHelp"></textarea>
+    <p id="copyManualHelp" class="muted">Teks telah dipilih. Tekan Ctrl+C, lalu tempelkan ke WhatsApp.</p>
+  </div>
+</div>
+
+<label class="choice"><input type="checkbox" id="sent">Saya sudah mengirim pesan ini melalui WhatsApp.</label><label for="followDate">Ingatkan saya untuk mengecek balasan</label><input type="datetime-local" id="followDate"><button id="saveSent">Konfirmasi chat sudah terkirim</button></div></section>
+<section id="notePanel" class="panel" hidden><h2>Catatan dan Hasil Konfirmasi</h2><p id="chainInfo" class="muted"></p><label for="assignment">Cakupan catatan</label><select id="assignment"></select><label for="note">Catatan / hasil konfirmasi</label><textarea id="note"></textarea><label for="plan">Rencana perbaikan</label><textarea id="plan"></textarea><label for="followStatus">Status tindak lanjut</label><select id="followStatus"><option value="MENUNGGU_BALASAN">Menunggu balasan</option><option value="DALAM_PERBAIKAN">Dalam perbaikan</option><option value="SELESAI">Selesai</option></select><label for="target">Target selesai (opsional)</label><input id="target" type="datetime-local"><label for="nextDate">Pengingat berikutnya</label><input id="nextDate" type="datetime-local"><button id="saveNote">Simpan catatan</button><button id="newNote" class="secondary">Catatan baru</button></section>
+<section id="closePanel" class="panel" hidden><h2>Arsipkan dan Tutup Periode Survei</h2><pre id="closeSummary"></pre><label for="closeNote">Catatan penutupan</label><textarea id="closeNote"></textarea><label class="choice"><input type="checkbox" id="closeConfirm">Saya sudah memeriksa ringkasan dan ingin menutup periode survei ini. Catatan aktif dibersihkan setelah arsip berhasil diverifikasi.</label><button id="closeBtn" class="danger">Arsipkan dan tutup survei</button><div id="archiveResult"></div></section>
+<section class="panel"><h2>Riwayat catatan survei terpilih</h2><div id="history"></div></section>
+</div></main>
+<div id="initial" hidden data-survei="<?= surveiAwal ?>" data-periode="<?= periodeAwal ?>"></div>
+<dialog id="tlConfirmDialog" class="tl-confirm-dialog" aria-labelledby="tlConfirmHeading" aria-describedby="tlConfirmDetail tlConfirmMessage">
+  <div class="tl-confirm-shell">
+    <div class="tl-confirm-row">
+      <span class="tl-confirm-symbol" id="tlConfirmSymbol" aria-hidden="true">↺</span>
+      <div><span class="tl-confirm-kicker" id="tlConfirmKicker">KONFIRMASI SURVEI</span></div>
+      <button type="button" class="tl-confirm-dismiss" id="tlConfirmDismiss" aria-label="Batalkan dan tutup konfirmasi">×</button>
+    </div>
+    <h2 id="tlConfirmHeading">Konfirmasi tindakan</h2>
+    <div class="tl-confirm-target" id="tlConfirmDetail"></div>
+    <p class="tl-confirm-text" id="tlConfirmMessage"></p>
+    <div class="tl-confirm-note"><span aria-hidden="true">ⓘ</span><span id="tlConfirmNote"></span></div>
+    <div class="tl-confirm-actions">
+      <button type="button" class="tl-action-cancel" id="tlConfirmCancel">Batal</button>
+      <button type="button" class="tl-action-go" id="tlConfirmProceed">Lanjutkan</button>
+    </div>
+  </div>
+</dialog>
+<script>
+  
+const $=id=>document.getElementById(id);let konteksCatatanKirim = null;let token='',data=null,draft=null,sendId='',noteId='',chain=null,busy=false,initialUsed=false;
+const initial=$('initial').dataset;const key=x=>JSON.stringify([x.survey_id,x.survey_period_id]);
+const reqId=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
+const fmt=x=>{if(!x)return 'Belum tercatat';const d=new Date(x);return isNaN(d)?x:d.toLocaleString('id-ID',{timeZone:'Asia/Jakarta'})+' WIB';};
+const dateInput=(days=1)=>{const d=new Date(Date.now()+days*86400000);return new Date(d-d.getTimezoneOffset()*60000).toISOString().slice(0,16);};
+const iso=id=>$(id).value?new Date($(id).value).toISOString():'';
+
+/** Konfirmasi bergaya BOLO INPEK. Menutup dialog (Esc/Batal) = tidak melakukan tindakan. */
+function tlConfirm({judul,target,pesan,catatan,tombol='Lanjutkan',tone='restore'}){
+  const d=$('tlConfirmDialog');
+  if(d.open)return Promise.resolve(false);
+  d.dataset.tone=tone==='warning'?'warning':'restore';
+  $('tlConfirmSymbol').textContent=tone==='warning'?'!':'↺';
+  $('tlConfirmKicker').textContent=tone==='warning'?'TINDAKAN PENGARSIPAN':'PEMULIHAN SURVEI';
+  $('tlConfirmHeading').textContent=judul;
+  $('tlConfirmDetail').textContent=target;
+  $('tlConfirmMessage').textContent=pesan;
+  $('tlConfirmNote').textContent=catatan;
+  $('tlConfirmProceed').textContent=tombol;
+  const returnFocus=document.activeElement;
+  return new Promise(resolve=>{
+    d.onclose=()=>{
+      const approved=d.returnValue==='approved';
+      d.onclose=null;d.oncancel=null;
+      $('tlConfirmProceed').onclick=null;
+      $('tlConfirmCancel').onclick=null;
+      $('tlConfirmDismiss').onclick=null;
+      if(returnFocus&&returnFocus.isConnected)returnFocus.focus({preventScroll:true});
+      resolve(approved);
+    };
+    d.oncancel=event=>{event.preventDefault();d.close('cancel');};
+    $('tlConfirmProceed').onclick=()=>d.close('approved');
+    $('tlConfirmCancel').onclick=()=>d.close('cancel');
+    $('tlConfirmDismiss').onclick=()=>d.close('cancel');
+    d.showModal();
+    $('tlConfirmCancel').focus();
+  });
+}
+
+function notice(s,error=false){$('notice').textContent=s;$('notice').className=error?'error':'';}
+function rpc(fn,...args){return new Promise((resolve,reject)=>google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[fn](...args));}
+async function action(fn){if(busy)return;busy=true;document.querySelectorAll('button').forEach(b=>b.disabled=true);try{await fn();}catch(e){notice(e.message||String(e),true);}finally{busy=false;document.querySelectorAll('button').forEach(b=>b.disabled=false);if(data)$('closeMenu').disabled=data.operator.peran!=='ADMIN';aturKonfirmasiKirim();}}
+function option(select,value,label){const o=document.createElement('option');o.value=value;o.textContent=label;select.append(o);}
+function selected(){return data?.survei.find(s=>key(s)===$('survey').value);}
+function switchPanel(id) {
+  const tujuan = $(id);
+
+  if (!tujuan) {
+    throw Error(
+      'Panel "' + id + '" tidak ditemukan pada HTML.'
+    );
+  }
+
+  for (const nama of [
+    'remindPanel',
+    'notePanel',
+    'closePanel'
+  ]) {
+    const panel = $(nama);
+
+    if (panel) {
+      panel.hidden = nama !== id;
+    }
+  }
+
+  tujuan.hidden = false;
+
+  requestAnimationFrame(() => {
+    tujuan.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start'
+    });
+  });
+}
+function clearDraft(){draft=null;sendId='';$('draftPanel').hidden=true;$('sent').checked=false;}
+async function load(){const prev=$('survey').value;data=await rpc('apiData',token);
+
+// Jika dibuka dari kartu dashboard, batasi ke periode tersebut.
+if (initial.periode) {
+  data.survei = data.survei.filter(s =>
+    s.survey_period_id === initial.periode &&
+    (!initial.survei || s.nama_survei === initial.survei)
+  );
+
+  const kunciDiizinkan = new Set(data.survei.map(key));
+
+  data.assignment = data.assignment.filter(a =>
+    kunciDiizinkan.has(key(a))
+  );
+
+  data.riwayat = data.riwayat.filter(r =>
+    kunciDiizinkan.has(key(r))
+  );
+
+  data.pengingat = data.pengingat.filter(r =>
+    kunciDiizinkan.has(key(r))
+  );
+}
+
+$('survey').replaceChildren();data.survei.forEach(s=>option($('survey'),key(s),s.nama_survei+' — '+s.nama_periode+(s.status_operasional==='PENGARSIPAN'?' (arsip perlu dilanjutkan)':'')));let match=data.survei.find(s=>key(s)===prev);
+if(!initialUsed){match=data.survei.find(s=>s.survey_period_id===initial.periode&&(!initial.survei||s.nama_survei===initial.survei));initialUsed=true;if(initial.periode&&!match)notice('Survei dari dashboard sudah ditutup atau tidak ditemukan. Pilih survei aktif lainnya.');}
+if(match)$('survey').value=key(match);$('greeting').textContent='Halo '+(data.operator.peran==='ADMIN'?'Admin':'Operator')+' Bolo INPEK, '+data.operator.nama+'!';$('closeMenu').disabled=data.operator.peran!=='ADMIN';$('person').replaceChildren();option($('person'),'','— Pilih petugas —');[...data.petugas].sort((a,b)=>a.nama.localeCompare(b.nama,'id')).forEach(p=>option($('person'),p.petugas_id,p.nama));renderSurvey();renderReminders();}
+function renderSurvey(){clearDraft();chain=null;noteId='';for(const p of ['remindPanel','notePanel','closePanel'])$(p).hidden=true;const s=selected();$('context').textContent=s?s.nama_survei+' — '+s.nama_periode:'Tidak ada survei aktif.';$('sourceTime').textContent=s?'Data sumber: '+[...new Set(data.assignment.filter(a=>key(a)===key(s)).map(a=>a.waktu_data_monitoring))].map(fmt).join(' | '):'';renderHistory();renderPerson();}
+function renderPerson() {
+  clearDraft();
+  $("choices").replaceChildren();
+  $("phone").textContent = "";
+
+  const survei = selected();
+  const pilihanSebelumnya = $("person").value;
+
+  $("person").replaceChildren();
+  option($("person"), "", "— Pilih petugas —");
+
+  if (!survei || survei.status_operasional !== "AKTIF") {
+    return;
+  }
+
+  // Hanya pekerjaan pada survei dan periode yang dipilih.
+  const pekerjaanSurvei = data.assignment.filter(
+    a => key(a) === key(survei)
+  );
+
+  // Tentukan peran masing-masing petugas pada survei ini.
+  const peranMenurutId = new Map();
+
+  for (const pekerjaan of pekerjaanSurvei) {
+    for (const peran of ["PPL", "PML"]) {
+      const id = pekerjaan[peran.toLowerCase() + "_id"];
+      if (!id) continue;
+
+      if (!peranMenurutId.has(id)) {
+        peranMenurutId.set(id, new Set());
+      }
+
+      peranMenurutId.get(id).add(peran);
+    }
+  }
+
+  const daftarPetugas = data.petugas
+  .filter(p => peranMenurutId.has(p.petugas_id))
+  .sort((a, b) => {
+    const prioritasA =
+      peranMenurutId.get(a.petugas_id).has("PML") ? 0 : 1;
+
+    const prioritasB =
+      peranMenurutId.get(b.petugas_id).has("PML") ? 0 : 1;
+
+    return (
+      prioritasA - prioritasB ||
+      a.nama.localeCompare(b.nama, "id")
+    );
+  });
+
+  for (const petugas of daftarPetugas) {
+    const peran = [...peranMenurutId.get(petugas.petugas_id)];
+
+    option(
+      $("person"),
+      petugas.petugas_id,
+      petugas.nama + " — " + peran.join(" / ")
+    );
+  }
+
+  const petugas = daftarPetugas.find(
+    p => p.petugas_id === pilihanSebelumnya
+  );
+
+  if (!petugas) {
+    if (!daftarPetugas.length) {
+      $("phone").textContent =
+        "Belum ada petugas aktif yang terhubung ke assignment survei ini.";
+    }
+    return;
+  }
+
+  $("person").value = petugas.petugas_id;
+
+  $("phone").textContent =
+    "Nomor WhatsApp: " +
+    (petugas.nomor_whatsapp || "Belum diisi");
+
+  for (const peran of ["PPL", "PML"]) {
+    const pekerjaan = pekerjaanSurvei.filter(
+      a => a[peran.toLowerCase() + "_id"] === petugas.petugas_id
+    );
+
+    if (!pekerjaan.length) continue;
+
+    const hitungan = {};
+    for (const a of pekerjaan) {
+      hitungan[a.status] = (hitungan[a.status] || 0) + 1;
+    }
+
+    const label = document.createElement("label");
+    label.className = "choice";
+
+    const cek = document.createElement("input");
+    cek.type = "checkbox";
+    cek.checked = true;
+    cek.value = JSON.stringify({
+      survey_id: survei.survey_id,
+      survey_period_id: survei.survey_period_id,
+      peran
+    });
+
+    cek.onchange = susunPesanOtomatis;
+
+    const tulisan = document.createElement("span");
+    tulisan.textContent =
+      survei.nama_survei + " — " + peran +
+      " · " + pekerjaan.length + " assignment · " +
+      Object.entries(hitungan)
+        .map(([status, jumlah]) => status + ": " + jumlah)
+        .join(", ");
+
+    label.append(cek, tulisan);
+    $("choices").append(label);
+  }
+
+  susunPesanOtomatis();
+}
+
+let urutanPermintaanPesan = 0;
+
+async function susunPesanOtomatis() {
+  const urutan = ++urutanPermintaanPesan;
+
+  clearDraft();
+
+  const survei = selected();
+  const petugasId = $("person").value;
+  const pilihan = picked();
+
+  if (!survei || !petugasId || !pilihan.length) {
+    return;
+  }
+
+  const kunciSurvei = key(survei);
+  const pilihanAwal = JSON.stringify(pilihan);
+
+  // Mencegah hasil permintaan lama tampil setelah pilihan berubah.
+  function masihSesuai() {
+    return (
+      urutan === urutanPermintaanPesan &&
+      token &&
+      selected() &&
+      key(selected()) === kunciSurvei &&
+      $("person").value === petugasId &&
+      JSON.stringify(picked()) === pilihanAwal
+    );
+  }
+
+  notice("Menyusun pesan sesuai status pekerjaan…");
+
+  try {
+    const hasil = await rpc(
+      "apiDraft",
+      token,
+      petugasId,
+      pilihan
+    );
+
+    if (!masihSesuai()) return;
+
+    draft = hasil;
+    sendId = reqId();
+
+    $("message").value = hasil.pesan;
+    $("draftPanel").hidden = false;
+    $("sent").checked = false;
+    $("followDate").value = dateInput();
+
+    waLinks();
+    notice("Pesan otomatis siap. Periksa isinya sebelum membuka WhatsApp.");
+  } catch (error) {
+    if (!masihSesuai()) return;
+    notice(error.message || String(error), true);
+  }
+}
+
+
+
+function picked(){return [...$('choices').querySelectorAll('input:checked')].map(c=>JSON.parse(c.value));}
+
+function waLinks() {
+  aturKonfirmasiKirim();
+  const tombol = $("wa");
+
+  tombol.removeAttribute("href");
+  tombol.hidden = true;
+
+  if (!draft) return;
+
+  let nomor = String(draft.nomor || "").replace(/\D/g, "");
+
+  if (nomor.startsWith("0")) {
+    nomor = "62" + nomor.slice(1);
+  }
+
+  $("nomorTujuanManual").textContent =
+    "Nomor tujuan: " + (nomor || "Belum tersedia");
+
+  if (!/^62\d{8,13}$/.test(nomor)) {
+    $("bantuanKirim").hidden = false;
+    $("nomorTujuanManual").textContent =
+      "Nomor WhatsApp belum tersedia atau tidak valid. " +
+      "Perbaiki nomor pada database petugas terlebih dahulu.";
+    return;
+  }
+
+  // Perkiraan jenis perangkat, bukan deteksi aplikasi yang terbuka.
+  const perangkatMobile =
+    /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+    (
+      navigator.platform === "MacIntel" &&
+      navigator.maxTouchPoints > 1
+    );
+
+  const url = perangkatMobile
+    ? new URL("https://wa.me/" + nomor)
+    : new URL("https://web.whatsapp.com/send");
+
+  if (!perangkatMobile) {
+    url.searchParams.set("phone", nomor);
+  }
+
+  url.searchParams.set("text", $("message").value);
+
+  tombol.href = url.href;
+  tombol.target = "_blank";
+  tombol.rel = "noopener noreferrer";
+  tombol.textContent = "Kirim via WhatsApp";
+  tombol.hidden = false;
+}
+
+
+async function copy(text){
+  try{
+    await navigator.clipboard.writeText(text);
+    $('copyManualBox').hidden=true;
+    notice('Teks berhasil disalin. Tempelkan ke WhatsApp.');
+  }catch(_){
+    $('bantuanKirim').hidden=false;
+    $('copyManualBox').hidden=false;
+    const field=$('copyManualText');
+    field.value=String(text||'');
+    field.focus();field.select();
+    notice('Browser membatasi penyalinan otomatis. Teks sudah dipilih; tekan Ctrl+C untuk menyalinnya.');
+  }
+}
+function initNote(r=null){
+  const pilihanKirim = $('pilihanHasilKirim');
+  if (pilihanKirim) {
+    pilihanKirim.hidden = true;
+  }
+  // Untuk hasil pengiriman, gunakan survei dari riwayatnya.
+const s = r
+  ? data.survei.find(s => key(s) === key(r))
+  : selected();
+
+if (!s) {
+  throw Error(
+    'Survei untuk catatan tidak ditemukan. Tutup dan buka kembali halaman tindak lanjut.'
+  );
+}
+
+// Pastikan penyimpanan catatan memakai survei yang sama.
+$('survey').value = key(s);
+  chain=r;noteId=reqId();$('assignment').replaceChildren();option($('assignment'),'','Catatan umum survei');data.assignment.filter(a=>key(a)===key(s)).forEach(a=>option($('assignment'),a.assignment_id,a.nama_assignment+' — '+a.status));if(r?.assignment_id && ![...$('assignment').options].some(o=>o.value===r.assignment_id))option($('assignment'),r.assignment_id,r.nama_assignment+' (riwayat)');$('assignment').value=r?.assignment_id||'';$('assignment').disabled=!!r;$('chainInfo').textContent=r?'Menambahkan hasil konfirmasi pada riwayat: '+(r.nama_assignment||r.nama_survei)+' · '+(r.peran_petugas||'umum'):'Catatan baru; pilih assignment jika kendala khusus satu pekerjaan.';$('note').value='';$('plan').value='';$('followStatus').value='MENUNGGU_BALASAN';$('target').value='';$('nextDate').value=dateInput();switchPanel('notePanel');}
+function record(r,parent,button){const div=document.createElement('div');div.className='record';for(const t of [r.nama_survei+' · '+(r.nama_assignment||'Catatan umum')+(r.peran_petugas?' · '+r.peran_petugas:''),r.status_tindak_lanjut+' · '+fmt(r.waktu_catat),r.catatan_konfirmasi,r.rencana_perbaikan?'Rencana: '+r.rencana_perbaikan:'',r.pengingat_pada?'Pengingat: '+fmt(r.pengingat_pada):''])if(t){const p=document.createElement('p');p.textContent=t;div.append(p);}if(button){const b=document.createElement('button');b.className='secondary';b.textContent='Catat hasil konfirmasi';b.onclick=()=>{$('survey').value=key(r);renderSurvey();initNote(r);};div.append(b);}parent.append(div);}
+
+function aturKonfirmasiKirim() {
+  const terkirim = $('sent').checked;
+
+  $('followDate').disabled = !terkirim || busy;
+  $('saveSent').disabled = !terkirim || busy;
+}
+
+$('sent').addEventListener('change', aturKonfirmasiKirim);
+
+// Kondisi awal: pengingat dan konfirmasi belum aktif.
+aturKonfirmasiKirim();
+
+function renderHistory(){const s=selected();$('history').replaceChildren();const rows=s?data.riwayat.filter(r=>key(r)===key(s)):[];rows.slice().reverse().forEach(r=>record(r,$('history'),true));if(!rows.length)$('history').textContent='Belum ada catatan pada survei ini.';}
+
+function renderReminders() {
+  $('reminders').replaceChildren();
+
+  // Ambil catatan terbaru untuk setiap tindak lanjut.
+  const terbaru = new Map();
+
+  for (const r of data.riwayat) {
+    const id = r.tindak_lanjut_id || r.riwayat_id;
+    if (!id) continue;
+
+    const sebelumnya = terbaru.get(id);
+
+    const waktuBaru = Date.parse(r.waktu_catat) || 0;
+    const waktuLama = sebelumnya
+      ? Date.parse(sebelumnya.waktu_catat) || 0
+      : 0;
+
+    if (!sebelumnya || waktuBaru >= waktuLama) {
+      terbaru.set(id, r);
+    }
+  }
+
+  // Hitung status aktif tanpa menunggu tanggal pengingat.
+  const rows = [...terbaru.values()].filter(r =>
+    ['MENUNGGU_BALASAN', 'DALAM_PERBAIKAN'].includes(
+      String(r.status_tindak_lanjut || '').trim().toUpperCase()
+    )
+  );
+
+  // Pengingat paling awal ditampilkan terlebih dahulu.
+  const waktuPengingat = r => {
+    const waktu = Date.parse(r.pengingat_pada);
+    return Number.isNaN(waktu) ? Infinity : waktu;
+  };
+
+  rows.sort((a, b) =>
+    waktuPengingat(a) - waktuPengingat(b)
+  );
+
+ const judul = $('reminderTitle');
+judul.textContent = 'PENGINGAT OPERATOR · ';
+
+const jumlah = document.createElement('span');
+jumlah.textContent =
+  rows.length + ' PERLU DITINDAKLANJUTI';
+
+jumlah.style.color = rows.length > 0
+  ? '#b42332'
+  : '#173858';
+
+jumlah.style.fontWeight = 'bold';
+judul.append(jumlah);
+  rows.forEach(r => record(r, $('reminders'), true));
+
+  if (!rows.length) {
+    $('reminders').textContent =
+      'Tidak ada catatan yang perlu ditindaklanjuti.';
+  }
+}
+
+$('loginForm').onsubmit = e => {
+  e.preventDefault();
+
+  action(async () => {
+    notice('Memeriksa email…');
+
+    const x = await rpc('apiLogin', $('email').value);
+    token = x.token;
+
+    if ($('modeHalaman').value === 'selesai') {
+      await tampilkanSurveiSelesai();
+
+      $('greeting').textContent =
+        'Halo Admin Bolo INPEK, ' + x.operator.nama + '!';
+    } else {
+      await load();
+      $('halamanSelesai').hidden = true;
+      $('app').hidden = false;
+    }
+
+    $('login').hidden = true;
+    notice('Berhasil masuk.');
+  });
+};
+$('logout').onclick=()=>action(async()=>{await rpc('apiLogout',token);token='';data=null;draft=null;chain=null;initialUsed=false;$('app').hidden=true;$('login').hidden=false;['history','reminders','choices','survey','person'].forEach(id=>$(id).replaceChildren());['message','note','plan','closeNote'].forEach(id=>$(id).value='');$('greeting').textContent='Masuk sebagai operator';notice('Anda sudah keluar.');});
+$('survey').onchange=renderSurvey;$('person').onchange=renderPerson;
+$('remindMenu').onclick=()=>{if(!selected())return;switchPanel('remindPanel');};$('noteMenu').onclick=()=>initNote();$('newNote').onclick=()=>initNote();
+$("draftBtn").onclick = susunPesanOtomatis;
+$("draftBtn").textContent = "Susun ulang pesan";
+
+$('message').oninput=()=>{if($('sent').checked)$('sent').checked=false;waLinks();};
+$('copyMsg').onclick=()=>copy($('message').value);$('copyPhone').onclick=()=>copy(draft?.nomor||'');
+$('saveSent').onclick = () => action(async () => {
+  if (!draft) throw Error('Susun pesan dahulu.');
+
+  if (!$('sent').checked) {
+    throw Error('Centang pernyataan bahwa pesan sudah dikirim.');
+  }
+
+  const surveiKirim = selected();
+  if (!surveiKirim) throw Error('Pilih survei.');
+
+  const hasil = await rpc('apiKonfirmasiKirim', token, {
+    id: sendId,
+    snapshot: draft.scope,
+    petugas_id: $('person').value,
+    pilihan: picked(),
+    pesan: $('message').value,
+    dikonfirmasi: true,
+    pengingat: iso('followDate')
+  });
+
+  await load();
+  $('survey').value = key(surveiKirim);
+
+  const scope = hasil.scope.filter(
+    r => key(r) === key(surveiKirim)
+  );
+
+  if (!scope.length) {
+    throw Error(
+      'Pengiriman tersimpan, tetapi pilihan pekerjaan tidak ditemukan.'
+    );
+  }
+
+  let pembungkus = $('pilihanHasilKirim');
+
+  if (!pembungkus) {
+    pembungkus = document.createElement('div');
+    pembungkus.id = 'pilihanHasilKirim';
+
+    const label = document.createElement('label');
+    label.htmlFor = 'assignmentHasilKirim';
+    label.textContent = 'Pilih pekerjaan yang akan diberi catatan';
+
+    const pilihan = document.createElement('select');
+    pilihan.id = 'assignmentHasilKirim';
+
+    pembungkus.append(label, pilihan);
+    $('chainInfo').before(pembungkus);
+  }
+
+  const daftar = [];
+
+  const peranList = [...new Set(
+    scope.map(r => r.peran_petugas)
+  )].sort((a, b) =>
+    (a === 'PML' ? 0 : 1) - (b === 'PML' ? 0 : 1)
+  );
+
+  for (const peran of peranList) {
+    const identitas = `${peran} ${hasil.nama_petugas}`;
+
+    daftar.push({
+      assignment_id: '',
+      peran_petugas: peran,
+      label: `Secara Keseluruhan — ${identitas}`
+    });
+
+    const pekerjaan = scope.filter(
+      r => r.peran_petugas === peran
+    ).sort((a, b) =>
+      String(a.nama_assignment || '').localeCompare(
+        String(b.nama_assignment || ''),
+        'id'
+      )
+    );
+
+    for (const r of pekerjaan) {
+      daftar.push({
+        assignment_id: r.assignment_id,
+        peran_petugas: peran,
+        label: `${r.nama_assignment} — ${identitas}`
+      });
+    }
+  }
+
+  const pilihan = $('assignmentHasilKirim');
+  pilihan.replaceChildren();
+
+  daftar.forEach((r, i) =>
+    option(pilihan, String(i), r.label)
+  );
+
+  function bukaPilihan() {
+    const item = daftar[Number(pilihan.value)];
+
+    initNote();
+
+    konteksCatatanKirim = {
+      kontak_id: hasil.kontak_id,
+      peran_petugas: item.peran_petugas,
+      assignment_id: item.assignment_id
+    };
+
+    $('assignment').replaceChildren();
+    option($('assignment'), item.assignment_id, item.label);
+    $('assignment').value = item.assignment_id;
+    $('assignment').disabled = true;
+
+    $('chainInfo').textContent = 'Catatan untuk: ' + item.label;
+    pembungkus.hidden = false;
+  }
+
+  pilihan.onchange = bukaPilihan;
+  pilihan.value = '0';
+  bukaPilihan();
+
+  notice(
+    'Pengiriman tersimpan. Pilih pekerjaan atau Secara Keseluruhan, ' +
+    'lalu isi dan simpan catatan.'
+  );
+});
+$('saveNote').onclick = () => action(async () => {
+  const s = selected();
+  if (!s) throw Error('Pilih survei.');
+
+  if (!noteId) noteId = reqId();
+
+  await rpc('apiCatatan', token, {
+    id: noteId,
+    survey_id: s.survey_id,
+    survey_period_id: s.survey_period_id,
+
+    assignment_id: konteksCatatanKirim
+      ? konteksCatatanKirim.assignment_id
+      : $('assignment').value,
+
+    kontak_id: konteksCatatanKirim?.kontak_id || '',
+    peran_petugas:
+      konteksCatatanKirim?.peran_petugas || '',
+
+    tindak_lanjut_id: chain?.tindak_lanjut_id || '',
+    catatan: $('note').value,
+    rencana: $('plan').value,
+    status: $('followStatus').value,
+    target: iso('target'),
+    pengingat: iso('nextDate')
+  });
+
+  konteksCatatanKirim = null;
+  await load();
+
+  notice('Catatan tersimpan hanya untuk pilihan yang dipilih.');
+});
+$('closeMenu').onclick=()=>action(async()=>{const s=selected();if(!s)throw Error('Pilih survei.');const x=await rpc('apiRingkasanTutup',token,key(s));$('closeSummary').textContent=x.survei.nama_survei+' — '+x.survei.nama_periode+'\n'+x.jumlah+' assignment; '+x.riwayat+' catatan\n'+Object.entries(x.status).map(([k,v])=>k+': '+v).join(', ')+'\nTindak lanjut belum selesai: '+x.belumSelesai+'\nData sumber: '+x.waktu.map(fmt).join(', ');$('closeConfirm').checked=false;$('closeNote').value='';$('archiveResult').replaceChildren();switchPanel('closePanel');});
+$('closeBtn').onclick=async()=>{
+  const s=selected();
+  if(!s){notice('Pilih survei yang akan diarsipkan.',true);return;}
+  const catatan=$('closeNote').value.trim();
+  if(!catatan){notice('Isi catatan penutupan agar alasan penyelesaian terdokumentasi.',true);$('closeNote').focus();return;}
+  if(!$('closeConfirm').checked){notice('Periksa ringkasan lalu centang persetujuan penutupan terlebih dahulu.',true);$('closeConfirm').focus();return;}
+  const ok=await tlConfirm({
+    judul:'Arsipkan dan tutup periode survei?',
+    target:s.nama_survei+' — '+s.nama_periode,
+    pesan:'Sistem akan membuat arsip Google Sheets, memverifikasi salinannya, lalu menandai periode sebagai DITUTUP. Survei akan disembunyikan dari monitoring berjalan.',
+    catatan:'Setelah arsip berhasil diverifikasi, catatan tindak lanjut yang aktif pada periode ini dibersihkan dari database operasional. Riwayat tetap tersimpan di file arsip dan tidak hilang.',
+    tombol:'Arsipkan & Tutup',
+    tone:'warning'
+  });
+  if(!ok)return;
+  action(async()=>{
+    notice('Menyimpan arsip dan memeriksa kelengkapannya…');
+    try{
+      const x=await rpc('apiTutup',token,key(s),catatan,true);
+      await load();
+      notice('Periode berhasil ditutup dan arsip diverifikasi. Klik Perbarui Dashboard di Kelola Survei untuk menyegarkan monitoring.');
+      const a=document.createElement('a');a.href=x.url;a.target='_blank';a.rel='noopener noreferrer';a.textContent='Buka arsip survei';
+      $('notice').append(document.createElement('br'),a);
+    }catch(e){
+      notice((e.message||String(e))+' Jika status PENGARSIPAN, lanjutkan proses penutupan dari periode yang sama.',true);
+    }
+  });
+};
+async function tampilkanSurveiSelesai() {
+  const hasil = await rpc('apiDaftarSurveiSelesai', token);
+  const wadah = $('daftarSurveiSelesai');
+  wadah.replaceChildren();
+
+  $('app').hidden = true;
+  $('halamanSelesai').hidden = false;
+
+  if (!hasil.survei.length) {
+    wadah.textContent = 'Belum ada survei yang selesai.';
+    return;
+  }
+
+  for (const s of hasil.survei) {
+    const kartu = document.createElement('section');
+    kartu.className = 'panel';
+
+    const judul = document.createElement('h3');
+    judul.textContent =
+      s.nama_survei + ' — ' + s.nama_periode;
+
+    const catatan = document.createElement('p');
+    catatan.textContent =
+      s.catatan_penutupan || 'Tidak ada catatan penutupan.';
+
+    kartu.append(judul, catatan);
+
+    // Semua versi arsip tetap dapat dibuka.
+    for (const arsip of s.arsip) {
+      if (!arsip.arsip_url) continue;
+
+      const tautan = document.createElement('a');
+      tautan.className = 'btn';
+      tautan.textContent = 'Buka Arsip · Versi ' + arsip.versi;
+      tautan.href = arsip.arsip_url;
+      tautan.target = '_blank';
+      tautan.rel = 'noopener noreferrer';
+      tautan.style.marginRight = '8px';
+      tautan.style.marginBottom = '8px';
+
+      kartu.append(tautan);
+    }
+
+    if (hasil.boleh_buka_kembali) {
+      if (s.bisa_dibuka_kembali) {
+        const tombol = document.createElement('button');
+        tombol.type = 'button';
+        tombol.className = 'secondary';
+        tombol.textContent = 'Tampilkan Kembali';
+
+        tombol.onclick = async () => {
+          const setuju = await tlConfirm({
+            judul: 'Tampilkan kembali survei ini?',
+            target: s.nama_survei + ' — ' + s.nama_periode,
+            pesan: 'Periode survei akan diaktifkan kembali agar dapat ditampilkan pada monitoring berjalan. Arsip hasil penutupan sebelumnya tetap tersimpan dan tidak dihapus.',
+            catatan: 'Riwayat lama tetap berada di file arsip, bukan otomatis dikembalikan sebagai catatan aktif. Setelah berhasil, klik Perbarui Dashboard pada menu Kelola Survei.',
+            tombol: 'Tampilkan Kembali',
+            tone: 'restore'
+          });
+          if (!setuju) return;
+
+          action(async () => {
+            await rpc('apiBukaKembali', token, {
+              survey_id: s.survey_id,
+              survey_period_id: s.survey_period_id
+            }, true);
+            await tampilkanSurveiSelesai();
+            notice('Survei berhasil diaktifkan kembali. Kembali ke Kelola Survei lalu klik Perbarui Dashboard agar kartu diperiksa dan dimunculkan sesuai filter aktif.');
+          });
+        };
+
+        kartu.append(tombol);
+      } else {
+        const info = document.createElement('p');
+        info.textContent =
+          'Pembukaan kembali tersedia setelah proses penutupan selesai.';
+        kartu.append(info);
+      }
+    }
+
+    wadah.append(kartu);
+  }
+}
+
+$('keluarSelesai').onclick = () => action(async () => {
+  await rpc('apiLogout', token);
+  token = '';
+
+  $('halamanSelesai').hidden = true;
+  $('app').hidden = true;
+  $('login').hidden = false;
+  $('email').value = '';
+  $('greeting').textContent = 'Masuk Sebagai Admin INPEK';
+
+  notice('Anda sudah keluar.');
+});
+
+</script></body></html>
