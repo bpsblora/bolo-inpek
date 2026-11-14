@@ -11,6 +11,11 @@ on:
           - deploy
         default: preview
         required: true
+      include_backend:
+        description: "Pilih untuk sinkronkan dua file backend .gs dari GitHub (manual saja; HTML selalu diperiksa)"
+        type: boolean
+        default: false
+        required: false
   push:
     branches:
       - main
@@ -89,12 +94,15 @@ jobs:
       - name: Ambil SELURUH kode Apps Script aktif (termasuk backend yang belum di GitHub)
         working-directory: ${{ runner.temp }}/bolo-tl-active
         run: clasp pull
-      - name: Terapkan hanya perubahan HTML dari GitHub
+      - name: Siapkan HTML dan backend (backend hanya saat manual terpilih)
+        env:
+          TL_SYNC_BACKEND: ${{ github.event_name == 'workflow_dispatch' && inputs.include_backend == true }}
         run: node scripts/tindak-lanjut/sync.mjs stage
       - name: Hasil pratinjau
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'preview'
         run: |
           echo "Pratinjau selesai. Tidak ada push/deploy dan data tidak berubah."
+          echo "Backend yang terpilih disiapkan di runner sementara; perubahan belum diterapkan."
           echo "Bila sudah sesuai, jalankan workflow ini kembali dengan mode deploy."
       - name: Validasi deployment lama agar URL web app tidak berubah
         if: >-
@@ -117,7 +125,7 @@ jobs:
         shell: bash
         run: |
           clasp create-version "Backup sebelum sinkronisasi BOLO INPEK ${GITHUB_SHA:0:8}"
-      - name: Sinkronkan kode dengan menjaga seluruh file yang di-pull
+      - name: Sinkronkan file yang diizinkan, pertahankan seluruh hasil pull
         if: >-
           env.TL_SYNC_CHANGED == 'true' &&
           (github.event_name == 'push' || inputs.mode == 'deploy')
