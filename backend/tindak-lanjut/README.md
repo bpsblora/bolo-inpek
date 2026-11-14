@@ -1,5 +1,13 @@
 # Integrasi Backend Tindak Lanjut — BOLO INPEK
 
+## Cara utama: edit UI langsung melalui GitHub (tanpa instalasi)
+
+[**Aktivasi satu kali lewat browser: GitHub Loader untuk Tindak Lanjut**](./AKTIVASI-GITHUB-TANPA-INSTALASI.md).
+
+Setelah loader dipasang pada proyek Apps Script aktif, file [`Index_TindakLanjutV2.html`](./Index_TindakLanjutV2.html) **langsung dibaca dari GitHub** setiap kali cache halaman kedaluwarsa. Revisi UI cukup di-commit ke GitHub, seperti dashboard monitoring; tidak membutuhkan PowerShell, `clasp`, GitHub Secret, atau deployment ulang setiap revisi HTML.
+
+Pemasangan pertama tetap harus dilakukan oleh pemilik proyek dari editor Apps Script: **tambah satu file loader, ganti satu blok dalam `doGet(e)`, lalu perbarui deployment yang sudah ada satu kali**. Backend, data, dan arsip tetap berada di tempatnya. Alternatif GitHub Actions/`clasp` pada bagian bawah README bersifat opsional dan **tidak diperlukan untuk edit UI**.
+
 ## Sinkronisasi GitHub → Apps Script
 
 [Mulai setup sinkronisasi via GitHub Actions (pratinjau, deployment lama, lalu auto-sync opsional)](./SINKRONISASI-GITHUB-APPS-SCRIPT.md)
