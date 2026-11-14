@@ -234,6 +234,17 @@
   
 const $=id=>document.getElementById(id);let konteksCatatanKirim = null;let token='',data=null,draft=null,sendId='',noteId='',chain=null,busy=false,initialUsed=false;
 const initial=$('initial').dataset;const key=x=>JSON.stringify([x.survey_id,x.survey_period_id]);
+const BOLO_ADMIN_GATE = /^__BOLO_INPEK_ADMIN_GATE__([a-f0-9]{32})$/.exec(String(initial.survei||''));
+const BOLO_ADMIN_GATE_NONCE = BOLO_ADMIN_GATE ? BOLO_ADMIN_GATE[1] : '';
+const BOLO_ADMIN_PARENT = 'https://bpsblora.github.io';
+function notifyDashboardAdmin(type,extras={}){
+  if(!BOLO_ADMIN_GATE_NONCE || window.top===window)return;
+  window.top.postMessage({type,nonce:BOLO_ADMIN_GATE_NONCE,...extras},BOLO_ADMIN_PARENT);
+}
+if(BOLO_ADMIN_GATE_NONCE){
+  $('greeting').textContent='Masuk untuk mengakses fitur pengelolaan BOLO INPEK';
+  document.querySelector('#login h2').textContent='Masuk Admin INPEK';
+}
 const reqId=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
 const fmt=x=>{if(!x)return 'Belum tercatat';const d=new Date(x);return isNaN(d)?x:d.toLocaleString('id-ID',{timeZone:'Asia/Jakarta'})+' WIB';};
 const dateInput=(days=1)=>{const d=new Date(Date.now()+days*86400000);return new Date(d-d.getTimezoneOffset()*60000).toISOString().slice(0,16);};
@@ -685,6 +696,12 @@ $('loginForm').onsubmit = e => {
     notice('Memeriksa email…');
 
     const x = await rpc('apiLogin', $('email').value);
+    // Menggunakan akun operator ADMIN yang sudah divalidasi di Apps Script,
+    // bukan daftar email hardcoded di GitHub.
+    if(BOLO_ADMIN_GATE_NONCE && x?.operator?.peran!=='ADMIN'){
+      try{await rpc('apiLogout',x.token);}catch(_){}
+      throw Error('Email ini tidak memiliki peran ADMIN INPEK. Gunakan email Admin INPEK yang terdaftar pada database operator.');
+    }
     token = x.token;
 
     if ($('modeHalaman').value === 'selesai') {
@@ -700,9 +717,25 @@ $('loginForm').onsubmit = e => {
 
     $('login').hidden = true;
     notice('Berhasil masuk.');
+    if(BOLO_ADMIN_GATE_NONCE){
+      notifyDashboardAdmin('BOLO_INPEK_ADMIN_VERIFIED',{
+        peran:x.operator.peran,
+        nama:String(x.operator.nama||'Admin INPEK'),
+        email:String(x.operator.email||$('email').value).trim().toLowerCase()
+      });
+    }
   });
 };
-$('logout').onclick=()=>action(async()=>{await rpc('apiLogout',token);token='';data=null;draft=null;chain=null;initialUsed=false;$('app').hidden=true;$('login').hidden=false;['history','reminders','choices','survey','person'].forEach(id=>$(id).replaceChildren());['message','note','plan','closeNote'].forEach(id=>$(id).value='');$('greeting').textContent='Masuk sebagai operator';notice('Anda sudah keluar.');});
+$('logout').onclick=()=>action(async()=>{
+  await rpc('apiLogout',token);
+  token='';data=null;draft=null;chain=null;initialUsed=false;
+  $('app').hidden=true;$('login').hidden=false;
+  ['history','reminders','choices','survey','person'].forEach(id=>$(id).replaceChildren());
+  ['message','note','plan','closeNote'].forEach(id=>$(id).value='');
+  $('greeting').textContent='Masuk sebagai operator';
+  notice('Anda sudah keluar.');
+  notifyDashboardAdmin('BOLO_INPEK_ADMIN_LOGOUT');
+});
 $('survey').onchange=renderSurvey;$('person').onchange=renderPerson;
 $('remindMenu').onclick=()=>{if(!selected())return;switchPanel('remindPanel');};$('noteMenu').onclick=()=>initNote();$('newNote').onclick=()=>initNote();
 $("draftBtn").onclick = susunPesanOtomatis;
