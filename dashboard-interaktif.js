@@ -433,7 +433,9 @@ function biProgressNavigation(survey,rows){
   '';
 }
 function biOverview(){
-  const surveys=biSurveyList();
+  // Gunakan urutan identik dengan kartu ringkasan: belum 100% dahulu,
+  // lalu survei selesai; dalam tiap kelompok tetap mengikuti urutan periode.
+  const surveys=biSummarySurveyList();
   return '<div class="bi-panel"><div class="bi-role-head"><h2>Grafik Progres Seluruh Survei</h2>'+
     '<div class="bi-panel-tools"><small>Pilih survei untuk membuka PML/PPL</small>'+
     biUnitControl('overview')+'</div></div>'+
