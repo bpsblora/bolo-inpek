@@ -97,86 +97,122 @@ async function biApplyMarkers(rows,marks){
   return sources;
 }
 
+
+function biMarkRows(survey){
+  return ALL_ASSIGNMENTS.filter(row=>(!survey||row.survei===survey)&&biUnassigned(row));
+}
+function biMarkTotals(rows){
+  return {
+    all:rows.length,
+    excluded:rows.filter(r=>r.boloExcluded).length,
+    included:rows.filter(r=>!r.boloExcluded).length,
+    review:rows.filter(r=>r.boloMark?.perlu_tinjau).length,
+    unmarked:rows.filter(r=>!r.boloMark).length
+  };
+}
 function biUnassignedPanel(survey){
-  const rows=ALL_ASSIGNMENTS.filter(row=>(!survey||row.survei===survey)&&biUnassigned(row));
+  const rows=biMarkRows(survey);
   if(!rows.length)return '';
-  const excluded=rows.filter(row=>row.boloExcluded).length;
-  const marked=rows.filter(row=>row.boloMark).length;
-  const unmarked=rows.length-marked;
-  const review=rows.filter(row=>row.boloMark?.perlu_tinjau).length;
-  const included=rows.length-excluded;
+  const t=biMarkTotals(rows);
+  return '<section class="bi-unassigned-panel" id="bi-unassigned-panel">'+
+    '<div class="bi-unassigned-header"><div>'+
+    '<h2>Penanda Assignment Belum Dialokasikan</h2>'+
+    '<p>Assignment tanpa PPL/PML dapat berupa sampel cadangan. Tidak otomatis dikecualikan.</p>'+
+    '</div><button type="button" class="bi-mark-button" data-bi-show-marks>'+
+    '☷ Lihat Assignment</button></div>'+
+    '<div class="bi-unassigned-stats">'+
+    '<strong>'+format.format(t.all)+'</strong> Belum Dialokasikan · '+
+    '<button type="button" class="bi-mark-stat-link" data-bi-open-mark-filter="excluded"'+
+    ' aria-label="Lihat '+format.format(t.excluded)+' assignment Tidak Dihitung">'+
+    format.format(t.excluded)+' Tidak Dihitung</button> · '+
+    '<strong>'+format.format(t.unmarked)+'</strong> Belum Ditandai'+
+    (t.review?' · <button type="button" class="bi-mark-stat-link" data-bi-open-mark-filter="review">'+
+      format.format(t.review)+' Perlu Tinjau Ulang</button>':'')+
+    '</div>'+
+    (!MARKERS_AVAILABLE?'<div class="bi-mark-notice" role="status">'+
+      'Penanda bersama belum aktif. Seluruh assignment tetap dihitung. '+
+      '<button type="button" class="bi-mark-activate-btn" data-bi-activation-help>Lihat Cara Mengaktifkan</button>'+
+      '</div>':'')+
+    '<p class="bi-mark-footnote">Gunakan <b>Lihat Assignment</b> untuk membuka daftar dan mengatur penanda satu per satu. '+
+    'Daftar dan formulir memiliki pop-up tersendiri tanpa memuat ulang dashboard.</p>'+
+    '</section>';
+}
+function biMarkListContent(survey){
+  const rows=biMarkRows(survey);
+  const totals=biMarkTotals(rows);
   const options=[
-    {id:'all',label:'Semua',count:rows.length},
-    {id:'excluded',label:'Tidak Dihitung',count:excluded},
-    {id:'included',label:'Dihitung',count:included},
-    {id:'review',label:'Perlu Tinjau',count:review},
-    {id:'unmarked',label:'Belum Ditandai',count:unmarked}
+    {id:'all',label:'Semua',count:totals.all},
+    {id:'excluded',label:'Tidak Dihitung',count:totals.excluded},
+    {id:'included',label:'Dihitung',count:totals.included},
+    {id:'review',label:'Perlu Tinjau',count:totals.review},
+    {id:'unmarked',label:'Belum Ditandai',count:totals.unmarked}
   ];
-  const filter=options.some(x=>x.id===biView.markFilter)?biView.markFilter:'all';
-  const visible=rows.filter(row=>
+  const filter=options.some(item=>item.id===biView.markFilter)?biView.markFilter:'all';
+  const selected=options.find(item=>item.id===filter);
+  const subset=rows.filter(row=>
     filter==='all'||(filter==='excluded'&&row.boloExcluded)||
     (filter==='included'&&!row.boloExcluded)||
     (filter==='review'&&row.boloMark?.perlu_tinjau)||
     (filter==='unmarked'&&!row.boloMark));
   const duplicates=new Map();
-  rows.forEach(row=>{const key=biMarkComposite(row);duplicates.set(key,(duplicates.get(key)||0)+1);});
-  const details=visible.slice().sort((a,b)=>Number(!!b.boloExcluded)-Number(!!a.boloExcluded)||
-      a.survei.localeCompare(b.survei,'id')||a.nama_assignment.localeCompare(b.nama_assignment,'id'));
-  const selected=options.find(x=>x.id===filter);
-  const buttons=options.map(opt=>
-    '<button type="button" data-bi-mark-filter="'+opt.id+
-    '" aria-pressed="'+(filter===opt.id)+'" class="bi-mark-filter'+
-    (filter===opt.id?' selected':'')+(opt.id==='excluded'?' excluded':'')+'">'+
-    esc(opt.label)+' <strong>'+format.format(opt.count)+'</strong></button>'
+  for(const row of rows){
+    const key=biMarkComposite(row);
+    duplicates.set(key,(duplicates.get(key)||0)+1);
+  }
+  const ordered=subset.slice().sort((a,b)=>
+    Number(!!b.boloExcluded)-Number(!!a.boloExcluded)||
+    a.survei.localeCompare(b.survei,'id')||
+    a.nama_assignment.localeCompare(b.nama_assignment,'id'));
+  const buttons=options.map(item=>
+    '<button type="button" data-bi-mark-filter="'+item.id+'" class="bi-mark-filter'+
+    (filter===item.id?' selected':'')+(item.id==='excluded'?' excluded':'')+
+    '" aria-pressed="'+(filter===item.id)+'">'+
+    esc(item.label)+' <strong>'+format.format(item.count)+'</strong></button>'
   ).join('');
-  return '<section class="bi-unassigned-panel" id="bi-unassigned-panel">'+
-    '<div class="bi-unassigned-header"><div><h2>Penanda Assignment Belum Dialokasikan</h2>'+
-    '<p>Assignment tanpa PPL/PML dapat berupa sampel cadangan. Tidak otomatis dikecualikan.</p></div>'+
-    '<button type="button" class="bi-mark-button" data-bi-show-marks>☷ Lihat Assignment</button></div>'+
-    '<div class="bi-unassigned-stats"><strong>'+format.format(rows.length)+'</strong> Belum Dialokasikan · <strong>'+
-    format.format(excluded)+'</strong> Tidak Dihitung · <strong>'+format.format(unmarked)+'</strong> Belum Ditandai'+
-    (review?' · <strong>'+format.format(review)+'</strong> Perlu Tinjau Ulang':'')+'</div>'+
-    '<div class="bi-mark-filters" role="group" aria-label="Filter perhitungan penanda assignment">'+buttons+'</div>'+
-    (MARKERS_AVAILABLE?'':'<div class="bi-mark-notice" role="status"><strong>Penanda belum aktif.</strong> '+
-      'Backend Google Apps Script belum menyediakan penanda bersama. Semua assignment tetap dihitung.'+
-      ' <button type="button" class="bi-mark-activate-btn" data-bi-activation-help>Lihat Cara Mengaktifkan</button></div>')+
-    '<details class="bi-unassigned-details" id="bi-mark-list"'+(filter!=='all'?' open':'')+'>'+
-    '<summary>Daftar '+esc(selected.label)+' — '+format.format(details.length)+' dari '+format.format(rows.length)+' assignment</summary>'+
-    '<div class="tablebox"><table class="bi-unassigned-table"><thead><tr>'+
-    '<th>Survei</th><th>Assignment</th><th>Status FASIH Asli</th><th>Status Perhitungan</th>'+
-    '<th>Perlakuan</th><th>Alasan / Catatan</th><th>Tindakan</th>'+
-    '</tr></thead><tbody>'+
-    (details.length?details.map(row=>{
-      const mark=row.boloMark;
-      const status=row.boloExcluded?'Tidak Dihitung':
-        mark?.perlu_tinjau?'Perlu Tinjau · Ikuti Status FASIH':
-        mark?'Tetap Dihitung':'Belum Ditandai · Dihitung';
-      const note=mark?[mark.alasan,mark.catatan].filter(Boolean).join(' — '):'Belum ada catatan';
-      const manual=row.boloStatusManual;
-      const duplicated=duplicates.get(biMarkComposite(row))!==1;
-      const activate=!MARKERS_AVAILABLE;
-      return '<tr><td>'+esc(row.survei)+'</td><td>'+esc(row.nama_assignment)+'</td>'+
-        '<td>'+esc(row.status)+'</td>'+
-        '<td>'+esc(row.boloExcluded?'Tidak Dihitung':manual?manual+' (Manual)':row.status+' (FASIH)')+'</td>'+
-        '<td><span class="bi-mark-state'+(row.boloExcluded?' off':'')+'">'+esc(status)+'</span></td>'+
-        '<td>'+esc(note)+'</td><td><button type="button" class="bi-mark-row-btn"'+
-        (activate?' data-bi-activation-help':' data-bi-mark-survey="'+esc(row.survei)+
-          '" data-bi-mark-assignment="'+esc(row.nama_assignment)+'"')+
-        (duplicated?' disabled title="Nama assignment ganda, penanda memerlukan ID unik"':'')+
-        ' aria-label="'+(duplicated?'Penanda tidak tersedia karena nama ganda':activate?
-          'Buka panduan aktivasi penanda':'Atur penanda assignment '+esc(row.nama_assignment))+'">'+
-        (duplicated?'Nama Ganda':activate?'Aktifkan Penanda':'Atur Penanda')+'</button></td></tr>';
-    }).join(''):'<tr><td colspan="7" class="bi-mark-no-rows">'+
-      (filter==='excluded'?'Belum ada assignment yang disimpan sebagai Tidak Dihitung.':
-       filter==='review'?'Tidak ada penanda yang perlu ditinjau ulang.':
-       filter==='unmarked'?'Semua assignment yang relevan sudah memiliki penanda.':
-       'Tidak ada assignment dalam kategori ini.')+'</td></tr>')+
-    '</tbody></table></div></details>'+
-    '<p class="bi-mark-footnote">Klik <b>Tidak Dihitung</b> untuk melihat semua assignment yang dikecualikan, beserta alasan dan catatannya. '+
-    'Penanda tersimpan pada Google Sheets; status FASIH asli tidak diubah. '+
-    'Setelah menyimpan penanda di tab admin, klik <b>Muat Ulang Data</b> untuk memperbarui perhitungan.</p>'+
-    '</section>';
+  const tableRows=ordered.length?ordered.map(row=>{
+    const mark=row.boloMark;
+    const status=row.boloExcluded?'Tidak Dihitung':
+      mark?.perlu_tinjau?'Perlu Tinjau · Ikuti FASIH':
+      mark?'Tetap Dihitung':'Belum Ditandai · Dihitung';
+    const note=mark?[mark.alasan,mark.catatan].filter(Boolean).join(' — '):'Belum ada catatan';
+    const duplicated=duplicates.get(biMarkComposite(row))!==1;
+    const disabled=duplicated?' disabled title="Nama assignment ganda; perlu ID unik"':'';
+    const button=MARKERS_AVAILABLE?
+      ' data-bi-mark-survey="'+esc(row.survei)+'" data-bi-mark-assignment="'+esc(row.nama_assignment)+'"':
+      ' data-bi-activation-help';
+    return '<tr><td>'+esc(row.survei)+'</td><td>'+esc(row.nama_assignment)+'</td>'+
+      '<td>'+esc(row.status)+'</td>'+
+      '<td>'+esc(row.boloExcluded?'Tidak Dihitung':row.boloStatusManual?
+        row.boloStatusManual+' (Manual)':row.status+' (FASIH)')+'</td>'+
+      '<td><span class="bi-mark-state'+(row.boloExcluded?' off':'')+'">'+esc(status)+'</span></td>'+
+      '<td>'+esc(note)+'</td>'+
+      '<td><button type="button" class="bi-mark-row-btn"'+button+disabled+
+      ' aria-label="'+esc('Atur penanda '+row.nama_assignment)+'">'+
+      (duplicated?'Nama Ganda':MARKERS_AVAILABLE?'Atur Penanda':'Aktifkan Penanda')+
+      '</button></td></tr>';
+  }).join(''):'<tr><td colspan="7" class="bi-mark-no-rows">'+
+    (filter==='excluded'?'Belum ada assignment yang ditandai Tidak Dihitung.':
+     filter==='review'?'Tidak ada penanda yang perlu ditinjau ulang.':
+     filter==='unmarked'?'Seluruh assignment sudah ditandai.':
+     'Tidak ada assignment pada pilihan ini.')+'</td></tr>';
+  return '<div class="bi-mark-modal-intro"><p>'+
+    (survey?'Survei '+esc(survey)+' · ':'Seluruh Survei · ')+
+    format.format(totals.all)+' assignment Belum Dialokasikan</p>'+
+    '<p>Pilih kategori untuk melihat rincian. Penanda tidak mengubah status asli FASIH.</p></div>'+
+    '<div class="bi-mark-filters" role="group" aria-label="Filter penanda assignment">'+buttons+'</div>'+
+    '<p class="bi-mark-filter-caption">Menampilkan '+format.format(ordered.length)+
+    ' dari '+format.format(totals.all)+' assignment · '+esc(selected.label)+'</p>'+
+    (!MARKERS_AVAILABLE?'<p class="bi-mark-notice">Layanan penanda belum aktif. '+
+      '<button type="button" class="bi-mark-activate-btn" data-bi-activation-help>Lihat Aktivasi</button></p>':'')+
+    '<div class="tablebox bi-mark-modal-tablebox"><table class="bi-unassigned-table">'+
+    '<thead><tr><th>Survei</th><th>Assignment</th><th>Status FASIH Asli</th>'+
+    '<th>Status Perhitungan</th><th>Perlakuan</th><th>Alasan / Catatan</th>'+
+    '<th>Tindakan</th></tr></thead><tbody>'+tableRows+'</tbody></table></div>'+
+    '<p class="bi-mark-footnote">Klik <b>Atur Penanda</b> pada assignment untuk membuka formulir di pop-up kedua. '+
+    'Pop-up daftar ini tetap terbuka dan filter tidak direset. Setelah menyimpan, '+
+    'gunakan <b>Muat Ulang Data</b> di dashboard hanya bila ingin menyinkronkan perubahan.</p>';
 }
+
 
 function biSurveyList(){return surveiUrutDeadline().filter(surveiMasihAktif);}
 function biBar(rows,label){
