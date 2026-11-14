@@ -1,0 +1,139 @@
+name: BOLO INPEK - Sinkronisasi Tindak Lanjut ke Apps Script
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Pratinjau dahulu; deploy hanya bila siap mengubah Apps Script aktif"
+        type: choice
+        options:
+          - preview
+          - deploy
+        default: preview
+        required: true
+  push:
+    branches:
+      - main
+    paths:
+      - "backend/tindak-lanjut/Index_TindakLanjutV2.html"
+      - "scripts/tindak-lanjut/**"
+      - ".github/workflows/tindak-lanjut-sync.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Periksa HTML dan keamanan sinkronisasi
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validasi HTML Tindak Lanjut
+        run: node scripts/tindak-lanjut/sync.mjs check
+      - name: Uji tidak ada file backend yang tertimpa
+        run: node --test scripts/tindak-lanjut/sync.test.mjs
+
+  sync:
+    name: Pratinjau / publikasikan ke Apps Script lama
+    needs: validate
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && vars.TL_AUTO_DEPLOY == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: bolo-inpek-tindak-lanjut
+    concurrency:
+      group: bolo-inpek-tindak-lanjut-live
+      cancel-in-progress: false
+    env:
+      TL_WORK_DIR: ${{ runner.temp }}/bolo-tl-active
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Instal clasp versi terverifikasi
+        run: npm install --global @google/clasp@3.4.1
+      - name: Siapkan kredensial secara privat
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+          TL_SCRIPT_ID: ${{ secrets.TL_SCRIPT_ID }}
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const credentials=process.env.CLASPRC_JSON||'';
+          const scriptId=(process.env.TL_SCRIPT_ID||'').trim();
+          if(!credentials||!scriptId)
+            throw Error('Secrets CLASPRC_JSON dan TL_SCRIPT_ID harus disetel lebih dahulu.');
+          const parsed=JSON.parse(credentials);
+          if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))
+            throw Error('CLASPRC_JSON tidak valid.');
+          if(!/^[A-Za-z0-9_-]{25,200}$/.test(scriptId))
+            throw Error('TL_SCRIPT_ID bukan Script ID Apps Script yang valid.');
+          const dest=process.env.TL_WORK_DIR;
+          fs.mkdirSync(dest,{recursive:true});
+          fs.writeFileSync(path.join(process.env.HOME,'.clasprc.json'),credentials,
+            {mode:0o600});
+          fs.writeFileSync(path.join(dest,'.clasp.json'),JSON.stringify({
+            scriptId,
+            scriptExtensions:['.gs','.js'],
+            htmlExtensions:['.html']
+          }),{mode:0o600});
+          console.log('Kredensial Google terpasang di runner sementara (tidak dicetak).');
+          NODE
+      - name: Ambil SELURUH kode Apps Script aktif (termasuk backend yang belum di GitHub)
+        working-directory: ${{ runner.temp }}/bolo-tl-active
+        run: clasp pull
+      - name: Terapkan hanya perubahan HTML dari GitHub
+        run: node scripts/tindak-lanjut/sync.mjs stage
+      - name: Hasil pratinjau
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'preview'
+        run: |
+          echo "Pratinjau selesai. Tidak ada push/deploy dan data tidak berubah."
+          echo "Bila sudah sesuai, jalankan workflow ini kembali dengan mode deploy."
+      - name: Validasi deployment lama agar URL web app tidak berubah
+        if: >-
+          env.TL_SYNC_CHANGED == 'true' &&
+          (github.event_name == 'push' || inputs.mode == 'deploy')
+        working-directory: ${{ runner.temp }}/bolo-tl-active
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! clasp list-deployments | grep -F -- "$TL_DEPLOYMENT_ID" >/dev/null; then
+            echo "::error::Deployment Tindak Lanjut pada index.html tidak ditemukan pada project ini. Push dibatalkan."
+            exit 1
+          fi
+          echo "Deployment lama cocok. Tidak membuat deployment baru."
+      - name: Simpan versi Apps Script SEBELUM perubahan untuk rollback
+        if: >-
+          env.TL_SYNC_CHANGED == 'true' &&
+          (github.event_name == 'push' || inputs.mode == 'deploy')
+        working-directory: ${{ runner.temp }}/bolo-tl-active
+        shell: bash
+        run: |
+          clasp create-version "Backup sebelum sinkronisasi BOLO INPEK ${GITHUB_SHA:0:8}"
+      - name: Sinkronkan kode dengan menjaga seluruh file yang di-pull
+        if: >-
+          env.TL_SYNC_CHANGED == 'true' &&
+          (github.event_name == 'push' || inputs.mode == 'deploy')
+        working-directory: ${{ runner.temp }}/bolo-tl-active
+        run: clasp push --force
+      - name: Perbarui deployment aktif menggunakan ID LAMA
+        if: >-
+          env.TL_SYNC_CHANGED == 'true' &&
+          (github.event_name == 'push' || inputs.mode == 'deploy')
+        working-directory: ${{ runner.temp }}/bolo-tl-active
+        shell: bash
+        run: |
+          clasp create-deployment \
+            --deploymentId "$TL_DEPLOYMENT_ID" \
+            --description "BOLO INPEK Tindak Lanjut GitHub ${GITHUB_SHA:0:8}"
+          echo "Publikasi selesai. Deployment lama tetap digunakan."
+      - name: Tidak ada perubahan
+        if: env.TL_SYNC_CHANGED == 'false'
+        run: echo "HTML di GitHub sudah sama dengan Apps Script aktif. Tidak perlu push/deploy."
