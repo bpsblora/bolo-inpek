@@ -75,3 +75,56 @@ test('HTML management and routed admin shortcut present',()=>{
  assert.match(page,/id="adminStaffMenu"/);assert.match(page,/verifiedTLWindow\.postMessage/);
  new Script(html.split('<script>')[1].split('</script>')[0]);
 });
+
+test('detects new personnel directly from assignment PPL/PML even without sumber_petugas',()=>{
+ const f=fixture();
+ // Petugas inactive is still registered and MUST NOT be flagged as new.
+ f.tab.petugas[0].aktif='FALSE';
+ const id='id-fasih-000000003';
+ f.tab.sumber_assignment.push(
+  {ppl_id:id,ppl:'Citra Baru',pml_id:'id-fasih-000000001',
+   survei:'SKTH',survey_period_id:'periode-SKTH'},
+  {ppl_id:'',ppl:'Tanpa ID',pml_id:id,pml:'Citra Baru',
+   survei:'STPIM',survey_period_id:'periode-STPIM'}
+ );
+ const v=f.api.list('admin');
+ assert.equal(v.nonaktif,1);
+ assert.equal(v.kandidat_fasih.length,2);
+ const c=v.kandidat_fasih.find(x=>x.petugas_id===id);
+ assert.equal(c.nama,'Citra Baru');
+ assert.equal(c.asal,'assignment');
+ assert.equal(c.jumlah_assignment,2);
+ assert.equal(c.daftar_survei.length,2);
+ assert.equal(c.peran.length,2);
+ assert.equal(v.kandidat_assignment,2);
+ assert.equal(v.id_petugas_kosong.length,1);
+ assert.equal(v.id_petugas_kosong[0].nama,'Tanpa ID');
+ assert.equal(v.kandidat_fasih.some(x=>x.petugas_id==='id-fasih-000000001'),false);
+
+ const added=f.api.save('admin',{
+  mode:'tambah',petugas_id:id,nama:'Citra Baru',email:'',
+  nomor_whatsapp:'081311112222',aktif:true,dari_fasih:true
+ });
+ assert.equal(added.petugas_id,id);
+ assert.equal(f.api.list('admin').kandidat_fasih.length,1);
+ assert.equal(f.tab.tindak_lanjut.length,1);
+ assert.equal(f.tab.kontak.length,1);
+});
+test('cannot invent an FASIH candidate when ID is not in assignment or source',()=>{
+ const f=fixture();
+ assert.throws(()=>f.api.save('admin',{
+  mode:'tambah',petugas_id:'id-fasih-000000999',nama:'Tidak Terdaftar',
+  email:'',nomor_whatsapp:'081355559999',aktif:true,dari_fasih:true
+ }),/ID kandidat/);
+});
+test('row status toggle and candidate registration are visible in staff UI',()=>{
+ assert.match(html,/function staffToggle\(p\)/);
+ assert.match(html,/function staffCandidatesPaint\(\)/);
+ assert.match(html,/staffPrefillCandidate\(p\)/);
+ assert.match(html,/id="staffDiscovery"/);
+ assert.match(html,/id="staffMissingIdAlert"/);
+ assert.match(html,/Nonaktifkan Petugas/);
+ assert.match(html,/Aktifkan Petugas/);
+ assert.match(html,/BOLO_INPEK_PETUGAS_PENDING/);
+ assert.match(page,/id="adminStaffPending"/);
+});
