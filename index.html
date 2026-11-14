@@ -410,14 +410,16 @@
 @media(max-width:780px){.header-inner{flex-wrap:wrap}.survey-admin-top{margin:0;width:100%}.survey-admin-btn{width:100%}}
 </style>
 <style>
-#markAssignmentModal{border:0;border-radius:17px;width:min(760px,96vw);
-  height:min(730px,90vh);padding:0;box-shadow:0 24px 80px #0e335266;overflow:hidden}
+#markAssignmentModal{border:0;border-radius:17px;width:min(620px,94vw);
+  max-height:85vh;padding:0;box-shadow:0 24px 80px #0e335266;overflow:auto}
 #markAssignmentModal::backdrop{background:#0e2b4d99}
-#markAssignmentFrame{width:100%;height:calc(100% - 55px);border:0;background:#f0f6fc}
-#markAssignmentSetup{font-size:13px}
+#markAssignmentSetup{font-size:13px;padding:22px 24px;line-height:1.6;background:#fff;display:block}
+#markAssignmentSetup[hidden]{display:none}
+#markAssignmentSetup strong{display:block;color:#174572;font-size:15px;margin-bottom:8px}
+#markAssignmentSetup a.survey-admin-btn{display:inline-flex;margin:10px 0;text-decoration:none}
 </style>
 
-<link rel="stylesheet" href="./dashboard-interaktif.css?v=16">
+<link rel="stylesheet" href="./dashboard-interaktif.css?v=17">
 </head>
 <body>
   <!-- HEADER: identitas BOLO INPEK dan BPS Kabupaten Blora -->
@@ -459,10 +461,11 @@
 <dialog id="markAssignmentModal" aria-labelledby="markAssignmentTitle">
   <div class="survey-admin-bar">
     <strong id="markAssignmentTitle">Penanda Assignment — BOLO INPEK</strong>
-    <span><a id="markAssignmentExternal" href="#" target="_blank" rel="noopener noreferrer" style="display:none;color:#fff;font-size:12px;margin-right:12px">Buka di Tab Baru</a><button type="button" class="survey-admin-close" id="closeMarkAssignment">Tutup ×</button></span>
+    <button type="button" class="survey-admin-close" id="closeMarkAssignment">Tutup ×</button>
   </div>
-  <div id="markAssignmentSetup" class="survey-admin-help" hidden>Memuat formulir penanda assignment…</div>
-  <iframe id="markAssignmentFrame" title="Penanda dan catatan per assignment" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+  <div id="markAssignmentSetup" role="status" class="survey-admin-help">
+    Formulir Penanda Assignment dibuka di tab Google Apps Script tersendiri agar login Google dan penyimpanan tidak terhalang iframe.
+  </div>
 </dialog>
 
   <main>
@@ -507,7 +510,7 @@
   </main>
   <footer>BOLO INPEK · Sumber: Google Sheets · Persentase dihitung dari seluruh assignment pada kelompok yang sedang dibuka. Data pendataan diperbarui setelah operator menjalankan Python. · <a href="./kebijakan-privasi.html">Kebijakan Privasi</a></footer>
   <noscript>Aktifkan JavaScript untuk menggunakan dashboard ini.</noscript>
-  <script src="./dashboard-interaktif.js?v=16"></script>
+  <script src="./dashboard-interaktif.js?v=17"></script>
   <script>
     // ========================================================
     // STATUS DASHBOARD: setiap assignment dihitung satu kali.
@@ -1336,66 +1339,87 @@
       document.getElementById('surveyAdminFrame').src='about:blank';
       // Tidak reload otomatis saat dialog ditutup: pilihan survei/filter tidak hilang.
     });
-    function openMarkActivationHelp(){
+
+    // HTML Google Apps Script kerap ditolak untuk login lintas-domain di iframe
+    // GitHub Pages. Penanda dibuka di TAB tersendiri agar Google SSO berfungsi.
+    let markAdminUrlPromise=null;
+    function markAdminUrl(){
+      if(!markAdminUrlPromise){
+        markAdminUrlPromise=fetch('./kelola-survei-link.json?t='+Date.now(),{cache:'no-store'})
+          .then(r=>{
+            if(!r.ok)throw new Error('Konfigurasi URL admin tidak dapat dimuat.');
+            return r.json();
+          }).then(cfg=>{
+            const url=String(cfg.admin_webapp_url||'').trim();
+            if(!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec(?:\?.*)?$/.test(url))
+              throw new Error('URL Apps Script ADMIN belum valid.');
+            return url;
+          }).catch(err=>{
+            markAdminUrlPromise=null;
+            throw err;
+          });
+      }
+      return markAdminUrlPromise;
+    }
+    function showMarkInfo(title,message,url){
       const modal=document.getElementById('markAssignmentModal');
-      const frame=document.getElementById('markAssignmentFrame');
-      const loading=document.getElementById('markAssignmentSetup');
-      const external=document.getElementById('markAssignmentExternal');
-      document.getElementById('markAssignmentTitle').textContent='Aktivasi Penanda Assignment';
-      frame.hidden=true;frame.src='about:blank';
-      loading.hidden=false;loading.replaceChildren();
-      const title=document.createElement('strong');
-      title.textContent='Penanda belum aktif pada Google Apps Script produksi.';
-      const p=document.createElement('p');
-      p.textContent='Kode dashboard sudah diperbarui, tetapi layanan yang menyimpan penanda masih menggunakan versi lama. Tidak ada assignment yang diubah.';
-      const link=document.createElement('a');
-      link.href=PENANDA_DEPLOY_URL;link.target='_blank';link.rel='noopener noreferrer';
-      link.className='survey-admin-btn';
-      link.textContent='Buka Workflow Aktivasi Penanda';
-      const steps=document.createElement('p');
-      steps.textContent='Pilih Run workflow → branch main → isi TERBITKAN. Setelah selesai dengan sukses, kembali ke BOLO INPEK dan klik Muat Ulang Data.';
-      loading.append(title,p,link,steps);
-      external.style.display='none';external.href='#';
+      document.getElementById('markAssignmentTitle').textContent=title;
+      const info=document.getElementById('markAssignmentSetup');
+      info.replaceChildren();
+      const textEl=document.createElement('p');
+      textEl.textContent=message;
+      info.append(textEl);
+      if(url){
+        const link=document.createElement('a');
+        link.className='survey-admin-btn';
+        link.textContent='Buka Formulir Penanda di Tab Baru';
+        link.href=url;link.target='_blank';link.rel='noopener noreferrer';
+        info.append(link);
+      }
       if(!modal.open)modal.showModal();
     }
-    // Pop-up khusus Penanda Assignment, tidak terhubung dengan dialog Kelola Survei.
-    // Penyimpanan dilakukan di Apps Script sebagai admin melalui google.script.run.
+    function openMarkActivationHelp(){
+      showMarkInfo('Aktivasi Penanda Assignment',
+        'Layanan Penanda Assignment belum aktif pada Apps Script produksi. Buka workflow, jalankan dari branch main dengan konfirmasi TERBITKAN, lalu pilih Muat Ulang Data di dashboard.',
+        PENANDA_DEPLOY_URL);
+    }
     async function openSingleAssignmentMark(survey,assignment){
       if(!MARKERS_AVAILABLE){openMarkActivationHelp();return;}
-      const modal=document.getElementById('markAssignmentModal');
-      const frame=document.getElementById('markAssignmentFrame');
-      const loading=document.getElementById('markAssignmentSetup');
-      const title=document.getElementById('markAssignmentTitle');
-      title.textContent='Penanda Assignment · '+survey;
-      loading.hidden=false;loading.textContent='Menghubungkan penanda untuk '+assignment+'…';
-      const external=document.getElementById('markAssignmentExternal');
-      external.style.display='none';external.href='#';
-      frame.hidden=true;modal.showModal();
+      // window.open harus dijalankan LANGSUNG dari klik, sebelum fetch async
+      // agar tidak diblokir pemblokir pop-up Chrome.
+      let tab=null;
       try{
-        const r=await fetch('./kelola-survei-link.json?t='+Date.now(),{cache:'no-store'});
-        if(!r.ok)throw new Error('Alamat panel admin tidak dapat dimuat.');
-        const config=await r.json();
-        const url=String(config.admin_webapp_url||'');
-        if(!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec(?:\?.*)?$/.test(url))
-          throw new Error('Alamat Apps Script tidak valid.');
-        const target=new URL(url);
+        tab=window.open('about:blank','_blank');
+        if(tab&&!tab.closed){
+          // Tampilkan teks sementara tanpa memasukkan nama assignment ke HTML.
+          try{
+            tab.document.title='Membuka Penanda Assignment BOLO INPEK';
+            tab.document.body.textContent='Menyiapkan formulir penanda…';
+          }catch(_ignored){}
+        }
+        const base=await markAdminUrl();
+        const target=new URL(base);
         target.searchParams.set('action','mark');
         target.searchParams.set('mark_survey',survey);
         target.searchParams.set('mark_assignment',assignment);
-        if(!modal.open)return;
-        frame.src=target.href;
-        external.href=target.href;external.style.display='inline';
-        frame.hidden=false;loading.hidden=true;
+        const url=target.href;
+        if(tab&&!tab.closed){
+          tab.location.replace(url);
+          return;
+        }
+        // Browser memblokir tab baru: tampilkan tautan yang bisa diklik manual.
+        showMarkInfo('Penanda Assignment · '+survey,
+          'Browser memblokir pembukaan tab otomatis. Buka formulir melalui tautan berikut untuk assignment '+assignment+'. Status dan catatan disimpan pada Apps Script ADMIN.',
+          url);
       }catch(err){
-        loading.hidden=false;loading.textContent='Penanda tidak dapat dibuka: '+(err.message||String(err));
+        if(tab&&!tab.closed)try{tab.close()}catch(_ignored){}
+        showMarkInfo('Penanda Assignment Gagal Dibuka',
+          'Formulir penanda untuk '+assignment+' belum bisa dibuka: '+(err.message||String(err)),
+          null);
       }
     }
     document.getElementById('closeMarkAssignment').addEventListener('click',()=>{
       document.getElementById('markAssignmentModal').close();
-    });
-    document.getElementById('markAssignmentModal').addEventListener('close',()=>{
-      document.getElementById('markAssignmentFrame').src='about:blank';
-      // Tidak mengambil ulang data otomatis. Gunakan Muat Ulang Data saat perlu.
     });
     document.getElementById('refreshBoloData').addEventListener('click',()=>{
       loadData({preserveView:true});
