@@ -186,3 +186,10 @@
 .bi-mark-row-btn:hover{background:#eaf4ff}
 .bi-mark-footnote{font-size:11px;color:#688099;line-height:1.6;margin:10px 0 0}
 @media(max-width:600px){.bi-unassigned-panel{padding:13px}.bi-mark-button{width:100%}}
+
+/* Penanda belum aktif: tombol tetap bisa digunakan untuk melihat langkah aktivasi. */
+.bi-mark-activate-btn{background:#fff;color:#775314;border:1px solid #d9b96a;border-radius:7px;font-size:12px;font-weight:800;padding:7px 10px;cursor:pointer;margin:6px 4px 0 0}
+.bi-mark-activate-btn:hover{background:#fff2cc}
+.bi-mark-row-btn[data-bi-activation-help]{background:#fff9e9;color:#835e19;border-color:#e9cc86}
+#markAssignmentSetup a.survey-admin-btn{margin:12px 0;display:inline-flex}
+#markAssignmentSetup p{font-size:13px;line-height:1.65}
