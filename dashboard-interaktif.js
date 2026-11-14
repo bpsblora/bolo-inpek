@@ -126,33 +126,31 @@ function biUnassignedPanel(survey){
   const t=biMarkTotals(rows);
   return '<section class="bi-unassigned-panel'+(t.unmarked||t.review?' needs-attention':' all-reviewed')+'" id="bi-unassigned-panel">'+
     '<div class="bi-unassigned-header"><div>'+
-    '<div class="bi-unassigned-eyebrow"><span class="bi-mark-indicator" aria-hidden="true"></span> PENGELOLAAN PENANDA</div>'+
+    ''+
     '<h2>Penanda Assignment Belum Dialokasikan</h2>'+
-    '<p>Assignment tanpa PPL/PML dapat berupa sampel cadangan. Tidak otomatis dikecualikan.</p>'+
+    '<p>Assignment tanpa PPL/PML tidak otomatis dikecualikan.</p>'+
     '</div><button type="button" class="bi-mark-button" data-bi-show-marks>'+
     '☷ Lihat Assignment</button></div>'+
     '<div class="bi-unassigned-stats" role="group" aria-label="Ringkasan penanda assignment">'+
     '<div class="bi-mark-stat bi-stat-unassigned"><span>Belum Dialokasikan</span>'+
-      '<strong>'+format.format(t.all)+'</strong><small>Total assignment</small></div>'+
+      '<strong>'+format.format(t.all)+'</strong></div>'+
     '<button type="button" class="bi-mark-stat bi-mark-stat-link bi-stat-excluded" data-bi-open-mark-filter="excluded"'+
       ' aria-label="Lihat '+format.format(t.excluded)+' assignment Tidak Dihitung">'+
       '<span>Tidak Dihitung</span><strong>'+format.format(t.excluded)+'</strong>'+
-      '<small>Lihat rincian →</small></button>'+
+      '</button>'+
     '<div class="bi-mark-stat bi-stat-unmarked'+(t.unmarked?' has-pending':' is-complete')+'">'+
       '<span>Belum Ditandai</span><strong>'+format.format(t.unmarked)+'</strong>'+
-      '<small>'+(t.unmarked?'Perlu ditinjau':'Sudah ditandai semua')+'</small></div>'+
+      '</div>'+
     (t.review?'<button type="button" class="bi-mark-stat bi-mark-stat-link bi-stat-review" data-bi-open-mark-filter="review"'+
       ' aria-label="Lihat '+format.format(t.review)+' assignment Perlu Tinjau Ulang">'+
       '<span>Perlu Tinjau Ulang</span><strong>'+format.format(t.review)+'</strong>'+
-      '<small>Lihat rincian →</small></button>':'')+
+      '</button>':'')+
     '</div>'+
     (!MARKERS_AVAILABLE?'<div class="bi-mark-notice" role="status">'+
       'Penanda bersama belum aktif. Seluruh assignment tetap dihitung. '+
       '<button type="button" class="bi-mark-activate-btn" data-bi-activation-help>Lihat Cara Mengaktifkan</button>'+
       '</div>':'')+
-    '<div class="bi-mark-tip" role="note"><span class="bi-mark-tip-icon" aria-hidden="true">✦</span>'+
-      '<p><strong>Klik Lihat Assignment</strong> untuk membuka daftar dan mengatur penanda satu per satu. '+
-      'Daftar dan formulir tetap menggunakan pop-up tanpa memuat ulang dashboard.</p></div>'+
+    ''+
     '</section>';
 }
 function biMarkListContent(survey){
@@ -278,7 +276,7 @@ function biSummary(){
     (state.survey===null?'':'<button class="bi-back-all" type="button" data-level="home" data-value="">← Semua Survei</button>')+
     '</div></div>'+
     '<div class="bi-summary-tip" role="note"><span class="bi-summary-tip-icon" aria-hidden="true">✦</span>'+
-      '<span><strong>Ketuk kartu survei</strong> untuk melihat progres PML/PPL sekaligus memfilter survei yang ditampilkan.</span></div>'+
+      '<span><strong>Pilih survei</strong> untuk membuka progresnya.</span></div>'+
     '<div class="bi-summary-grid">'+(surveys.map(survey=>{
       const rows=DATA.filter(r=>r.survei===survey),submitted=biCounts(rows).submitted;
       const rate=rows.length?submitted/rows.length*100:null;
@@ -290,8 +288,10 @@ function biSummary(){
         '<span class="bi-summary-meta">'+format.format(submitted)+' dari '+format.format(rows.length)+' assignment Sudah Submit</span>'+ 
         '<span class="bi-summary-track"><span style="width:'+(rows.length?Math.min(100,submitted/rows.length*100):0)+'%"></span></span></button>';
     }).join('')||'<p class="bi-empty">Belum ada survei aktif.</p>')+'</div>'+
-    '<p class="bi-footnote">Belum Submit = OPEN + DRAFT. Sudah Submit = SUBMITTED + APPROVED + REJECTED + REVOKED + COMPLETED. LAINNYA tidak dihitung sebagai Sudah Submit. Penanda Tidak Dihitung mengecualikan sampel cadangan dari pembilang dan penyebut, tetapi tidak menghapus data asli.'+
-    ((ALL_ASSIGNMENTS.length-DATA.length)>0?' <strong>'+format.format(ALL_ASSIGNMENTS.length-DATA.length)+' assignment dikecualikan dari perhitungan.</strong>':'')+'</p></section>';
+    ((ALL_ASSIGNMENTS.length-DATA.length)>0?'<p class="bi-footnote bi-exclusion-note">'+format.format(ALL_ASSIGNMENTS.length-DATA.length)+' assignment Tidak Dihitung.</p>':'')+
+    '<details class="bi-method-note"><summary>Dasar perhitungan</summary><p>'+
+    'Belum Submit = OPEN + DRAFT. Sudah Submit = SUBMITTED + APPROVED + REJECTED + REVOKED + COMPLETED. '+
+    'LAINNYA tidak otomatis dihitung. Penanda Tidak Dihitung dikecualikan, bukan dihapus dari sumber data.</p></details></section>';
 }
 function biCompareProgress(a,b,mode){
   // Prioritas utama: Sudah Submit; jika sama: status APPROVED saja (COMPLETED terpisah).
