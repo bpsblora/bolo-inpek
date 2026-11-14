@@ -162,3 +162,27 @@
 .bi-county-total.is-warning{background:#fff7df!important;border-color:#ecd38b!important;color:#855d00!important}
 .bi-county-total.is-danger{background:#fff0ed!important;border-color:#edb3aa!important;color:#aa3b34!important}
 .bi-county-total.is-empty{background:#f4f6f9!important;border-color:#d0dce8!important;color:#66788a!important}
+
+/* Penanda assignment cadangan. Tidak ditaruh sebagai filter kedua. */
+.bi-unassigned-panel{background:#fff;border:1px solid #d6e3f3;border-radius:15px;padding:17px 20px;margin:0 0 18px;box-shadow:0 3px 14px #1747770c}
+.bi-unassigned-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.bi-unassigned-header h2{font-size:16px;color:#174572;margin:0}
+.bi-unassigned-header p{color:#617b95;font-size:12px;line-height:1.5;margin:6px 0}
+.bi-mark-button{background:#174f86;color:#fff;border:0;border-radius:9px;font-weight:750;font-size:12px;padding:10px 13px;cursor:pointer}
+.bi-mark-button:hover{background:#0c3d6e}
+.bi-unassigned-stats{font-size:12px;color:#57708b;margin:11px 0}
+.bi-unassigned-stats strong{color:#1f5f9b;font-variant-numeric:tabular-nums}
+.bi-mark-notice{font-size:12px;border:1px solid #ecd49d;background:#fff9e9;color:#855e15;padding:10px 12px;border-radius:9px;line-height:1.5}
+.bi-unassigned-details{background:#f8fbff;border-radius:11px;border:1px solid #e0eafa;overflow:hidden}
+.bi-unassigned-details>summary{padding:13px 14px;color:#174e83;font-size:12px;font-weight:800;cursor:pointer}
+.bi-unassigned-details>summary:hover{background:#ebf4ff}
+.bi-unassigned-table{min-width:880px;width:100%}
+.bi-unassigned-table td,.bi-unassigned-table th{padding:10px 12px;font-size:12px;line-height:1.45}
+.bi-unassigned-table td:nth-child(2){min-width:180px;white-space:normal;overflow-wrap:anywhere}
+.bi-unassigned-table td:nth-child(5){max-width:360px;white-space:normal;overflow-wrap:anywhere}
+.bi-mark-state{font-weight:800;color:#245f95;background:#eaf3ff;border-radius:6px;padding:5px 7px}
+.bi-mark-state.off{color:#a43c35;background:#fff1ee}
+.bi-mark-row-btn{padding:7px 9px;border-radius:7px;border:1px solid #c1d8f0;background:#fff;color:#19528a;font-size:11px;font-weight:800;cursor:pointer}
+.bi-mark-row-btn:hover{background:#eaf4ff}
+.bi-mark-footnote{font-size:11px;color:#688099;line-height:1.6;margin:10px 0 0}
+@media(max-width:600px){.bi-unassigned-panel{padding:13px}.bi-mark-button{width:100%}}
