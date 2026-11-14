@@ -22,29 +22,39 @@ function biUnitControl(scope){
     }).join('')+'</span>';
 }
 const biBuckets=[
-  {id:'pending',label:'Belum Submit',color:'#f2b3b3'},
-  {id:'sent',label:'Terkirim',color:'#8cbcf0'},
-  {id:'approved',label:'Disetujui / Selesai',color:'#9ad9a5'},
-  {id:'revision',label:'Perlu Perbaikan',color:'#f6dc85'},
-  {id:'other',label:'Status Lain',color:'#c7d3df'}
+  {id:'open',label:'OPEN',color:'#e9a4ad'},
+  {id:'draft',label:'DRAFT',color:'#f4c6d2'},
+  {id:'sent',label:'SUBMITTED',color:'#8cbcf0'},
+  {id:'approvedStage',label:'APPROVED',color:'#9ad9a5'},
+  {id:'rejected',label:'REJECTED',color:'#f6dc85'},
+  {id:'revoked',label:'REVOKED',color:'#f7bd90'},
+  {id:'completed',label:'COMPLETED',color:'#72cdbb'},
+  {id:'other',label:'LAINNYA',color:'#c7d3df'}
 ];
 function biStatusBucket(value){
   const s=String(value||'').trim().toUpperCase();
-  if(s==='OPEN'||s==='DRAFT')return 'pending';
-  if(s.startsWith('REJECTED')||s.startsWith('REVOKED'))return 'revision';
-  if(s.startsWith('COMPLETED')||s.startsWith('APPROVED'))return 'approved';
+  if(s==='OPEN')return 'open';
+  if(s==='DRAFT')return 'draft';
   if(s.startsWith('SUBMITTED'))return 'sent';
+  if(s.startsWith('APPROVED'))return 'approvedStage';
+  if(s.startsWith('REJECTED'))return 'rejected';
+  if(s.startsWith('REVOKED'))return 'revoked';
+  if(s.startsWith('COMPLETED'))return 'completed';
   return 'other';
 }
+function biIsSubmittedBucket(bucket){
+  return ['sent','approvedStage','rejected','revoked','completed'].includes(bucket);
+}
 function biCounts(rows){
-  // Lima kelompok visual eksklusif, supaya total tidak dihitung ganda.
-  // Sudah Submit adalah METRIK TURUNAN: mencakup terkirim, disetujui,
-  // selesai, REJECTED dan REVOKED pada semua tingkat pemeriksaan.
-  // Status tidak tersedia/tidak dirinci tidak dipaksa menjadi Sudah Submit.
-  const out={pending:0,sent:0,approved:0,revision:0,other:0,submitted:0};
-  for(const row of rows)out[biStatusBucket(row.status)]++;
-  out.submitted=out.sent+out.approved+out.revision;
-  return out;
+  // OPEN, DRAFT, SUBMITTED, APPROVED, REJECTED, REVOKED, COMPLETED
+  // adalah kategori FASIH yang eksklusif; total Sudah Submit adalah turunan.
+  const result=Object.fromEntries(biBuckets.map(b=>[b.id,0]));
+  for(const row of rows)result[biStatusBucket(row.status)]++;
+  result.pending=result.open+result.draft;
+  result.approved=result.approvedStage+result.completed;
+  result.revision=result.rejected+result.revoked;
+  result.submitted=result.sent+result.approved+result.revision;
+  return result;
 }
 
 function biUnassigned(value){
@@ -238,7 +248,7 @@ function biSummarySurveyList(){
     if(!totalBySurvey.has(row.survei))totalBySurvey.set(row.survei,{total:0,submitted:0});
     const stats=totalBySurvey.get(row.survei);
     stats.total++;
-    if(['sent','approved','revision'].includes(biStatusBucket(row.status)))stats.submitted++;
+    if(biIsSubmittedBucket(biStatusBucket(row.status)))stats.submitted++;
   }
   return base.slice().sort((a,b)=>{
     const first=totalBySurvey.get(a),second=totalBySurvey.get(b);
@@ -271,39 +281,43 @@ function biSummary(){
         '<span class="bi-summary-meta">'+format.format(submitted)+' dari '+format.format(rows.length)+' assignment Sudah Submit</span>'+ 
         '<span class="bi-summary-track"><span style="width:'+(rows.length?Math.min(100,submitted/rows.length*100):0)+'%"></span></span></button>';
     }).join('')||'<p class="bi-empty">Belum ada survei aktif.</p>')+'</div>'+
-    '<p class="bi-footnote">Belum Submit = OPEN/DRAFT. REJECTED/REVOKED tetap Sudah Submit. Penanda Tidak Dihitung mengecualikan sampel cadangan dari pembilang dan penyebut, tetapi tidak menghapus data asli.'+
+    '<p class="bi-footnote">Belum Submit = OPEN + DRAFT. Sudah Submit = SUBMITTED + APPROVED + REJECTED + REVOKED + COMPLETED. LAINNYA tidak dihitung sebagai Sudah Submit. Penanda Tidak Dihitung mengecualikan sampel cadangan dari pembilang dan penyebut, tetapi tidak menghapus data asli.'+
     ((ALL_ASSIGNMENTS.length-DATA.length)>0?' <strong>'+format.format(ALL_ASSIGNMENTS.length-DATA.length)+' assignment dikecualikan dari perhitungan.</strong>':'')+'</p></section>';
 }
-function biRoleNames(rows,key){
-  // Urutan mengikuti tombol panel masing-masing:
-  // Persentase = rasio capaian tertinggi, Angka = jumlah capaian terbanyak.
-  // PPL menghitung Sudah Submit; PML menghitung Approved / Completed.
+function biCompareProgress(a,b,mode){
+  // Prioritas utama: Sudah Submit; jika sama: Approved + Completed.
+  // Tombol Angka membandingkan jumlah, tombol Persentase membandingkan rasio.
+  const submittedRatio=b.submitted*a.total-a.submitted*b.total;
+  const approvedRatio=b.approved*a.total-a.approved*b.total;
+  const submittedCount=b.submitted-a.submitted;
+  const approvedCount=b.approved-a.approved;
+  return mode==='persentase'
+    ?submittedRatio||approvedRatio||submittedCount||approvedCount
+    :submittedCount||approvedCount||submittedRatio||approvedRatio;
+}
+function biRoleNames(rows,key,scope=key){
   const groups=new Map();
   rows.forEach(row=>{
     const person=name(row,key);
     if(!groups.has(person))groups.set(person,[]);
     groups.get(person).push(row);
   });
-  const metric=key==='pml'?'approved':'submitted';
-  const stats=new Map([...groups].map(([person,group])=>[person,biCounts(group)]));
-  const sortMode=biUnitMode(key);
+  const scores=new Map([...groups].map(([person,group])=>{
+    const score=biCounts(group);
+    return [person,{total:group.length,submitted:score.submitted,approved:score.approved}];
+  }));
   return [...groups.keys()].sort((a,b)=>{
     if(a===UNASSIGNED&&b!==UNASSIGNED)return 1;
     if(b===UNASSIGNED&&a!==UNASSIGNED)return -1;
-    const countA=stats.get(a)[metric],countB=stats.get(b)[metric];
-    const totalA=groups.get(a).length,totalB=groups.get(b).length;
-    // Perkalian silang menghindari pembulatan persentase saat mengurutkan.
-    const byPercentage=countB*totalA-countA*totalB;
-    const byCount=countB-countA;
-    if(sortMode==='persentase')return byPercentage || byCount || a.localeCompare(b,'id');
-    return byCount || byPercentage || a.localeCompare(b,'id');
+    return biCompareProgress(scores.get(a),scores.get(b),biUnitMode(scope))||
+      a.localeCompare(b,'id');
   });
 }
 function biRoleContent(rows,key){
   const names=biRoleNames(rows,key);
   if(!names.length)return '<div class="bi-empty">Tidak ada assignment untuk petugas atau filter yang dipilih.</div>';
-  const metric=key==='pml'?'approved':'submitted';
-  const metricName=key==='pml'?'Approved / Completed':'Sudah Submit';
+  const metric='submitted';
+  const metricName='Sudah Submit';
   if(biView.mode==='tabel'){
     const body=names.map(person=>{
       const group=rows.filter(r=>name(r,key)===person),c=biCounts(group);
@@ -320,15 +334,15 @@ function biRoleContent(rows,key){
     return '<button type="button" class="bi-bar-row" data-level="'+key+'" data-value="'+esc(person)+'">'+
       '<span class="bi-name">'+esc(person)+'</span>'+biBar(group,person)+
       '<span class="bi-row-stat"><strong>'+biUnitText(counts[metric],group.length,key)+'</strong>'+
-      '<span>'+(key==='pml'?'Approved / Completed':'Sudah Submit')+'</span></span></button>';
+      '<span>Sudah Submit · Approved/Completed: '+counts.approved+'</span></span></button>';
   }).join('')+'</div>';
 }
 function biPanel(rows,key){
   const label=key==='pml'?'Pengawas / PML':'Pencacah / PPL';
-  const rank=key==='pml'?'Approved / Completed':'Sudah Submit';
+  const rank='Sudah Submit';
   const orderLabel=biUnitMode(key)==='persentase'
-    ?'Persentase '+rank+' tertinggi ke terendah.'
-    :'Jumlah '+rank+' terbanyak ke paling sedikit.';
+    ?'Persentase '+rank+' tertinggi, lalu Approved/Completed jika sama.'
+    :'Jumlah '+rank+' terbanyak, lalu Approved/Completed jika sama.';
   return '<section class="bi-panel"><div class="bi-role-head"><div><h2>Progres '+label+'</h2>'+
     '<small>Urutan: '+orderLabel+'</small></div>'+
     '<div class="bi-panel-tools"><small>'+biRoleNames(rows,key).length+' petugas</small>'+
@@ -341,7 +355,7 @@ function biKpis(rows){
     ['Total Assignment',rows.length,'seluruh status',false],
     ['Belum Submit',c.pending,'OPEN / DRAFT',true],
     ['Sudah Submit',c.submitted,'termasuk REJECTED / REVOKED',false],
-    ['Perlu Perbaikan',c.revision,'bagian dari Sudah Submit',false]
+    ['REJECTED',c.rejected,'REVOKED tampil terpisah',false]
   ];
   return '<div class="bi-kpis">'+items.map(([label,n,note,warn])=>
     '<div class="bi-kpi'+(warn?' alert':'')+'"><span>'+label+'</span><strong>'+format.format(n)+'</strong><small>'+note+'</small></div>').join('')+'</div>';
@@ -399,25 +413,18 @@ function biOverview(){
 
 /* Report khusus PPL: pasangan (PPL, PML) tidak boleh digabung lintas pengawas. */
 function biPplPmlPairs(rows,scope='report'){
-  // Satu baris tetap merepresentasikan pasangan PPL-PML yang sama.
-  // Persentase = rasio Sudah Submit tertinggi; Angka = total Sudah Submit terbanyak.
   const map=new Map();
   rows.forEach(row=>{
-    const ppl=name(row,'ppl'),pml=name(row,'pml');
-    const key=JSON.stringify([ppl,pml]);
+    const ppl=name(row,'ppl'),pml=name(row,'pml'),key=JSON.stringify([ppl,pml]);
     if(!map.has(key))map.set(key,{ppl,pml,rows:[]});
     map.get(key).rows.push(row);
   });
-  const mode=biUnitMode(scope);
   return [...map.values()].sort((a,b)=>{
-    const sa=biCounts(a.rows).submitted,sb=biCounts(b.rows).submitted;
-    // Bandingkan rasio tanpa pembulatan; jika seri, pakai metrik lainnya.
-    const byPercentage=sb*a.rows.length-sa*b.rows.length;
-    const byCount=sb-sa;
-    const byName=a.ppl.localeCompare(b.ppl,'id')||a.pml.localeCompare(b.pml,'id');
-    return mode==='persentase'
-      ?(byPercentage||byCount||byName)
-      :(byCount||byPercentage||byName);
+    const ac=biCounts(a.rows),bc=biCounts(b.rows);
+    const va={total:a.rows.length,submitted:ac.submitted,approved:ac.approved};
+    const vb={total:b.rows.length,submitted:bc.submitted,approved:bc.approved};
+    return biCompareProgress(va,vb,biUnitMode(scope))||
+      a.ppl.localeCompare(b.ppl,'id')||a.pml.localeCompare(b.pml,'id');
   });
 }
 function biExportButtons(survey,pml){
@@ -434,8 +441,8 @@ function biPplDetailPanel(survey){
   const rows=DATA.filter(row=>row.survei===survey);
   const pairs=biPplPmlPairs(rows,'report');
   const orderText=biUnitMode('report')==='persentase'
-    ?'persentase Sudah Submit tertinggi ke terendah'
-    :'jumlah Sudah Submit terbanyak ke paling sedikit';
+    ?'persentase Sudah Submit tertinggi, lalu Approved/Completed'
+    :'jumlah Sudah Submit terbanyak, lalu Approved/Completed';
   return '<section class="bi-panel" aria-label="Rincian progres PPL dengan PML">'+
     '<div class="bi-role-head"><div><h2>Rincian Progres Seluruh PPL</h2>'+
     '<small>Urut dari '+orderText+'. PML tetap pada kolom paling kanan.</small></div>'+
@@ -445,24 +452,25 @@ function biPplDetailPanel(survey){
     '<p>Gambar dan PDF memuat progres setiap PPL, status assignment, grafik, serta PML penanggung jawab. Ekspor seluruh survei, tidak terpengaruh filter layar.</p></div>'+
     biExportButtons(survey,null)+'<p class="bi-feedback" role="status" aria-live="polite"></p></div>'+
     (pairs.length?'<div class="tablebox"><table class="bi-ppl-table"><thead><tr>'+
-      '<th>PPL</th><th>Assignment</th><th>Belum Submit</th><th>Sudah Submit ↓</th><th>Terkirim</th><th>Disetujui / Selesai</th><th>Perbaikan</th><th>Progres</th><th>PML</th>'+
+      '<th>PPL</th><th>Assignment</th><th>OPEN</th><th>DRAFT</th><th>Sudah Submit ↓</th><th>SUBMITTED</th><th>APPROVED</th><th>REJECTED</th><th>REVOKED</th><th>COMPLETED</th><th>LAINNYA</th><th>Progres</th><th>PML</th>'+
       '</tr></thead><tbody>'+pairs.map(entry=>{
         const c=biCounts(entry.rows);
-        return '<tr><td>'+esc(entry.ppl)+'</td><td>'+entry.rows.length+'</td><td>'+c.pending+'</td>'+
+        return '<tr><td>'+esc(entry.ppl)+'</td><td>'+entry.rows.length+'</td><td>'+c.open+'</td><td>'+c.draft+'</td>'+
           '<td><strong>'+biUnitText(c.submitted,entry.rows.length,'report')+'</strong></td>'+
-          '<td>'+c.sent+'</td><td>'+c.approved+'</td><td>'+c.revision+'</td>'+
+          '<td>'+c.sent+'</td><td>'+c.approvedStage+'</td><td>'+c.rejected+'</td>'+
+          '<td>'+c.revoked+'</td><td>'+c.completed+'</td><td>'+c.other+'</td>'+
           '<td class="bi-mini-stack">'+biBar(entry.rows,entry.ppl)+
           '<small class="bi-progress-label">'+biUnitText(c.submitted,entry.rows.length,'report')+'</small></td>'+
           '<td>'+esc(entry.pml)+'</td></tr>';
       }).join('')+'</tbody></table></div>':
       '<div class="bi-empty">Belum ada PPL untuk survei ini.</div>')+
-    '<p class="bi-ppl-footnote">Sudah Submit mencakup Terkirim, Disetujui/Selesai, dan Perbaikan (REJECTED/REVOKED); kolom Perbaikan adalah rincian, bukan tambahan. Status Lain tidak disimpulkan sebagai Sudah Submit. Jika PPL bekerja di bawah dua PML, barisnya dipisah agar progres tidak tertukar.</p></section>';
+    '<p class="bi-ppl-footnote">Sudah Submit = SUBMITTED + APPROVED + REJECTED + REVOKED + COMPLETED. OPEN dan DRAFT belum submit. LAINNYA tidak otomatis dihitung sebagai submit. Jika PPL bekerja di bawah dua PML, barisnya dipisah agar progres tidak tertukar.</p></section>';
 }
 function biPmlCards(survey){
   const rows=DATA.filter(row=>row.survei===survey);
-  const names=biRoleNames(rows,'pml');
+  const names=biRoleNames(rows,'pml','cards');
   return '<section class="bi-pml-collection"><div class="bi-role-head"><div>'+
-    '<h2>Progres PPL per PML</h2><small>Urut dari jumlah Approved / Completed PML terbanyak. Setiap PML bisa mengunduh laporan sendiri.</small>'+
+    '<h2>Progres PPL per PML</h2><small>Urut berdasarkan Sudah Submit, lalu Approved/Completed jika sama. Setiap PML bisa mengunduh laporan sendiri.</small>'+
     '</div><div class="bi-panel-tools"><small>'+names.length+' PML</small>'+
     biUnitControl('cards')+'</div></div>'+
     (names.length?'<div class="bi-pml-grid">'+names.map(pml=>{
@@ -470,7 +478,7 @@ function biPmlCards(survey){
       const pairs=biPplPmlPairs(group,'cards'),stats=biCounts(group);
       return '<article class="bi-pml-card"><div class="bi-pml-top"><div><strong>'+esc(pml)+'</strong>'+
         '<small>'+pairs.length+' PPL · '+group.length+' assignment</small></div>'+
-        '<span class="bi-pml-count">'+biUnitText(stats.approved,group.length,'cards')+' approve</span></div>'+
+        '<span class="bi-pml-count">'+biUnitText(stats.submitted,group.length,'cards')+' Sudah Submit</span></div>'+
         biBar(group,pml)+'<p class="bi-card-progress">Approved / Completed: <strong>'+
           biUnitText(stats.approved,group.length,'cards')+'</strong></p>'+
         biExportButtons(survey,pml)+
@@ -528,28 +536,31 @@ function biCanvasPage(survey,pml,pairs,pageIndex,pages,totalCounts){
   ctx.fillText('BPS KABUPATEN BLORA',1620,55);ctx.textAlign='left';
   ctx.fillStyle='#edf5ff';ctx.fillRect(58,186,1568,101);
   const stats=[
-    ['ASSIGNMENT',totalCounts.total],
-    ['BELUM SUBMIT',totalCounts.pending],
-    ['SUDAH SUBMIT',totalCounts.submitted],
-    ['TERKIRIM',totalCounts.sent],
-    ['DISETUJUI',totalCounts.approved],
-    ['PERBAIKAN',totalCounts.revision],
-    ['LAINNYA',totalCounts.other]
+    ['ASSIGNMENT',totalCounts.total,'#174679'],
+    ['OPEN',totalCounts.open,'#9e4758'],
+    ['DRAFT',totalCounts.draft,'#a76379'],
+    ['SUDAH SUBMIT',totalCounts.submitted,'#174679'],
+    ['SUBMITTED',totalCounts.sent,'#316b9e'],
+    ['APPROVED',totalCounts.approvedStage,'#2f805b'],
+    ['REJECTED',totalCounts.rejected,'#98751b'],
+    ['REVOKED',totalCounts.revoked,'#995e31'],
+    ['COMPLETED',totalCounts.completed,'#237e76'],
+    ['LAINNYA',totalCounts.other,'#617388']
   ];
-  const statTones=['#174679','#b75661','#174679','#316b9e','#2f805b','#98751b','#617388'];
-  stats.forEach(([label,n],i)=>{
-    const x=75+i*220;
-    ctx.fillStyle='#5c7390';ctx.font='bold 14px Arial';ctx.fillText(label,x,220);
-    ctx.font='bold 30px Arial';ctx.fillStyle=statTones[i];
+  stats.forEach(([label,n,tone],i)=>{
+    const x=72+i*156;
+    ctx.fillStyle='#5c7390';ctx.font='bold 12px Arial';ctx.fillText(label,x,220);
+    ctx.font='bold 27px Arial';ctx.fillStyle=tone;
     ctx.fillText(String(n),x,260);
   });
   const headings=[
-    ['PPL',68],['TOTAL',330],['BELUM',400],['SUDAH',480],
-    ['KIRIM',580],['SETUJU',660],['REVISI',745],['LAIN',820],
-    ['GRAFIK PROGRES',923],['PML',1303]
+    ['PPL',68],['TOTAL',330],['OPEN',400],['DRAFT',466],
+    ['SUDAH',532],['SUBMIT',610],['APPROVE',709],
+    ['REJECT',801],['REVOKE',887],['COMPLETE',969],['LAIN',1055],
+    ['GRAFIK',1130],['PML',1303]
   ];
   ctx.fillStyle='#d9e9fa';ctx.fillRect(58,311,1568,51);
-  ctx.fillStyle='#184574';ctx.font='bold 17px Arial';
+  ctx.fillStyle='#184574';ctx.font='bold 14px Arial';
   headings.forEach(([text,x])=>ctx.fillText(text,x,342));
   const first=pageIndex*17,part=pairs.slice(first,first+17);
   part.forEach((entry,i)=>{
@@ -559,10 +570,15 @@ function biCanvasPage(survey,pml,pairs,pageIndex,pages,totalCounts){
     const c=biCounts(entry.rows);
     ctx.font='18px Arial';ctx.fillStyle='#163e68';
     biCanvasText(ctx,entry.ppl,68,y+28,246);
-    const values=[entry.rows.length,c.pending,c.submitted,c.sent,c.approved,c.revision,c.other];
-    const rowTones=['#183e63','#b75661','#174679','#316b9e','#2f805b','#98751b','#617388'];
-    [330,400,480,580,660,745,820].forEach((x,j)=>{ctx.fillStyle=rowTones[j];ctx.fillText(String(values[j]),x,y+28);});
-    const barX=927,barY=y+26,barW=326,barH=9;
+    const values=[entry.rows.length,c.open,c.draft,c.submitted,c.sent,
+      c.approvedStage,c.rejected,c.revoked,c.completed,c.other];
+    const rowTones=['#183e63','#9e4758','#a76379','#174679','#316b9e',
+      '#2f805b','#98751b','#995e31','#237e76','#617388'];
+    ctx.font='15px Arial';
+    [330,400,466,532,610,709,801,887,969,1055].forEach((x,k)=>{
+      ctx.fillStyle=rowTones[k];ctx.fillText(String(values[k]),x,y+28);
+    });
+    const barX=1128,barY=y+26,barW=145,barH=9;
     ctx.font='bold 15px Arial';ctx.fillStyle='#245f98';
     biCanvasText(ctx,biUnitText(c.submitted,entry.rows.length,pml===null?'report':'cards'),barX,y+19,barW);
     ctx.fillStyle='#dce5f1';ctx.fillRect(barX,barY,barW,barH);
@@ -576,7 +592,7 @@ function biCanvasPage(survey,pml,pairs,pageIndex,pages,totalCounts){
   });
   const footY=1120;
   ctx.fillStyle='#607991';ctx.font='16px Arial';
-  ctx.fillText('Belum Submit = OPEN / DRAFT   |   Sudah Submit termasuk REJECTED / REVOKED (Perbaikan)',65,footY);
+  ctx.fillText('Belum Submit = OPEN + DRAFT  |  Sudah Submit = SUBMITTED + APPROVED + REJECTED + REVOKED + COMPLETED',65,footY);
   biCanvasText(ctx,'Data terakhir diambil: '+(typeof exportTime==='function'?exportTime():'Belum tercatat')+
     (totalCounts.manual?' | '+totalCounts.manual+' assignment memakai status manual':''),
     65,footY+31,1500);
