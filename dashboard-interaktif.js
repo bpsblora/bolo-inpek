@@ -45,15 +45,28 @@ function biStatusBucket(value){
 function biIsSubmittedBucket(bucket){
   return ['sent','approvedStage','rejected','revoked','completed'].includes(bucket);
 }
+function biRejectedByPengawas(status){
+  // REJECTED BY PENGAWAS masih harus diperbaiki dan dikirim ulang PPL.
+  return String(status||'').trim().replace(/\s+/g,' ').toUpperCase()
+    .startsWith('REJECTED BY PENGAWAS');
+}
+function biIsSubmittedStatus(status){
+  return biIsSubmittedBucket(biStatusBucket(status))&&!biRejectedByPengawas(status);
+}
 function biCounts(rows){
-  // OPEN, DRAFT, SUBMITTED, APPROVED, REJECTED, REVOKED, COMPLETED
-  // adalah kategori FASIH yang eksklusif; total Sudah Submit adalah turunan.
+  // Kategori warna tetap mengikuti status asli; indikator Belum/Sudah Submit
+  // mengikuti tindak lanjut yang diperlukan (REJECTED BY PENGAWAS belum submit).
   const result=Object.fromEntries(biBuckets.map(b=>[b.id,0]));
-  for(const row of rows)result[biStatusBucket(row.status)]++;
-  result.pending=result.open+result.draft;
+  let rejectedByPengawas=0;
+  for(const row of rows){
+    result[biStatusBucket(row.status)]++;
+    if(biRejectedByPengawas(row.status))rejectedByPengawas++;
+  }
+  result.rejectedByPengawas=rejectedByPengawas;
+  result.pending=result.open+result.draft+rejectedByPengawas;
   result.approved=result.approvedStage+result.completed;
   result.revision=result.rejected+result.revoked;
-  result.submitted=result.sent+result.approved+result.revision;
+  result.submitted=result.sent+result.approved+result.revision-rejectedByPengawas;
   return result;
 }
 
@@ -254,7 +267,7 @@ function biSummarySurveyList(){
     if(!totalBySurvey.has(row.survei))totalBySurvey.set(row.survei,{total:0,submitted:0});
     const stats=totalBySurvey.get(row.survei);
     stats.total++;
-    if(biIsSubmittedBucket(biStatusBucket(row.status)))stats.submitted++;
+    if(biIsSubmittedStatus(row.status))stats.submitted++;
   }
   return base.slice().sort((a,b)=>{
     const first=totalBySurvey.get(a),second=totalBySurvey.get(b);
@@ -289,9 +302,10 @@ function biSummary(){
         '<span class="bi-summary-track"><span style="width:'+(rows.length?Math.min(100,submitted/rows.length*100):0)+'%"></span></span></button>';
     }).join('')||'<p class="bi-empty">Belum ada survei aktif.</p>')+'</div>'+
     ((ALL_ASSIGNMENTS.length-DATA.length)>0?'<p class="bi-footnote bi-exclusion-note">'+format.format(ALL_ASSIGNMENTS.length-DATA.length)+' assignment Tidak Dihitung.</p>':'')+
-    '<details class="bi-method-note"><summary>Dasar perhitungan</summary><p>'+
-    'Belum Submit = OPEN + DRAFT. Sudah Submit = SUBMITTED + APPROVED + REJECTED + REVOKED + COMPLETED. '+
-    'LAINNYA tidak otomatis dihitung. Penanda Tidak Dihitung dikecualikan, bukan dihapus dari sumber data.</p></details></section>';
+    '<p class="bi-method-note" role="note"><strong>Dasar perhitungan:</strong> '+
+    '<strong>Belum Submit</strong> = OPEN, DRAFT, dan REJECTED BY PENGAWAS (perlu dikirim ulang). '+
+    '<strong>Sudah Submit</strong> = SUBMITTED, APPROVED, COMPLETED, REVOKED, serta REJECTED selain oleh pengawas. '+
+    'Status LAINNYA tidak otomatis dihitung; assignment bertanda Tidak Dihitung dikecualikan dari total.</p></section>';
 }
 function biCompareProgress(a,b,mode){
   // Prioritas utama: Sudah Submit; jika sama: status APPROVED saja (COMPLETED terpisah).
@@ -362,7 +376,7 @@ function biKpis(rows){
   const c=biCounts(rows);
   const items=[
     ['Total Assignment',rows.length,'',false],
-    ['Belum Submit',c.pending,'OPEN + DRAFT',true],
+    ['Belum Submit',c.pending,'OPEN / DRAFT / REJECTED PENGAWAS',true],
     ['Sudah Submit',c.submitted,'',false],
     ['REJECTED',c.rejected,'',false]
   ];
@@ -750,7 +764,7 @@ function biCanvasPage(survey,pml,pairs,pageIndex,pages,totalCounts){
   });
   const footY=1120;
   ctx.fillStyle='#607991';ctx.font='16px Arial';
-  ctx.fillText('Belum Submit = OPEN + DRAFT  |  Sudah Submit = SUBMITTED + APPROVED + REJECTED + REVOKED + COMPLETED',65,footY);
+  biCanvasText(ctx,'Belum Submit = OPEN + DRAFT + REJECTED BY PENGAWAS  |  Status REJECTED lain dihitung Sudah Submit',65,footY,1540);
   biCanvasText(ctx,'Data terakhir diambil: '+(typeof exportTime==='function'?exportTime():'Belum tercatat')+
     (totalCounts.manual?' | '+totalCounts.manual+' assignment memakai status manual':''),
     65,footY+31,1500);
