@@ -228,8 +228,27 @@ function biLegend(){
   return '<div class="bi-legend">'+biBuckets.map(b=>
     '<span><i style="background:'+b.color+'"></i>'+esc(b.label)+'</span>').join('')+'</div>';
 }
+function biSummarySurveyList(){
+  // Ranking utama: belum 100% di kiri, sudah 100% di kanan.
+  // Dalam setiap kelompok tetap mengikuti tanggal akhir, tanggal mulai,
+  // lalu urutan daftar survei yang sudah ditetapkan di surveiUrutDeadline().
+  const base=biSurveyList();
+  const totalBySurvey=new Map();
+  for(const row of DATA){
+    if(!totalBySurvey.has(row.survei))totalBySurvey.set(row.survei,{total:0,submitted:0});
+    const stats=totalBySurvey.get(row.survei);
+    stats.total++;
+    if(['sent','approved','revision'].includes(biStatusBucket(row.status)))stats.submitted++;
+  }
+  return base.slice().sort((a,b)=>{
+    const first=totalBySurvey.get(a),second=totalBySurvey.get(b);
+    const aDone=!!first&&first.total>0&&first.submitted===first.total;
+    const bDone=!!second&&second.total>0&&second.submitted===second.total;
+    return Number(aDone)-Number(bDone);
+  });
+}
 function biSummary(){
-  const surveys=biSurveyList();
+  const surveys=biSummarySurveyList();
   const activeRows=DATA.filter(r=>surveys.includes(r.survei));
   const submitted=biCounts(activeRows).submitted;
   const denominator=activeRows.length;
