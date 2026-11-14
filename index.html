@@ -417,7 +417,7 @@
 #markAssignmentSetup{font-size:13px}
 </style>
 
-<link rel="stylesheet" href="./dashboard-interaktif.css?v=14">
+<link rel="stylesheet" href="./dashboard-interaktif.css?v=15">
 </head>
 <body>
   <!-- HEADER: identitas BOLO INPEK dan BPS Kabupaten Blora -->
@@ -507,7 +507,7 @@
   </main>
   <footer>BOLO INPEK · Sumber: Google Sheets · Persentase dihitung dari seluruh assignment pada kelompok yang sedang dibuka. Data pendataan diperbarui setelah operator menjalankan Python. · <a href="./kebijakan-privasi.html">Kebijakan Privasi</a></footer>
   <noscript>Aktifkan JavaScript untuk menggunakan dashboard ini.</noscript>
-  <script src="./dashboard-interaktif.js?v=14"></script>
+  <script src="./dashboard-interaktif.js?v=15"></script>
   <script>
     // ========================================================
     // STATUS DASHBOARD: setiap assignment dihitung satu kali.
@@ -1207,9 +1207,11 @@
       return '<div class="tablebox"><table><thead><tr><th>'+key.toUpperCase()+'</th><th>Total</th>'+header+'</tr></thead><tbody>'+body+'</tbody></table></div>';
     }
     function assignmentTable(rows){
-      return '<div class="tablebox"><table><thead><tr><th>Nama assignment</th><th>Status FASIH</th><th>PPL</th><th>PML</th></tr></thead><tbody>'+rows.map(r=>{
-        const raw=r.status==='STATUS BELUM DIRINCI'?'<small class="fasih-raw-status">Rincian FASIH belum tersedia dari API</small>':'';
-        return '<tr><td>'+esc(r.nama_assignment)+'</td><td><span class="statuslabel"><span class="dot" style="background:'+statusColor(r.status)+'"></span>'+esc(r.status)+'</span>'+raw+'</td><td>'+esc(name(r,'ppl'))+'</td><td>'+esc(name(r,'pml'))+'</td></tr>';
+      return '<div class="tablebox"><table><thead><tr><th>Nama assignment</th><th>Status untuk Perhitungan</th><th>PPL</th><th>PML</th></tr></thead><tbody>'+rows.map(r=>{
+        const manual=r.boloStatusManual?'<small class="fasih-raw-status">Status Perhitungan Manual · Status Asli FASIH: '+
+          esc(r.boloStatusFasih||r.status_asli||r.status)+'</small>':'';
+        const raw=!manual&&r.status==='STATUS BELUM DIRINCI'?'<small class="fasih-raw-status">Rincian FASIH belum tersedia dari API</small>':'';
+        return '<tr><td>'+esc(r.nama_assignment)+'</td><td><span class="statuslabel"><span class="dot" style="background:'+statusColor(r.status)+'"></span>'+esc(r.status)+'</span>'+manual+raw+'</td><td>'+esc(name(r,'ppl'))+'</td><td>'+esc(name(r,'pml'))+'</td></tr>';
       }).join('')+'</tbody></table></div>';
     }
     
