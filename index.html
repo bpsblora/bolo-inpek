@@ -409,8 +409,15 @@
 .survey-admin-help{padding:28px;line-height:1.7;color:#3b516b}
 @media(max-width:780px){.header-inner{flex-wrap:wrap}.survey-admin-top{margin:0;width:100%}.survey-admin-btn{width:100%}}
 </style>
+<style>
+#markAssignmentModal{border:0;border-radius:17px;width:min(760px,96vw);
+  height:min(730px,90vh);padding:0;box-shadow:0 24px 80px #0e335266;overflow:hidden}
+#markAssignmentModal::backdrop{background:#0e2b4d99}
+#markAssignmentFrame{width:100%;height:calc(100% - 55px);border:0;background:#f0f6fc}
+#markAssignmentSetup{font-size:13px}
+</style>
 
-<link rel="stylesheet" href="./dashboard-interaktif.css?v=10">
+<link rel="stylesheet" href="./dashboard-interaktif.css?v=11">
 </head>
 <body>
   <!-- HEADER: identitas BOLO INPEK dan BPS Kabupaten Blora -->
@@ -448,6 +455,14 @@
   <div class="survey-admin-bar"><strong id="surveyAdminTitle">Kelola Survei — BOLO INPEK</strong><span><a id="surveyAdminExternal" href="#" target="_blank" rel="noopener noreferrer" style="display:none;color:#fff;font-size:12px;margin-right:12px">Buka di Tab Baru</a><button type="button" class="survey-admin-close" id="closeSurveyAdmin">Tutup ×</button></span></div>
   <div id="surveyAdminSetup" class="survey-admin-help" hidden><strong>Panel Admin Belum Disambungkan</strong><p>Pasang backend Apps Script Kelola Survei satu kali, kemudian isikan URL deployment di berkas <code>kelola-survei-link.json</code>. Setelah itu survei dapat ditambah, diedit, atau dinonaktifkan dari sini.</p></div>
   <iframe id="surveyAdminFrame" title="Form Kelola Survei BOLO INPEK" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+</dialog>
+<dialog id="markAssignmentModal" aria-labelledby="markAssignmentTitle">
+  <div class="survey-admin-bar">
+    <strong id="markAssignmentTitle">Penanda Assignment — BOLO INPEK</strong>
+    <button type="button" class="survey-admin-close" id="closeMarkAssignment">Tutup ×</button>
+  </div>
+  <div id="markAssignmentSetup" class="survey-admin-help" hidden>Memuat formulir penanda assignment…</div>
+  <iframe id="markAssignmentFrame" title="Penanda dan catatan per assignment" referrerpolicy="strict-origin-when-cross-origin"></iframe>
 </dialog>
 
   <main>
@@ -492,7 +507,7 @@
   </main>
   <footer>BOLO INPEK · Sumber: Google Sheets · Persentase dihitung dari seluruh assignment pada kelompok yang sedang dibuka. Data pendataan diperbarui setelah operator menjalankan Python. · <a href="./kebijakan-privasi.html">Kebijakan Privasi</a></footer>
   <noscript>Aktifkan JavaScript untuk menggunakan dashboard ini.</noscript>
-  <script src="./dashboard-interaktif.js?v=10"></script>
+  <script src="./dashboard-interaktif.js?v=11"></script>
   <script>
     // ========================================================
     // STATUS DASHBOARD: setiap assignment dihitung satu kali.
@@ -1273,7 +1288,6 @@
       if(focus){const heading=view.querySelector('h1');if(heading)heading.focus({preventScroll:true});}
     }
 
-    let markPanelRequested=false;
     document.getElementById('openSurveyAdmin').addEventListener('click',async()=>{
       const modal=document.getElementById('surveyAdminModal');
       const frame=document.getElementById('surveyAdminFrame');
@@ -1288,17 +1302,49 @@
         const url=String(cfg.admin_webapp_url||'').trim();
         const ok=url.startsWith('https://script.google.com/macros/s/') && /\/exec([?].*)?$/.test(url);
         if(!ok)return;
-        const target=new URL(url);
-        if(markPanelRequested)target.searchParams.set('mark_panel','1');
-        markPanelRequested=false;
-        setup.hidden=true;frame.hidden=false;frame.src=target.href;
-        const external=document.getElementById('surveyAdminExternal');external.href=target.href;external.style.display='inline';
+        setup.hidden=true;frame.hidden=false;frame.src=url;
+        const external=document.getElementById('surveyAdminExternal');external.href=url;external.style.display='inline';
       }catch(e){console.warn('Panel admin belum terhubung:',e.message)}
     });
     document.getElementById('closeSurveyAdmin').addEventListener('click',()=>document.getElementById('surveyAdminModal').close());
     document.getElementById('surveyAdminModal').addEventListener('close',()=>{
       document.getElementById('surveyAdminFrame').src='about:blank';
       // Tidak reload otomatis saat dialog ditutup: pilihan survei/filter tidak hilang.
+    });
+    // Pop-up khusus Penanda Assignment, tidak terhubung dengan dialog Kelola Survei.
+    // Penyimpanan dilakukan di Apps Script sebagai admin melalui google.script.run.
+    async function openSingleAssignmentMark(survey,assignment){
+      const modal=document.getElementById('markAssignmentModal');
+      const frame=document.getElementById('markAssignmentFrame');
+      const loading=document.getElementById('markAssignmentSetup');
+      const title=document.getElementById('markAssignmentTitle');
+      title.textContent='Penanda Assignment · '+survey;
+      loading.hidden=false;loading.textContent='Menghubungkan penanda untuk '+assignment+'…';
+      frame.hidden=true;modal.showModal();
+      try{
+        const r=await fetch('./kelola-survei-link.json?t='+Date.now(),{cache:'no-store'});
+        if(!r.ok)throw new Error('Alamat panel admin tidak dapat dimuat.');
+        const config=await r.json();
+        const url=String(config.admin_webapp_url||'');
+        if(!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec(?:\?.*)?$/.test(url))
+          throw new Error('Alamat Apps Script tidak valid.');
+        const target=new URL(url);
+        target.searchParams.set('action','mark');
+        target.searchParams.set('mark_survey',survey);
+        target.searchParams.set('mark_assignment',assignment);
+        if(!modal.open)return;
+        frame.src=target.href;
+        frame.hidden=false;loading.hidden=true;
+      }catch(err){
+        loading.hidden=false;loading.textContent='Penanda tidak dapat dibuka: '+(err.message||String(err));
+      }
+    }
+    document.getElementById('closeMarkAssignment').addEventListener('click',()=>{
+      document.getElementById('markAssignmentModal').close();
+    });
+    document.getElementById('markAssignmentModal').addEventListener('close',()=>{
+      document.getElementById('markAssignmentFrame').src='about:blank';
+      // Tidak mengambil ulang data otomatis. Gunakan Muat Ulang Data saat perlu.
     });
     document.getElementById('refreshBoloData').addEventListener('click',()=>{
       loadData({preserveView:true});
@@ -1307,10 +1353,15 @@
       const exportButton=event.target.closest('button[data-export]');
       if(exportButton){if(!exportButton.disabled)handleExport(exportButton);return;}
       if(event.target.closest('#retry')){loadData();return;}
-      const markButton=event.target.closest('button[data-bi-open-marks]');
-      if(markButton){
-        markPanelRequested=true;
-        document.getElementById('openSurveyAdmin').click();
+      const showMarks=event.target.closest('button[data-bi-show-marks]');
+      if(showMarks){
+        const list=document.getElementById('bi-mark-list');
+        if(list){list.open=true;list.scrollIntoView({behavior:'smooth',block:'nearest'});}
+        return;
+      }
+      const oneMark=event.target.closest('button[data-bi-mark-assignment]');
+      if(oneMark){
+        if(!oneMark.disabled)openSingleAssignmentMark(oneMark.dataset.biMarkSurvey,oneMark.dataset.biMarkAssignment);
         return;
       }
       const reportButton=event.target.closest('button[data-bi-export]');
