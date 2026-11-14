@@ -412,11 +412,10 @@
 }
 
 /* v31 — Ringkasan lebih lapang; catatan teknis tetap tersedia ketika dibutuhkan. */
-.bi-method-note{width:fit-content;max-width:100%;margin:8px 0 0;font-size:11px;color:#66829a}
-.bi-method-note summary{cursor:pointer;color:#306f9f;font-weight:750;padding:5px 2px}
-.bi-method-note summary:hover{text-decoration:underline}
-.bi-method-note p{max-width:830px;margin:5px 0 7px;padding:9px 12px;border:1px solid #e0eafa;
-  background:#f5f9ff;border-radius:8px;line-height:1.65}
+.bi-method-note{max-width:100%;margin:11px 0 0;padding:10px 12px;
+  font-size:11px;line-height:1.7;color:#4c6a87;
+  background:#f3f8ff;border:1px solid #d7e8fa;border-radius:9px}
+.bi-method-note strong{color:#245b90;font-weight:800}
 .bi-exclusion-note{font-size:11px;color:#815f3f;margin:9px 0 0}
 .bi-unassigned-stats{margin:13px 0 0}
 .bi-mark-stat{min-height:78px;justify-content:center;gap:5px}
