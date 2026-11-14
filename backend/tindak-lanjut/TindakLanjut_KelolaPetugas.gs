@@ -52,6 +52,17 @@ function tlPetugasPetaAssignment_(assignments) {
  * Nama saja tanpa ID tidak bisa otomatis ditambahkan tanpa risiko salah orang. */
 function tlPetugasDeteksiBaru_(assignments, source, saved) {
   var known=new Set(saved.map(function(p){return text_(p.petugas_id);}));
+  var byName=new Map();
+  // Tunjukkan calon padanan HANYA dari biodata terdaftar. Orang yang memiliki
+  // nama sama tidak otomatis dianggap orang yang sama tanpa verifikasi.
+  saved.forEach(function(p){
+    var name=text_(p.nama).normalize('NFKC').replace(/\s+/g,' ').toLocaleLowerCase('id');
+    if(!name)return;
+    if(!byName.has(name))byName.set(name,[]);
+    byName.get(name).push({petugas_id:p.petugas_id,nama:p.nama,
+      nomor_akhir:text_(p.nomor_whatsapp).replace(/\D/g,'').slice(-4),
+      aktif:text_(p.aktif).toUpperCase()==='TRUE'});
+  });
   var sourced=new Map(source.map(function(p){return [text_(p.petugas_id),p];}));
   var candidates=new Map();
   var missingId=new Map();
@@ -96,6 +107,13 @@ function tlPetugasDeteksiBaru_(assignments, source, saved) {
       var peran=role.toUpperCase();
       if(record.peran.indexOf(peran)<0)record.peran.push(peran);
     }
+  });
+  candidates.forEach(function(p){
+    var key=text_(p.nama).normalize('NFKC').replace(/\s+/g,' ').toLocaleLowerCase('id');
+    var ids=(byName.get(key)||[]).filter(function(s){return s.petugas_id!==p.petugas_id;});
+    p.kemungkinan_sama=ids.sort(function(a,b){
+      return a.nama.localeCompare(b.nama,'id')||a.petugas_id.localeCompare(b.petugas_id);
+    });
   });
   var items=[...candidates.values()].sort(function(a,b){
     if(a.asal!==b.asal)return a.asal==='assignment'?-1:1;
@@ -208,5 +226,70 @@ function apiSimpanPetugasAdmin(token, request) {
     }
     return {success:true,mode:mode,petugas_id:id,nama:name,
       aktif:request.aktif,oleh:admin.nama};
+  });
+}
+
+
+/**
+ * Simpan keputusan admin ketika satu nama monitoring mungkin cocok dengan
+ * lebih dari satu profil yang sudah ada. Menggunakan satu tab tambahan,
+ * dibuat otomatis pada penautan pertama. Tidak mengubah petugas/riwayat.
+ */
+function apiTautkanPetugasAdmin(token,req) {
+  return lock_(function(){
+    var admin=session_(token,true);
+    if(!req||typeof req!=='object')throw Error('Permintaan tautan petugas tidak valid.');
+    var alias=text_(req.alias_monitoring),target=text_(req.petugas_id);
+    if(!/^monitor:[a-f0-9]{32}$/.test(alias))
+      throw Error('Hanya alias monitoring yang bisa ditautkan pada profil terdaftar.');
+    if(!/^[a-zA-Z0-9_.:-]{8,100}$/.test(target))
+      throw Error('ID petugas tujuan tidak valid.');
+    if(req.verifikasi_identitas!==true)
+      throw Error('Admin wajib mengonfirmasi kesamaan identitas sebelum menautkan petugas.');
+    var db=db_(),staff=read_(db,'petugas');
+    var person=staff.find(function(p){return p.petugas_id===target;});
+    if(!person)throw Error('Petugas tujuan tidak ditemukan. Muat ulang daftar.');
+    if(staff.some(function(p){return p.petugas_id===alias;}))
+      throw Error('Alias ini telah didaftarkan sebagai petugas tersendiri; tidak bisa ditautkan otomatis.');
+    var active=new Set(read_(db,'survei')
+      .filter(function(s){return text_(s.status_operasional).toUpperCase()==='AKTIF';})
+      .map(function(s){return text_(s.survey_period_id);}));
+    var records=read_(db,'sumber_assignment').filter(function(s){
+      return active.has(text_(s.survey_period_id));
+    });
+    var found=[];
+    records.forEach(function(a){
+      for(var role of ['ppl','pml']){
+        if(text_(a[role+'_id'])===alias)found.push(text_(a[role]));
+      }
+    });
+    if(!found.length)throw Error('Calon petugas ini tidak ada pada assignment survei aktif terbaru.');
+    var names=new Set(found.map(function(n){
+      return text_(n).normalize('NFKC').replace(/\s+/g,' ').toLocaleLowerCase('id');
+    }));
+    var existing=text_(person.nama).normalize('NFKC').replace(/\s+/g,' ').toLocaleLowerCase('id');
+    if(names.size!==1||!names.has(existing)||tlMonAlias_(found[0])!==alias)
+      throw Error('Nama monitoring tidak sama dengan biodata tujuan. Periksa identitas sebelum menautkan.');
+    var sheet=db.getSheetByName('padanan_petugas');
+    var headers=['alias_monitoring','petugas_id','nama_monitoring','waktu_taut','ditautkan_oleh'];
+    if(!sheet){
+      sheet=db.insertSheet('padanan_petugas');
+      sheet.getRange(1,1,1,headers.length).setValues([headers]);
+      sheet.setFrozenRows(1);
+    }
+    var all=sheet.getDataRange().getDisplayValues();
+    if(JSON.stringify(all[0])!==JSON.stringify(headers))
+      throw Error('Struktur tab padanan_petugas tidak sesuai.');
+    var prior=all.slice(1).find(function(row){return text_(row[0])===alias;});
+    if(prior){
+      if(text_(prior[1])!==target)
+        throw Error('Petugas ini sudah ditautkan ke profil lain. Tidak boleh ditimpa tanpa audit.');
+      return {success:true,sudah_ada:true,petugas_id:target,nama:person.nama};
+    }
+    sheet.appendRow([alias,target,found[0],new Date().toISOString(),
+      text_(admin.email||admin.nama||'ADMIN')]);
+    SpreadsheetApp.flush();
+    return {success:true,petugas_id:target,nama:person.nama,
+      nama_monitoring:found[0],assignment_dikaitkan:found.length};
   });
 }
