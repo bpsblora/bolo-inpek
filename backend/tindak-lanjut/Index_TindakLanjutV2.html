@@ -155,6 +155,12 @@
 .tl-staff-candidate strong{display:block;color:#1b4d7a;font-size:13px}
 .tl-staff-candidate small{display:block;margin-top:4px;overflow-wrap:anywhere;font-size:11px;color:#597690}
 .tl-staff-candidate button{flex:0 0 auto;padding:8px 12px;margin:0;font-size:11px;font-weight:800}
+.tl-staff-match{display:flex;align-items:flex-end;gap:7px;flex-wrap:wrap;margin-top:9px}
+.tl-staff-match label{font-size:11px;color:#245479;flex:1 1 200px;margin:0;font-weight:700}
+.tl-staff-match select{margin-top:3px;min-width:180px;max-width:100%;font-size:12px}
+.tl-staff-match button{background:#e4f2e9;color:#245e42;border:1px solid #b2d7bf}
+.tl-staff-match button:hover{background:#cfead7}
+.tl-staff-candidate>div:first-child{flex:1;min-width:0}
 .tl-staff-stat.needs-attention{border-color:#f0d6a6;background:#fff6e8}
 .tl-staff-stat.needs-attention strong{color:#af671c}
 @media(max-width:600px){.tl-staff-candidate{align-items:flex-start;flex-direction:column}
@@ -985,6 +991,37 @@ function staffPrefillCandidate(p){
   staffNotice('Calon petugas dari FASIH sudah dipilih. Periksa nama dan lengkapi WhatsApp sebelum Simpan Biodata.');
   $('staffWa').focus({preventScroll:true});
 }
+async function staffLinkExisting(p,targetId){
+  const matching=(p.kemungkinan_sama||[]).find(x=>x.petugas_id===targetId);
+  if(!matching)throw Error('Pilih petugas terdaftar yang masih tersedia.');
+  const ok=await tlConfirm({
+    judul:'Tautkan ke biodata yang sudah ada?',
+    target:(p.nama||'Calon petugas')+' → '+matching.nama,
+    pesan:'PPL/PML pada survei aktif akan menggunakan ID petugas terdaftar, bukan membuat biodata baru atau menggunakan alias sementara.',
+    catatan:'Pastikan ini benar-benar orang yang sama dengan mencocokkan identitas dan 4 angka akhir WhatsApp ('+
+      (matching.nomor_akhir||'belum tersedia')+'). Nama yang sama saja belum menjamin orang yang sama. Riwayat kontak dan catatan sebelumnya tidak diubah.',
+    tombol:'Ya, Tautkan Petugas',
+    tone:'restore',
+    kicker:'VERIFIKASI IDENTITAS'
+  });
+  if(!ok)return;
+  return action(async()=>{
+    const response=await rpc('apiTautkanPetugasAdmin',token,{
+      alias_monitoring:p.petugas_id,petugas_id:matching.petugas_id,
+      verifikasi_identitas:true
+    });
+    const synced=await tlEnsureMonitoring(true);
+    await staffLoad();
+    if(synced){
+      staffNotice('Petugas '+(p.nama||'dari monitoring')+
+        ' telah ditautkan ke biodata '+response.nama+
+        '. Assignment aktif kini mengikuti ID dan nomor WhatsApp yang sudah terdaftar.');
+    }else{
+      staffNotice('Padanan identitas disimpan, tetapi assignment belum berhasil disinkronkan. '+
+        'Sistem otomatis akan mencoba lagi. Periksa status sinkronisasi sebelum mengirim pengingat.',true);
+    }
+  });
+}
 function staffCandidatesPaint(){
   const select=$('staffSource');select.replaceChildren();
   option(select,'','— Tidak dipilih / input manual —');
@@ -1000,7 +1037,7 @@ function staffCandidatesPaint(){
     $('staffDiscoveryIntro').textContent=
       fromAssignment+' ID petugas ditemukan pada assignment PPL/PML survei; '+
       (candidates.length-fromAssignment)+' lainnya ada di sumber petugas FASIH. '+
-      'Periksa identitas dan tambahkan petugas agar dapat dihubungi melalui Ingatkan Petugas.';
+      'Jika namanya sudah ada pada biodata, gunakan Tautkan setelah verifikasi identitas. Jika orang berbeda, daftarkan baru.';
     for(const p of candidates){
       const item=document.createElement('div');item.className='tl-staff-candidate';
       const text=document.createElement('div');
@@ -1014,9 +1051,27 @@ function staffCandidatesPaint(){
         (surveys.length?' · Survei: '+surveys.slice(0,3).join(', ')+(surveys.length>3?' dan '+(surveys.length-3)+' lainnya':''):'')+
         ' · ID '+p.petugas_id;
       text.append(name,details);
+      const same=Array.isArray(p.kemungkinan_sama)?p.kemungkinan_sama:[];
+      if(same.length && p.petugas_id.startsWith('monitor:')){
+        const cluster=document.createElement('div');cluster.className='tl-staff-match';
+        const label=document.createElement('label');
+        label.textContent='Kemungkinan petugas yang sama · pilih setelah verifikasi';
+        const pick=document.createElement('select');
+        option(pick,'','— Pilih petugas terdaftar —');
+        for(const candidate of same)option(pick,candidate.petugas_id,
+          candidate.nama+' · WA akhir '+(candidate.nomor_akhir||'—')+
+          (candidate.aktif?'':' · Nonaktif'));
+        label.append(pick);
+        const link=document.createElement('button');link.type='button';
+        link.className='secondary';
+        link.textContent='Tautkan ke Petugas Terdaftar';
+        link.setAttribute('aria-label','Tautkan '+p.nama+' ke petugas terdaftar');
+        link.addEventListener('click',()=>staffLinkExisting(p,pick.value));
+        cluster.append(label,link);text.append(cluster);
+      }
       const button=document.createElement('button');button.type='button';
-      button.textContent='Daftarkan Petugas';
-      button.setAttribute('aria-label','Daftarkan '+(p.nama||p.petugas_id));
+      button.textContent='Daftarkan Baru';
+      button.setAttribute('aria-label','Daftarkan baru '+(p.nama||p.petugas_id));
       button.addEventListener('click',()=>staffPrefillCandidate(p));
       item.append(text,button);list.append(item);
     }
