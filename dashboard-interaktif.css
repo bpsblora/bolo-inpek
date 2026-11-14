@@ -207,3 +207,10 @@
 .bi-unassigned-table td:nth-child(6){max-width:350px;white-space:normal;overflow-wrap:anywhere}
 .bi-unassigned-table td:nth-child(7){white-space:nowrap}
 @media(max-width:650px){.bi-mark-filters{gap:6px}.bi-mark-filter{font-size:11px;padding:8px}}
+
+/* Tabel status FASIH lengkap tetap terbaca pada layar kecil. */
+.bi-table{min-width:1320px}
+.bi-ppl-table{min-width:1550px}
+.bi-ppl-table th,.bi-ppl-table td{white-space:nowrap}
+.bi-ppl-table th:nth-child(n+3):nth-child(-n+11),.bi-ppl-table td:nth-child(n+3):nth-child(-n+11){text-align:center}
+.bi-ppl-table td:nth-child(5) strong{color:#205f9e}
