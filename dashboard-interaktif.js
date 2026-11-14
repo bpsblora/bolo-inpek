@@ -65,7 +65,7 @@ async function biMarkHash(composite){
   return [...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 async function biApplyMarkers(rows,marks){
-  const sources=rows.map(row=>({...row,boloMark:null,boloExcluded:false}));
+  const sources=rows.map(row=>({...row,boloMark:null,boloExcluded:false,boloStatusManual:''}));
   if(!marks.length)return sources;
   const candidates=new Map();
   sources.forEach(row=>{
@@ -85,6 +85,12 @@ async function biApplyMarkers(rows,marks){
     // Pengecualian hanya berlaku jika server sudah mengonfirmasi bahwa
     // status FASIH masih sama. Status berubah -> ikut status asli FASIH.
     items[0].boloExcluded=mark.dihitung===false&&mark.berlaku===true;
+    // Status FASIH tetap asli pada ALL_ASSIGNMENTS dan tab monitoring.
+    // Hanya DATA turunan untuk grafik yang memakai status manual.
+    const manual=String(mark.status_perhitungan||'').toUpperCase().trim();
+    items[0].boloStatusManual=mark.dihitung&&mark.berlaku&&
+      /^(OPEN|DRAFT|SUBMITTED BY |APPROVED BY |REJECTED BY |REVOKED BY |COMPLETED BY )/.test(manual)
+      ?manual:'';
   }
   return sources;
 }
@@ -111,17 +117,19 @@ function biUnassignedPanel(survey){
       ' <button type="button" class="bi-mark-activate-btn" data-bi-activation-help>Lihat Cara Mengaktifkan</button></div>')+
     '<details class="bi-unassigned-details" id="bi-mark-list"><summary>Lihat daftar & alasan ('+rows.length+' assignment)</summary>'+
     '<div class="tablebox"><table class="bi-unassigned-table"><thead><tr>'+
-    '<th>Survei</th><th>Assignment</th><th>Status FASIH</th><th>Perhitungan</th><th>Alasan / Catatan</th><th>Tindakan</th>'+
+    '<th>Survei</th><th>Assignment</th><th>Status FASIH Asli</th><th>Status Perhitungan</th><th>Perlakuan</th><th>Alasan / Catatan</th><th>Tindakan</th>'+
     '</tr></thead><tbody>'+details.map(row=>{
       const mark=row.boloMark;
       const status=row.boloExcluded?'Tidak Dihitung':
         mark?.perlu_tinjau?'Perlu Tinjau · Kembali Dihitung':
         mark?'Tetap Dihitung':'Belum Ditandai · Dihitung';
       const note=mark?[mark.alasan,mark.catatan].filter(Boolean).join(' — '):'Belum ada catatan';
+      const manual=row.boloStatusManual;
       const duplicated=duplicates.get(biMarkComposite(row))!==1;
       const activate=!MARKERS_AVAILABLE;
       return '<tr><td>'+esc(row.survei)+'</td><td>'+esc(row.nama_assignment)+'</td>'+
         '<td>'+esc(row.status)+'</td>'+
+        '<td>'+esc(row.boloExcluded?'Tidak Dihitung':manual?manual+' (Manual)':row.status+' (FASIH)')+'</td>'+
         '<td><span class="bi-mark-state'+(row.boloExcluded?' off':'')+'">'+esc(status)+'</span></td>'+
         '<td>'+esc(note)+'</td><td><button type="button" class="bi-mark-row-btn"'+
         (activate?' data-bi-activation-help':' data-bi-mark-survey="'+esc(row.survei)+'" data-bi-mark-assignment="'+esc(row.nama_assignment)+'"')+
@@ -130,7 +138,8 @@ function biUnassignedPanel(survey){
         (duplicated?'Nama Ganda':activate?'Aktifkan Penanda':'Atur Penanda')+'</button></td></tr>';
     }).join('')+'</tbody></table></div></details>'+
     '<p class="bi-mark-footnote">Klik <b>Atur Penanda</b> pada masing-masing assignment untuk mengubah keputusan dan catatan. '+
-    'Saat Updater memperbarui FASIH, catatan tetap tersimpan; jika status berubah, pengecualian dihentikan sampai diperiksa ulang. '+
+    'Status manual hanya untuk penghitungan; Status FASIH Asli tidak diubah. '+
+    'Saat Updater mengubah status atau petugas dialokasikan, status manual maupun pengecualian lama tidak lagi berlaku, tetapi catatan tetap tersimpan. '+
     'Sesudah menyimpan, klik <b>Muat Ulang Data</b> untuk menerapkan perhitungan terbaru.</p>'+
     '</section>';
 }
