@@ -1,5 +1,11 @@
 # Integrasi Backend Tindak Lanjut — BOLO INPEK
 
+## Sinkronisasi langsung dengan Monitoring aktif (IMK Tahunan dan survei baru)
+
+[**Panduan menghubungkan semua survei aktif dan PPL/PML baru ke Tindak Lanjut**](./SINKRONISASI-SURVEI-DAN-PETUGAS.md) · [Kode backend Sinkron Monitoring](./TindakLanjut_SinkronMonitoring.gs).
+
+Monitoring dan Tindak Lanjut awalnya memakai snapshot yang tidak sama: 7 survei/382 assignment vs 6 survei/108 assignment. Modul baru menyalin snapshot sumber langsung dari spreadsheet Monitoring utama dengan verifikasi assignment_identitas, mempertahankan catatan dan arsip, dan mengusulkan petugas baru dengan alias monitoring yang wajib diverifikasi. **Satu file .gs tambahan dan satu deployment lama perlu diperbarui untuk mengaktifkan sinkronisasi backend.**
+
 ## Kelola Biodata Petugas
 
 [**Panduan Kelola Petugas dan pemasangan backend satu kali**](./KELOLA-PETUGAS.md) · [kode `TindakLanjut_KelolaPetugas.gs`](./TindakLanjut_KelolaPetugas.gs).
