@@ -8,6 +8,11 @@ const valid='<div id="tlConfirmDialog"></div><div><?= modeAwal ?> <?= surveiAwal
   '<script>function tlConfirm(){return true};const a="apiBukaKembali apiTutup";</script>';
 const index='const TINDAK_LANJUT_URL = "https://script.google.com/macros/s/'+
   'A'.repeat(40)+'/exec";';
+// Stubs must match the safety contract for real production files.
+const padding='/*'+'.'.repeat(1200)+'*/';
+const staffCode='function apiDaftarPetugasAdmin(){};function apiSimpanPetugasAdmin(){}'+padding;
+const monitoringCode='function apiSinkronMonitoring(){};function apiPratinjauSinkronMonitoring(){}'+padding;
+const automaticCode='function apiStatusDeteksiOtomatis(){};function apiAktifkanDeteksiOtomatis(){}'+padding;
 function fixture({backend=true,html=true,manifest=true}={}){
   const d=mkdtempSync(join(tmpdir(),'bolo-tl-test-'));
   const repoRoot=join(d,'repo'),liveDir=join(d,'live');
@@ -16,12 +21,13 @@ function fixture({backend=true,html=true,manifest=true}={}){
   writeFileSync(join(repoRoot,'index.html'),index);
   writeFileSync(join(repoRoot,'backend','tindak-lanjut','Index_TindakLanjutV2.html'),valid);
   writeFileSync(join(repoRoot,'backend','tindak-lanjut','TindakLanjut_KelolaPetugas.gs'),
-    'function apiDaftarPetugasAdmin(){};function apiSimpanPetugasAdmin(){}');
+    staffCode);
   writeFileSync(join(repoRoot,'backend','tindak-lanjut','TindakLanjut_SinkronMonitoring.gs'),
-    'function apiSinkronMonitoring(){};function apiPratinjauSinkronMonitoring(){}');
+    monitoringCode);
   writeFileSync(join(repoRoot,'backend','tindak-lanjut','TindakLanjut_DeteksiOtomatis.gs'),
-    'function apiStatusDeteksiOtomatis(){};function apiAktifkanDeteksiOtomatis(){}');
-  if(backend)writeFileSync(join(liveDir,'KodeV2.js'),'const tpl="Index_TindakLanjutV2";\nconst privateKey="retained";');
+    automaticCode);
+  if(backend)writeFileSync(join(liveDir,'KodeV2.js'),
+    'function doGet(){return HtmlService.createTemplateFromFile("Index_TindakLanjutV2");}\nconst privateKey="retained";');
   if(html)writeFileSync(join(liveDir,'Index_TindakLanjutV2.html'),'<p>Old</p>');
   if(manifest)writeFileSync(join(liveDir,'appsscript.json'),'{"timeZone":"Asia/Jakarta"}');
   writeFileSync(join(liveDir,'TindakLanjut_AuditIntegritas.js'),'function stay(){}');
@@ -68,7 +74,9 @@ test('explicit backend mode installs only three allowlisted scripts and preserve
   assert.equal(r.filesCreated,3);
   assert.equal(readFileSync(join(f.liveDir,'KodeV2.js'),'utf8'),before);
   assert.equal(readFileSync(join(f.liveDir,'TindakLanjut_KelolaPetugas.js'),'utf8'),
-    'function apiDaftarPetugasAdmin(){};function apiSimpanPetugasAdmin(){}');
+    staffCode);
+  assert.equal(readFileSync(join(f.liveDir,'TindakLanjut_DeteksiOtomatis.js'),'utf8'),
+    automaticCode);
   const again=stageSync({...f,includeBackend:true});
   assert.equal(again.changed,false);
   assert.deepEqual(again.backendChanged,[]);
