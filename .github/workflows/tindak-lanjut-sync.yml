@@ -54,7 +54,7 @@ jobs:
       group: bolo-inpek-tindak-lanjut-live
       cancel-in-progress: false
     env:
-      TL_WORK_DIR: ${{ runner.temp }}/bolo-tl-active
+      TL_WORK_DIR: /tmp/bolo-tl-active
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
