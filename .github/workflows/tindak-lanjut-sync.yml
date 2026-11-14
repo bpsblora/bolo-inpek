@@ -34,7 +34,7 @@ jobs:
       - name: Validasi HTML Tindak Lanjut
         run: node scripts/tindak-lanjut/sync.mjs check
       - name: Uji tidak ada file backend yang tertimpa
-        run: node --test scripts/tindak-lanjut/sync.test.mjs
+        run: node --test scripts/tindak-lanjut/*.test.mjs
 
   sync:
     name: Pratinjau / publikasikan ke Apps Script lama
