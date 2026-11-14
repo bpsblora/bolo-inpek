@@ -122,7 +122,7 @@ function biUnassignedPanel(survey){
     '</tr></thead><tbody>'+details.map(row=>{
       const mark=row.boloMark;
       const status=row.boloExcluded?'Tidak Dihitung':
-        mark?.perlu_tinjau?'Perlu Tinjau · Kembali Dihitung':
+        mark?.perlu_tinjau?'Perlu Tinjau · Ikuti Status FASIH':
         mark?'Tetap Dihitung':'Belum Ditandai · Dihitung';
       const note=mark?[mark.alasan,mark.catatan].filter(Boolean).join(' — '):'Belum ada catatan';
       const manual=row.boloStatusManual;
