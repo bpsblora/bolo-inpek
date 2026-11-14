@@ -41,10 +41,10 @@ function sandbox(){
   let renders=0;
   new Script(controller);
   new Function('document','window','BOLO_ADMIN','boloAdminActive','BOLO_ADMIN_GATE_PREFIX',
-    'TINDAK_LANJUT_URL','URL','render',controller)(
+    'TINDAK_LANJUT_URL','URL','render','loading',controller)(
       document,window,admin,active,'__BOLO_INPEK_ADMIN_GATE__',
       'https://script.google.com/macros/s/AKfysafeexample12345678901234567890123456789/exec',
-      URL,()=>{renders++;}
+      URL,()=>{renders++;},false
     );
   return {elements,document,window,admin,active,renders:()=>renders};
 }
