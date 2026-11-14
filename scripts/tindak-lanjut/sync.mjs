@@ -10,11 +10,13 @@ if(command==='check'){
 }else if(command==='stage'){
   const liveDir=process.env.TL_WORK_DIR;
   if(!liveDir)throw Error('TL_WORK_DIR belum ditentukan.');
-  const report=stageSync({repoRoot:root,liveDir});
+  const includeBackend=process.env.TL_SYNC_BACKEND==='true';
+  const report=stageSync({repoRoot:root,liveDir,includeBackend});
   publishToActionsEnv(report,process.env.GITHUB_ENV);
   console.log('✓ Pull proyek aktif lengkap; hanya HTML Tindak Lanjut disiapkan.');
   console.log('✓ File sumber lain dipertahankan. Total file skrip/HTML: '+report.scriptCount);
-  console.log(report.changed?'Perubahan siap ditinjau/publikasi.':'Tidak ada perubahan HTML. Publikasi dilewati.');
+  if(includeBackend)console.log('✓ Modul backend terpilih: '+(report.backendChanged.join(', ')||'tidak berubah'));
+  console.log(report.changed?'Perubahan siap ditinjau/publikasi.':'Tidak ada perubahan untuk dipublikasikan.');
 }else{
   throw Error('Perintah tidak dikenal. Gunakan check atau stage.');
 }
