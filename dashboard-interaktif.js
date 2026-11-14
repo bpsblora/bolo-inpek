@@ -65,7 +65,8 @@ async function biMarkHash(composite){
   return [...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 async function biApplyMarkers(rows,marks){
-  const sources=rows.map(row=>({...row,boloMark:null,boloExcluded:false,boloStatusManual:''}));
+  const sources=rows.map(row=>({...row,boloMark:null,boloExcluded:false,
+    boloStatusManual:'',boloStatusFasih:row.status}));
   if(!marks.length)return sources;
   const candidates=new Map();
   sources.forEach(row=>{
@@ -465,7 +466,9 @@ function biCanvasPage(survey,pml,pairs,pageIndex,pages,totalCounts){
   const footY=1120;
   ctx.fillStyle='#607991';ctx.font='16px Arial';
   ctx.fillText('Belum Submit = OPEN / DRAFT   |   Sudah Submit termasuk REJECTED / REVOKED (Perbaikan)',65,footY);
-  ctx.fillText('Data terakhir FASIH: '+(typeof exportTime==='function'?exportTime():'Sesuai monitoring'),65,footY+31);
+  ctx.fillText('Data terakhir FASIH: '+(typeof exportTime==='function'?exportTime():'Sesuai monitoring')+
+    (totalCounts.manual?' | '+totalCounts.manual+' assignment memakai status manual':''),
+    65,footY+31);
   ctx.textAlign='right';ctx.fillStyle='#1c578f';
   ctx.fillText('Halaman '+(pageIndex+1)+' / '+pages+' · '+pairs.length+' pasangan PPL–PML',1618,footY+31);
   ctx.textAlign='left';
@@ -490,7 +493,8 @@ async function biExportProgress(button){
   const feedback=button.closest('.bi-export-banner, .bi-pml-card')?.querySelector('.bi-feedback');
   const siblings=button.closest('.bi-export-buttons')?.querySelectorAll('button')||[button];
   if(!pairs.length){if(feedback)feedback.textContent='Belum ada assignment PPL untuk diekspor.';return;}
-  const c=biCounts(rows),summary={...c,total:rows.length};
+  const c=biCounts(rows),summary={...c,total:rows.length,
+    manual:rows.filter(r=>r.boloStatusManual).length};
   const pages=Math.ceil(pairs.length/17),namePart=biReportName(survey)+'_'+biReportName(pml||'Seluruh_PPL');
   siblings.forEach(x=>x.disabled=true);
   if(feedback)feedback.textContent='Menyiapkan laporan '+(button.dataset.biExport==='pdf'?'PDF':'gambar')+' untuk '+pairs.length+' pasangan PPL–PML…';
