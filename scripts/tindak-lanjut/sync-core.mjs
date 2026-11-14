@@ -10,6 +10,12 @@ import {Script} from 'node:vm';
 
 const HTML_PATH='backend/tindak-lanjut/Index_TindakLanjutV2.html';
 const APPS_FILE='Index_TindakLanjutV2.html';
+const BACKEND_FILES=[
+  {source:'backend/tindak-lanjut/TindakLanjut_KelolaPetugas.gs',
+   base:'TindakLanjut_KelolaPetugas',functions:['apiDaftarPetugasAdmin','apiSimpanPetugasAdmin']},
+  {source:'backend/tindak-lanjut/TindakLanjut_SinkronMonitoring.gs',
+   base:'TindakLanjut_SinkronMonitoring',functions:['apiSinkronMonitoring','apiPratinjauSinkronMonitoring']}
+];
 
 export function validateHtml(source) {
   const scripts=[...source.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)];
@@ -42,7 +48,32 @@ export function deploymentIdFromIndex(indexHtml) {
   if(value.length<25)throw Error('Deployment ID tidak valid.');
   return value;
 }
-export function stageSync({repoRoot,liveDir}) {
+function stageBackend({repoRoot,liveDir}) {
+  const changedFiles=[],createdFiles=[];
+  for(const item of BACKEND_FILES){
+    const source=readFileSync(resolve(repoRoot,item.source),'utf8');
+    if(source.length<1000||source.length>200000)
+      throw Error('Ukuran source backend tidak wajar: '+item.base);
+    new Script(source,{filename:item.source});
+    for(const fn of item.functions){
+      if(!new RegExp('\\bfunction\\s+'+fn+'\\s*\\(').test(source))
+        throw Error('Fungsi wajib backend hilang: '+fn);
+    }
+    const js=join(liveDir,item.base+'.js');
+    const gs=join(liveDir,item.base+'.gs');
+    if(existsSync(js)&&existsSync(gs))
+      throw Error('Backend duplikat .js/.gs: '+item.base+'. Batalkan sinkronisasi.');
+    const target=existsSync(js)?js:(existsSync(gs)?gs:js);
+    const prior=existsSync(target)?readFileSync(target,'utf8'):null;
+    if(prior===null)createdFiles.push(target);
+    if(prior!==source){
+      writeFileSync(target,source,'utf8');
+      changedFiles.push(item.base);
+    }
+  }
+  return {changedFiles,createdFiles};
+}
+export function stageSync({repoRoot,liveDir,includeBackend=false}) {
   if(!liveDir||!repoRoot)throw Error('Direktori kerja tidak lengkap.');
   const source=readFileSync(resolve(repoRoot,HTML_PATH),'utf8');
   validateHtml(source);
@@ -61,14 +92,25 @@ export function stageSync({repoRoot,liveDir}) {
   JSON.parse(readFileSync(join(liveDir,'appsscript.json'),'utf8'));
 
   const before=readFileSync(join(liveDir,APPS_FILE),'utf8');
-  const changed=before!==source;
-  if(changed)writeFileSync(join(liveDir,APPS_FILE),source,'utf8');
+  const htmlChanged=before!==source;
+  if(htmlChanged)writeFileSync(join(liveDir,APPS_FILE),source,'utf8');
 
-  // Hanya satu HTML diganti. Source .gs, manifest, dan file lainnya tetap hasil pull.
+  // Backend hanya diperbarui saat pilihan MANUAL pada workflow_dispatch.
+  // Push otomatis, bila diaktifkan kelak, selalu HTML-only.
+  const extra=includeBackend?stageBackend({repoRoot,liveDir}):
+    {changedFiles:[],createdFiles:[]};
   const after=readdirSync(liveDir);
-  if(JSON.stringify(all.sort())!==JSON.stringify(after.sort()))
-    throw Error('Jumlah/daftar file proyek berubah; batalkan push.');
-  return {changed,scriptCount:after.filter(x=>/\.(gs|js|html)$/.test(x)).length,deploymentId};
+  const added=new Set(extra.createdFiles.map(x=>x.split(/[\\/]/).at(-1)));
+  const expected=new Set([...all,...added]);
+  if(JSON.stringify([...expected].sort())!==JSON.stringify(after.sort()))
+    throw Error('Ada perubahan file yang tidak tercakup dalam daftar izin.');
+  return {
+    changed:htmlChanged||extra.changedFiles.length>0,
+    htmlChanged,backendChanged:extra.changedFiles,
+    filesCreated:added.size,
+    scriptCount:after.filter(x=>/\.(gs|js|html)$/.test(x)).length,
+    deploymentId
+  };
 }
 export function publishToActionsEnv(report,envFile){
   if(!envFile)return;
