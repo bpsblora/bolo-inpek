@@ -74,7 +74,9 @@ function tlPetugasDeteksiBaru_(assignments, source, saved) {
       var id=text_(a[role+'_id']);
       var nama=text_(a[role]);
       if(!id){
-        if(nama){
+        // Label penugasan kosong bukan orang baru: abaikan sebagai kandidat.
+        if(nama && !['belum dialokasikan','belum ditetapkan','-','tidak ada','- -'].includes(
+          nama.normalize('NFKC').replace(/\s+/g,' ').trim().toLocaleLowerCase('id'))){
           var key=role+'|'+nama.toLocaleLowerCase('id');
           if(!missingId.has(key))missingId.set(key,{nama:nama,peran:role.toUpperCase(),jumlah_assignment:0,daftar_survei:[]});
           var unknown=missingId.get(key);
