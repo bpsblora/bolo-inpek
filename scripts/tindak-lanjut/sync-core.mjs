@@ -22,6 +22,17 @@ export function validateHtml(source) {
   if (/\b(?:window\.)?(?:confirm|prompt|alert)\s*\(/.test(source)) {
     throw Error('Dialog browser native terdeteksi; gunakan dialog BOLO INPEK.');
   }
+  // Loader Apps Script menjalankan HTML sebagai HtmlOutput, BUKAN template
+  // remote. Placeholder hanya boleh 3 variabel ini agar UI selalu kompatibel.
+  const allowed=['<?= modeAwal ?>','<?= surveiAwal ?>','<?= periodeAwal ?>'];
+  const opening=(source.match(/<\?/g)||[]).length;
+  const closing=(source.match(/\?>/g)||[]).length;
+  const tokens=source.match(/<\?[\s\S]*?\?>/g)||[];
+  if(opening!==3 || closing!==3 || tokens.length!==3 ||
+     tokens.some(token=>!allowed.includes(token)) ||
+     allowed.some(token=>source.split(token).length!==2)){
+    throw Error('Template HTML tidak sesuai dengan GitHub Loader (hanya 3 placeholder aman).');
+  }
   return scripts.length;
 }
 export function deploymentIdFromIndex(indexHtml) {
