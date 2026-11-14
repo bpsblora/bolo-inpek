@@ -430,6 +430,14 @@
 .survey-admin-tab:hover:not([aria-pressed="true"]){background:#e2effc}
 .survey-admin-sync{margin-left:auto;border:1px solid #a8d9be;border-radius:9px;padding:9px 12px;background:#e9f8ef;color:#216b43;font-size:11px;font-weight:800;cursor:pointer}
 .survey-admin-help{flex:1;overflow:auto}
+#surveyAdminArchiveGuide{flex:1;overflow:auto;padding:clamp(18px,4vw,32px);background:#f5f9fe;color:#1b4269}
+#surveyAdminArchiveGuide[hidden]{display:none!important}
+#surveyAdminArchiveGuide .admin-archive-card{max-width:740px;margin:16px auto;background:#fff;border:1px solid #d5e5f2;border-radius:17px;padding:26px;box-shadow:0 10px 32px #194b7510}
+#surveyAdminArchiveGuide h3{font-size:20px;color:#174478;margin:0 0 11px}
+#surveyAdminArchiveGuide p{font-size:13px;line-height:1.75;color:#476783;margin:0 0 16px}
+#surveyAdminArchiveGuide .admin-archive-note{padding:12px 15px;border:1px solid #cee6d9;background:#eff9f3;border-radius:10px;font-size:12px;color:#226945;margin-bottom:17px}
+#surveyAdminArchiveGuide button{border:0;background:#185a97;color:white;font-size:13px;font-weight:800;padding:12px 19px;border-radius:10px;cursor:pointer}
+#surveyAdminArchiveGuide button:hover{background:#124878}
 @media(max-width:525px){.survey-admin-switcher{padding:8px;gap:6px}.survey-admin-tab{flex:1 1 128px}.survey-admin-sync{width:100%;margin:0}}
 .survey-admin-help{padding:28px;line-height:1.7;color:#3b516b}
 @media(max-width:780px){.header-inner{flex-wrap:wrap}.survey-admin-top{margin:0;width:100%}.survey-admin-btn{width:100%}}
@@ -689,6 +697,14 @@ body.bolo-loading-active{overflow:hidden}
     <button type="button" class="survey-admin-tab" id="surveyAdminTabKelola" aria-pressed="true">⚙ Daftar &amp; Pengaturan</button>
     <button type="button" class="survey-admin-tab" id="surveyAdminTabArsip" aria-pressed="false">▣ Survei Selesai &amp; Pulihkan</button>
     <button type="button" class="survey-admin-sync" id="surveyAdminSync" hidden>↻ Perbarui Dashboard</button>
+  </div>
+  <div id="surveyAdminArchiveGuide" hidden>
+    <div class="admin-archive-card">
+      <h3>Survei Selesai &amp; Arsip</h3>
+      <p>Daftar survei yang ditutup dan arsipnya dapat dibuka menggunakan sesi Admin INPEK yang sudah masuk. Tidak perlu memasukkan email kembali.</p>
+      <div class="admin-archive-note">Arsip tetap tersimpan saat survei dipulihkan. Gunakan tombol <strong>Survei Selesai &amp; Pulihkan</strong> pada halaman Tindak Lanjut.</div>
+      <button type="button" id="adminOpenArchiveSession">Buka Arsip melalui Sesi Admin</button>
+    </div>
   </div>
   <div id="surveyAdminSetup" class="survey-admin-help" hidden><strong>Panel Admin Belum Disambungkan</strong><p>Pasang backend Apps Script Kelola Survei satu kali, kemudian isikan URL deployment di berkas <code>kelola-survei-link.json</code>. Setelah itu survei dapat ditambah, diedit, atau dinonaktifkan dari sini.</p></div>
   <iframe id="surveyAdminFrame" title="Form Kelola Survei BOLO INPEK" referrerpolicy="strict-origin-when-cross-origin"></iframe>
@@ -1661,10 +1677,21 @@ body.bolo-loading-active{overflow:hidden}
       const frame=document.getElementById('surveyAdminFrame');
       const setup=document.getElementById('surveyAdminSetup');
       const external=document.getElementById('surveyAdminExternal');
+      const guide=document.getElementById('surveyAdminArchiveGuide');
+      guide.hidden=!arsip;
       document.getElementById('surveyAdminTabKelola').setAttribute('aria-pressed',String(!arsip));
       document.getElementById('surveyAdminTabArsip').setAttribute('aria-pressed',String(arsip));
       document.getElementById('surveyAdminSync').hidden=!arsip;
-      const tujuan=arsip?TINDAK_LANJUT_URL+'?mode=selesai':urlPanelAdmin;
+      if(arsip){
+        // Arsip menggunakan iframe Tindak Lanjut yang sudah login,
+        // sehingga tidak perlu login ulang pada iframe terpisah.
+        frame.hidden=true;frame.src='about:blank';
+        setup.hidden=true;
+        external.href=TINDAK_LANJUT_URL+'?mode=selesai';
+        external.style.display='inline';
+        return;
+      }
+      const tujuan=urlPanelAdmin;
       if(tujuan){
         frame.hidden=false;setup.hidden=true;
         frame.title=arsip?'Survei Selesai dan Pemulihan':'Kelola Survei';
@@ -1677,6 +1704,11 @@ body.bolo-loading-active{overflow:hidden}
     }
     document.getElementById('surveyAdminTabKelola').addEventListener('click',()=>tampilPanelAdmin('kelola'));
     document.getElementById('surveyAdminTabArsip').addEventListener('click',()=>tampilPanelAdmin('arsip'));
+    document.getElementById('adminOpenArchiveSession').addEventListener('click',()=>{
+      if(!boloAdminActive()){document.getElementById('surveyAdminModal').close();document.getElementById('adminEnter').click();return;}
+      document.getElementById('surveyAdminModal').close();
+      document.getElementById('adminTlMenu').click();
+    });
     document.getElementById('openSurveyAdmin').addEventListener('click',async()=>{
       if(!boloAdminActive()){document.getElementById('adminEnter').click();return;}
       const modal=document.getElementById('surveyAdminModal');
