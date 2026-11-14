@@ -410,3 +410,22 @@
 @media(prefers-reduced-motion:reduce){
   .bi-progress-nav-card,.bi-popup-group,.bi-ppl-clickable{transition:none}
 }
+
+/* v31 — Ringkasan lebih lapang; catatan teknis tetap tersedia ketika dibutuhkan. */
+.bi-method-note{width:fit-content;max-width:100%;margin:8px 0 0;font-size:11px;color:#66829a}
+.bi-method-note summary{cursor:pointer;color:#306f9f;font-weight:750;padding:5px 2px}
+.bi-method-note summary:hover{text-decoration:underline}
+.bi-method-note p{max-width:830px;margin:5px 0 7px;padding:9px 12px;border:1px solid #e0eafa;
+  background:#f5f9ff;border-radius:8px;line-height:1.65}
+.bi-exclusion-note{font-size:11px;color:#815f3f;margin:9px 0 0}
+.bi-unassigned-stats{margin:13px 0 0}
+.bi-mark-stat{min-height:78px;justify-content:center;gap:5px}
+.bi-unassigned-panel{padding-bottom:17px}
+.bi-progress-nav-card{min-height:87px;align-items:center;padding:13px 16px}
+.bi-nav-copy{padding-right:19px}
+.bi-main-ppl-panel .bi-export-banner{padding:11px 14px;align-items:center;margin-bottom:12px}
+.bi-main-ppl-panel .bi-export-banner h3{font-size:14px}
+.bi-ppl-summary-table td:first-child strong::after{content:"↗";margin-left:7px;color:#8daed0;font-size:12px}
+.bi-ppl-summary-table .bi-ppl-clickable:hover td:first-child strong::after{color:#286aab}
+.bi-popup-group-meta{margin:5px 0 9px}
+@media(max-width:600px){.bi-progress-nav-card{min-height:80px}.bi-unassigned-stats{gap:8px}}
