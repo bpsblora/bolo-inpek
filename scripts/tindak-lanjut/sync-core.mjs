@@ -14,7 +14,9 @@ const BACKEND_FILES=[
   {source:'backend/tindak-lanjut/TindakLanjut_KelolaPetugas.gs',
    base:'TindakLanjut_KelolaPetugas',functions:['apiDaftarPetugasAdmin','apiSimpanPetugasAdmin']},
   {source:'backend/tindak-lanjut/TindakLanjut_SinkronMonitoring.gs',
-   base:'TindakLanjut_SinkronMonitoring',functions:['apiSinkronMonitoring','apiPratinjauSinkronMonitoring']}
+   base:'TindakLanjut_SinkronMonitoring',functions:['apiSinkronMonitoring','apiPratinjauSinkronMonitoring']},
+  {source:'backend/tindak-lanjut/TindakLanjut_DeteksiOtomatis.gs',
+   base:'TindakLanjut_DeteksiOtomatis',functions:['apiStatusDeteksiOtomatis','apiAktifkanDeteksiOtomatis']}
 ];
 
 export function validateHtml(source) {
