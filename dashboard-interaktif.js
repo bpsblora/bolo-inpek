@@ -423,14 +423,17 @@ function biPanel(rows,key){
 }
 function biKpis(rows){
   const c=biCounts(rows);
+  // Setiap kartu memiliki kelas warna khusus, tanpa mengubah perhitungan FASIH.
   const items=[
-    ['Total Assignment',rows.length,'',false],
-    ['Belum Submit',c.pending,'OPEN / DRAFT / REJECTED PENGAWAS',true],
-    ['Sudah Submit',c.submitted,'',false],
-    ['REJECTED',c.rejected,'',false]
+    ['Total Assignment',rows.length,'','total'],
+    ['Belum Submit',c.pending,'OPEN / DRAFT / REJECTED PENGAWAS','pending'],
+    ['Sudah Submit',c.submitted,'','submitted'],
+    ['REJECTED',c.rejected,'','rejected']
   ];
-  return '<div class="bi-kpis">'+items.map(([label,n,note,warn])=>
-    '<div class="bi-kpi'+(warn?' alert':'')+'"><span>'+label+'</span><strong>'+format.format(n)+'</strong>'+(note?'<small>'+note+'</small>':'')+'</div>').join('')+'</div>';
+  return '<div class="bi-kpis">'+items.map(([label,n,note,kind])=>
+    '<div class="bi-kpi bi-kpi-'+kind+'">'+
+      '<span>'+label+'</span><strong>'+format.format(n)+'</strong>'+
+      (note?'<small>'+note+'</small>':'')+'</div>').join('')+'</div>';
 }
 function biControls(rows){
   const pmls=biRoleNames(rows,'pml');
