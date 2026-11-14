@@ -172,6 +172,11 @@
 .tl-staff-actions button{min-width:110px}
 #staffMessage{font-size:12px;font-weight:750;color:#215f43}
 #staffMessage.error{color:#a22d3a}
+.tl-sync-status{margin:10px 0;padding:10px 13px;font-size:12px;
+  background:#eff8f4;border:1px solid #c4e7d1;color:#236c45;border-radius:9px;line-height:1.6}
+.tl-sync-status.error{background:#fff5ef;border-color:#f0cbb4;color:#9b492d}
+.tl-sync-status[hidden]{display:none!important}
+#tlForceSync{margin-top:8px;padding:9px 14px;font-size:12px}
 @media(max-width:640px){.tl-staff-shell{padding:14px}.tl-staff-heading h2{font-size:18px}.tl-staff-fields{grid-template-columns:1fr}.tl-staff-toolbar select{width:100%}.tl-staff-actions{flex-wrap:wrap}.tl-staff-actions button{flex:1}}
 
 </style></head><body>
@@ -207,6 +212,8 @@
   <select id="survey" hidden aria-hidden="true"></select>
 
   <p id="sourceTime" class="muted"></p>
+  <div id="tlMonitoringSync" class="tl-sync-status" hidden role="status" aria-live="polite"></div>
+  <button type="button" id="tlForceSync" class="secondary" hidden>↻ Sinkronkan dari Monitoring</button>
 </div>
 <nav class="grid" aria-label="Menu tindak lanjut"><button id="closeMenu">Arsipkan &amp; Tutup Survei</button><button id="remindMenu">Ingatkan Petugas</button><button id="noteMenu">Tambahkan Catatan Survei</button></nav>
 <div id="adminArchiveShortcut" style="margin-top:10px;display:flex;gap:9px;flex-wrap:wrap" hidden>
@@ -372,6 +379,7 @@
   
 const $=id=>document.getElementById(id);let konteksCatatanKirim = null;let token='',data=null,draft=null,sendId='',noteId='',chain=null,busy=false,initialUsed=false;
 let staffData=null, staffEditing=null;
+let tlSyncState={last:0,running:null,report:null,error:''};
 const initial=$('initial').dataset;const key=x=>JSON.stringify([x.survey_id,x.survey_period_id]);
 const BOLO_ADMIN_GATE = /^__BOLO_INPEK_ADMIN_GATE__([a-f0-9]{32})$/.exec(String(initial.survei||''));
 const BOLO_ADMIN_GATE_NONCE = BOLO_ADMIN_GATE ? BOLO_ADMIN_GATE[1] : '';
@@ -488,7 +496,39 @@ function switchPanel(id) {
   });
 }
 function clearDraft(){draft=null;sendId='';$('draftPanel').hidden=true;$('sent').checked=false;}
-async function load(){const prev=$('survey').value;data=await rpc('apiData',token);
+function tlSyncBanner(report,error){
+  const el=$('tlMonitoringSync');el.hidden=false;el.classList.toggle('error',!!error);
+  if(error){
+    el.textContent='Sinkronisasi ke monitoring utama belum berhasil: '+error+
+      '. Data Tindak Lanjut mungkin belum mencakup survei terbaru. Klik Sinkronkan dari Monitoring setelah backend diperbarui.';
+  }else{
+    el.textContent='Tersinkron dengan Monitoring: '+report.survei_aktif+
+      ' survei aktif · '+report.assignment+' assignment · '+report.calon_petugas+
+      ' calon petugas memerlukan verifikasi · data FASIH '+fmt(report.waktu_monitoring)+'.';
+  }
+}
+async function tlEnsureMonitoring(force=false){
+  if(!token || (data&&data.operator?.peran!=='ADMIN'))return null;
+  if(tlSyncState.running)return tlSyncState.running;
+  if(!force && tlSyncState.last && Date.now()-tlSyncState.last < 90000)return tlSyncState.report;
+  tlSyncState.running=(async()=>{
+    try{
+      const report=await rpc('apiSinkronMonitoring',token);
+      if(!report||report.success!==true)throw Error('Respons sinkronisasi tidak lengkap.');
+      tlSyncState.last=Date.now();tlSyncState.error='';tlSyncState.report=report;
+      tlSyncBanner(report,'');
+      return report;
+    }catch(e){
+      tlSyncState.error=String(e?.message||e);
+      tlSyncBanner(null,tlSyncState.error);
+      return null;
+    }finally{tlSyncState.running=null}
+  })();
+  return tlSyncState.running;
+}
+async function load(){const prev=$('survey').value;
+if(data?.operator?.peran==='ADMIN')await tlEnsureMonitoring();
+data=await rpc('apiData',token);
 
 // Jika dibuka dari kartu dashboard, batasi ke periode tersebut.
 if (initial.periode) {
@@ -1010,6 +1050,7 @@ async function staffToggle(p){
 }
 async function staffLoad(){
   if(!token)throw Error('Sesi operator berakhir. Masuk kembali.');
+  await tlEnsureMonitoring();
   try{
     staffData=await rpc('apiDaftarPetugasAdmin',token);
   }catch(e){
@@ -1072,7 +1113,17 @@ $('staffSource').addEventListener('change',()=>{
   $('staffWa').focus();
 });
 $('staffRefresh').addEventListener('click',()=>action(async()=>{
-  await staffLoad();staffNotice('Biodata petugas telah dimuat ulang.');
+  await tlEnsureMonitoring(true);
+  await staffLoad();
+  staffNotice(tlSyncState.error
+    ?'Database petugas dimuat, tetapi sinkronisasi assignment monitoring belum berhasil.'
+    :'Data petugas, survei dan penugasan baru telah diselaraskan dengan monitoring.');
+}));
+$('tlForceSync').addEventListener('click',()=>action(async()=>{
+  const report=await tlEnsureMonitoring(true);
+  if(!report)throw Error(tlSyncState.error||'Gagal menyinkronkan monitoring.');
+  await load();
+  notice('Sinkronisasi selesai: '+report.survei_aktif+' survei dan '+report.assignment+' assignment. Petugas baru dapat diperiksa melalui Kelola Petugas.');
 }));
 $('staffForm').addEventListener('submit',event=>{
   event.preventDefault();
@@ -1143,6 +1194,8 @@ $('loginForm').onsubmit = e => {
     }
     token = x.token;
     $('openStaffTL').hidden=x.operator.peran!=='ADMIN';
+    $('tlForceSync').hidden=x.operator.peran!=='ADMIN';
+    if(x.operator.peran==='ADMIN')await tlEnsureMonitoring();
 
     if ($('modeHalaman').value === 'selesai') {
       await tampilkanSurveiSelesai();
@@ -1156,7 +1209,8 @@ $('loginForm').onsubmit = e => {
     }
 
     $('login').hidden = true;
-    notice('Berhasil masuk.');
+    notice(tlSyncState.error?'Berhasil masuk, tetapi sinkronisasi monitoring perlu diperiksa.':
+      'Berhasil masuk. Data Tindak Lanjut memakai monitoring terbaru.',!!tlSyncState.error);
     if(BOLO_ADMIN_GATE_NONCE){
       notifyDashboardAdmin('BOLO_INPEK_ADMIN_VERIFIED',{
         peran:x.operator.peran,
@@ -1179,6 +1233,8 @@ $('logout').onclick=()=>action(async()=>{
   await rpc('apiLogout',token);
   token='';data=null;draft=null;chain=null;initialUsed=false;
   $('app').hidden=true;$('staffPanel').hidden=true;$('login').hidden=false;
+  tlSyncState={last:0,running:null,report:null,error:''};
+  $('tlMonitoringSync').hidden=true;
   ['history','reminders','choices','survey','person'].forEach(id=>$(id).replaceChildren());
   ['message','note','plan','closeNote'].forEach(id=>$(id).value='');
   $('greeting').textContent='Masuk sebagai operator';
