@@ -321,13 +321,13 @@
       <h3 id="staffFormTitle">Biodata Petugas</h3>
       <div class="tl-staff-fields">
         <div class="full">
-          <label for="staffSource">Petugas baru dari FASIH (opsional)</label>
+          <label for="staffSource">Calon petugas yang muncul pada monitoring (opsional)</label>
           <select id="staffSource"><option value="">— Tidak dipilih / input manual —</option></select>
         </div>
         <div class="full">
-          <label for="staffId">ID Petugas FASIH</label>
+          <label for="staffId">ID Petugas FASIH / Alias Monitoring</label>
           <input type="text" id="staffId" maxlength="100" placeholder="Masukkan ID FASIH, atau kosongkan untuk ID internal">
-          <p class="muted" style="margin:4px 0">ID harus sama dengan FASIH supaya petugas terhubung ke assignment. Untuk petugas lama, ID dikunci agar riwayat tetap utuh.</p>
+          <p class="muted" style="margin:4px 0">Bila ID asli FASIH tidak tersedia di sumber monitoring, sistem menggunakan alias lokal berawalan monitor:. Alias ini bukan UUID FASIH dan perlu verifikasi identitas sebelum menyimpan. ID petugas lama tetap dikunci.</p>
         </div>
         <div>
           <label for="staffNama">Nama Petugas <span aria-hidden="true">*</span></label>
@@ -348,6 +348,10 @@
           </label>
         </div>
       </div>
+      <label id="staffVerifyAliasBox" class="choice tl-staff-hint" for="staffVerifyAlias" hidden>
+        <input type="checkbox" id="staffVerifyAlias">
+        Saya sudah memverifikasi bahwa nama petugas dari monitoring dan nomor WhatsApp yang dimasukkan adalah milik orang yang sama. Saya memahami bahwa ID ini adalah alias internal, bukan UUID FASIH.
+      </label>
       <p class="tl-staff-hint">Menonaktifkan petugas hanya menyembunyikannya dari daftar pengingat baru. Catatan, kontak, assignment, dan arsip sebelumnya tidak dihapus. Petugas baru tanpa assignment belum bisa dipilih sebagai penerima pengingat berbasis FASIH.</p>
       <div class="tl-staff-actions">
         <button type="button" class="secondary" id="staffCancel">Batal</button>
@@ -969,6 +973,7 @@ function staffPrefillCandidate(p){
   staffOpenForm();
   $('staffSource').value=p.petugas_id;
   $('staffId').value=p.petugas_id;
+  staffAliasVis();
   $('staffNama').value=p.nama||'';
   $('staffEmail').value=p.email||'';
   staffNotice('Calon petugas dari FASIH sudah dipilih. Periksa nama dan lengkapi WhatsApp sebelum Simpan Biodata.');
@@ -998,6 +1003,7 @@ function staffCandidatesPaint(){
       const surveys=Array.isArray(p.daftar_survei)?p.daftar_survei:[];
       const roles=Array.isArray(p.peran)?p.peran:[];
       details.textContent=(p.asal==='assignment'?'Terdeteksi di assignment '+(roles.join('/')||'PPL/PML'):'Ditemukan di sumber petugas')+
+        (p.petugas_id.startsWith('monitor:')?' · ID sementara: verifikasi identitas':'')+
         ' · '+(p.jumlah_assignment||0)+' assignment'+
         (surveys.length?' · Survei: '+surveys.slice(0,3).join(', ')+(surveys.length>3?' dan '+(surveys.length-3)+' lainnya':''):'')+
         ' · ID '+p.petugas_id;
@@ -1086,6 +1092,12 @@ async function staffOpen(){
   }
   $('staffTitle').scrollIntoView({block:'start',behavior:'smooth'});
 }
+function staffAliasVis(){
+  const alias=!staffEditing && $('staffId').value.trim().startsWith('monitor:');
+  $('staffVerifyAliasBox').hidden=!alias;
+  $('staffVerifyAlias').required=alias;
+  if(!alias)$('staffVerifyAlias').checked=false;
+}
 function staffOpenForm(p=null){
   if(!staffData)throw Error('Daftar petugas belum dimuat.');
   staffEditing=p?{...p}:null;
@@ -1098,6 +1110,8 @@ function staffOpenForm(p=null){
   $('staffEmail').value=p?.email||'';
   $('staffWa').value=p?.nomor_whatsapp||'';
   $('staffActive').checked=p?p.aktif:true;
+  $('staffVerifyAlias').checked=false;
+  staffAliasVis();
   $('staffForm').hidden=false;
   $('staffForm').scrollIntoView({behavior:'smooth',block:'start'});
   $('staffNama').focus({preventScroll:true});
@@ -1106,11 +1120,12 @@ $('staffSearch').addEventListener('input',staffRowsPaint);
 $('staffFilter').addEventListener('change',staffRowsPaint);
 $('staffNew').addEventListener('click',()=>staffOpenForm());
 $('staffCancel').addEventListener('click',()=>{$('staffForm').hidden=true;staffEditing=null;});
+$('staffId').addEventListener('input',staffAliasVis);
 $('staffSource').addEventListener('change',()=>{
   const p=staffData?.kandidat_fasih.find(p=>p.petugas_id===$('staffSource').value);
   if(!p)return;
   $('staffId').value=p.petugas_id;$('staffNama').value=p.nama;$('staffEmail').value=p.email||'';
-  $('staffWa').focus();
+  staffAliasVis();$('staffWa').focus();
 });
 $('staffRefresh').addEventListener('click',()=>action(async()=>{
   await tlEnsureMonitoring(true);
@@ -1136,6 +1151,7 @@ $('staffForm').addEventListener('submit',event=>{
       email:$('staffEmail').value.trim(),
       nomor_whatsapp:$('staffWa').value.trim(),
       aktif:$('staffActive').checked,
+      verifikasi_alias:$('staffVerifyAlias').checked,
       dari_fasih:!!$('staffSource').value,
       expected:editing?{
         nama:editing.nama,email:editing.email,
