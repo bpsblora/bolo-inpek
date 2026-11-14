@@ -410,7 +410,7 @@
 @media(max-width:780px){.header-inner{flex-wrap:wrap}.survey-admin-top{margin:0;width:100%}.survey-admin-btn{width:100%}}
 </style>
 
-<link rel="stylesheet" href="./dashboard-interaktif.css?v=9">
+<link rel="stylesheet" href="./dashboard-interaktif.css?v=10">
 </head>
 <body>
   <!-- HEADER: identitas BOLO INPEK dan BPS Kabupaten Blora -->
@@ -492,7 +492,7 @@
   </main>
   <footer>BOLO INPEK · Sumber: Google Sheets · Persentase dihitung dari seluruh assignment pada kelompok yang sedang dibuka. Data pendataan diperbarui setelah operator menjalankan Python. · <a href="./kebijakan-privasi.html">Kebijakan Privasi</a></footer>
   <noscript>Aktifkan JavaScript untuk menggunakan dashboard ini.</noscript>
-  <script src="./dashboard-interaktif.js?v=9"></script>
+  <script src="./dashboard-interaktif.js?v=10"></script>
   <script>
     // ========================================================
     // STATUS DASHBOARD: setiap assignment dihitung satu kali.
@@ -705,7 +705,7 @@
         if(body?.success!==true||!Array.isArray(body.surveys)){
           throw new Error('Respons Apps Script PUBLIK tidak valid atau belum dapat membaca Google Sheets');
         }
-        return body.surveys.map(s=>({
+        const surveys=body.surveys.map(s=>({
           code:String(s.code||'').trim(),
           name:String(s.name||'').trim(),
           aktif:s.aktif===true||String(s.aktif).toUpperCase()==='TRUE',
@@ -713,12 +713,27 @@
           tanggal_selesai:String(s.tanggal_selesai||'').trim(),
           urutan:Number(s.urutan)||999
         })).filter(s=>s.name&&s.name.length<=120);
+        const markersAvailable=body.markers_available===true&&Array.isArray(body.markers);
+        const markers=markersAvailable?body.markers.filter(m=>
+          m&&/^[0-9a-f]{64}$/.test(String(m.id||''))&&
+          typeof m.dihitung==='boolean'&&
+          String(m.alasan||'').length<=60&&String(m.catatan||'').length<=220
+        ).slice(0,3000).map(m=>({
+          id:m.id,dihitung:m.dihitung,
+          alasan:String(m.alasan||''),catatan:String(m.catatan||'')
+        })):[];
+        if(markersAvailable&&markers.length!==body.markers.length)
+          throw new Error('Daftar penanda tidak valid atau melebihi batas aman.');
+        return {surveys,markers,markersAvailable};
       }catch(err){
         console.error('Daftar survei aktif belum dapat diverifikasi:',err);
         throw new Error('Daftar survei aktif belum dapat dimuat ('+err.message+'). Periksa deployment Apps Script PUBLIK, lalu coba lagi.');
       }
     }
-    let DATA = [];
+    let DATA = []; // hanya assignment yang DIMASUKKAN dalam perhitungan
+    let ALL_ASSIGNMENTS = []; // seluruh baris asli FASIH, termasuk pengecualian
+    let MARKER_RULES = [];
+    let MARKERS_AVAILABLE = false;
     let PERIODE_SURVEI = [];
     let lastFetched = null;
     let loading = false;
@@ -852,7 +867,8 @@
     async function loadData({preserveView=false}={}){
       if(loading)return;
       const snapshot=preserveView?{
-        data:DATA, registry:REGISTRY, surveys:SURVEYS,
+        data:DATA, allAssignments:ALL_ASSIGNMENTS, registry:REGISTRY, surveys:SURVEYS,
+        markers:MARKER_RULES, markersAvailable:MARKERS_AVAILABLE,
         periods:PERIODE_SURVEI, closed:PERIODE_DITUTUP,
         pengingat:JUMLAH_PENGINGAT, last:lastFetched,
         state:{...state}
@@ -885,7 +901,10 @@
           : [];
         let memakaiCadanganTerverifikasi=false;
         try{
-          REGISTRY = await bacaRegistrySurvei(controller.signal);
+          const responseRegistry=await bacaRegistrySurvei(controller.signal);
+          REGISTRY=responseRegistry.surveys;
+          MARKER_RULES=responseRegistry.markers;
+          MARKERS_AVAILABLE=responseRegistry.markersAvailable;
         }catch(registryError){
           const candidate=registryTerverifikasiDariPayload(payload);
           if(!candidate){
@@ -894,6 +913,8 @@
           }
           console.warn('Registry publik tidak tersedia; memakai status aktif yang diverifikasi dari API Monitoring.',registryError);
           REGISTRY=candidate;
+          MARKER_RULES=[];
+          MARKERS_AVAILABLE=false;
           memakaiCadanganTerverifikasi=true;
         }
         if(REGISTRY){
@@ -915,7 +936,10 @@
         }
 
         await ambilStatusPenutupan(controller.signal);
-        DATA=DATA.filter(r=>SURVEYS.includes(r.survei)&&surveiMasihAktif(r.survei));
+        ALL_ASSIGNMENTS=DATA.filter(r=>SURVEYS.includes(r.survei)&&surveiMasihAktif(r.survei));
+        // Penanda hanya mengubah perhitungan, tidak menghapus data FASIH.
+        ALL_ASSIGNMENTS=await biApplyMarkers(ALL_ASSIGNMENTS,MARKER_RULES);
+        DATA=ALL_ASSIGNMENTS.filter(r=>!r.boloExcluded);
         tampilkanWaktuPengambilan(payload.data_terakhir_diambil);
         if(!snapshot){
           Object.assign(state,{survey:null,pml:null,ppl:null,status:null});
@@ -937,7 +961,9 @@
         }
       }catch(error){
         if(snapshot){
-          DATA=snapshot.data;REGISTRY=snapshot.registry;SURVEYS=snapshot.surveys;
+          DATA=snapshot.data;ALL_ASSIGNMENTS=snapshot.allAssignments;
+          REGISTRY=snapshot.registry;SURVEYS=snapshot.surveys;
+          MARKER_RULES=snapshot.markers;MARKERS_AVAILABLE=snapshot.markersAvailable;
           PERIODE_SURVEI=snapshot.periods;PERIODE_DITUTUP=snapshot.closed;
           JUMLAH_PENGINGAT=snapshot.pengingat;
           lastFetched=snapshot.last;Object.assign(state,snapshot.state);
@@ -946,7 +972,7 @@
           console.warn('Pembaruan manual gagal; monitoring terakhir dipertahankan:',error);
           return;
         }
-        DATA=[];
+        DATA=[];ALL_ASSIGNMENTS=[];MARKER_RULES=[];MARKERS_AVAILABLE=false;
         renderKeteranganStatus([]);
         tampilkanWaktuPengambilan(null);
         connection.hidden = false;
@@ -1117,7 +1143,8 @@
       const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=exportFilename(survey,'png');document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
     }
     async function handleExport(button) {
-      const survey=button.dataset.survey,rows=DATA.filter(r=>r.survei===survey);
+      const survey=button.dataset.survey;
+      const rows=(button.dataset.export==='excel'?ALL_ASSIGNMENTS:DATA).filter(r=>r.survei===survey);
       const feedback=button.closest('.card').querySelector('.export-feedback');
       const buttons=button.closest('.export-actions').querySelectorAll('button');
       buttons.forEach(b=>b.disabled=true);feedback.textContent='Menyiapkan unduhan…';
@@ -1231,7 +1258,7 @@
       const view=document.getElementById('view'),rows=selected(),top=biSummary();
       if(state.survey===null){
         view.innerHTML=top+title('Progres Pendataan Survei INPEK 2026',
-          'Klik survei di filter atas untuk melihat progres PML dan PPL.',DATA.length)+biOverview();
+          'Klik survei di filter atas untuk melihat progres PML dan PPL.',DATA.length)+biUnassignedPanel(null)+biOverview();
       }else if(state.status!==null){
         view.innerHTML=top+title('Assignment · '+state.status,
           [state.survey,state.pml,state.ppl].filter(Boolean).join(' · '),rows.length)+assignmentTable(rows);
@@ -1241,7 +1268,7 @@
         view.innerHTML=top+title('Progres PPL · '+state.pml,state.survey,rows.length)+
           biPanel(rows,'ppl')+peopleTable(rows,'ppl');
       }else{
-        view.innerHTML=top+biSurveyDashboard(state.survey);
+        view.innerHTML=top+biUnassignedPanel(state.survey)+biSurveyDashboard(state.survey);
       }
       if(focus){const heading=view.querySelector('h1');if(heading)heading.focus({preventScroll:true});}
     }
@@ -1276,6 +1303,8 @@
       const exportButton=event.target.closest('button[data-export]');
       if(exportButton){if(!exportButton.disabled)handleExport(exportButton);return;}
       if(event.target.closest('#retry')){loadData();return;}
+      const markButton=event.target.closest('button[data-bi-open-marks]');
+      if(markButton){document.getElementById('openSurveyAdmin').click();return;}
       const reportButton=event.target.closest('button[data-bi-export]');
       if(reportButton){biExportProgress(reportButton);return;}
       const unitButton=event.target.closest('button[data-bi-unit]');
