@@ -82,7 +82,9 @@ async function biApplyMarkers(rows,marks){
     const mark=lookup.get(hash);
     if(!mark)continue;
     items[0].boloMark=mark;
-    items[0].boloExcluded=mark.dihitung===false;
+    // Pengecualian hanya berlaku jika server sudah mengonfirmasi bahwa
+    // status FASIH masih sama. Status berubah -> ikut status asli FASIH.
+    items[0].boloExcluded=mark.dihitung===false&&mark.berlaku===true;
   }
   return sources;
 }
@@ -92,28 +94,39 @@ function biUnassignedPanel(survey){
   const excluded=rows.filter(row=>row.boloExcluded).length;
   const marked=rows.filter(row=>row.boloMark).length;
   const unmarked=rows.length-marked;
+  const review=rows.filter(row=>row.boloMark?.perlu_tinjau).length;
+  const duplicates=new Map();
+  rows.forEach(row=>{const key=biMarkComposite(row);duplicates.set(key,(duplicates.get(key)||0)+1);});
   const details=rows.slice().sort((a,b)=>Number(!!b.boloExcluded)-Number(!!a.boloExcluded)||
       a.survei.localeCompare(b.survei,'id')||a.nama_assignment.localeCompare(b.nama_assignment,'id'));
   return '<section class="bi-unassigned-panel">'+
     '<div class="bi-unassigned-header"><div><h2>Penanda Assignment Belum Dialokasikan</h2>'+
     '<p>Assignment tanpa PPL/PML bisa merupakan sampel cadangan. Periksa sebelum dikecualikan.</p></div>'+
-    '<button type="button" class="bi-mark-button" data-bi-open-marks>⚙ Atur Penanda & Catatan</button></div>'+
+    '<button type="button" class="bi-mark-button" data-bi-show-marks>☷ Lihat Assignment</button></div>'+
     '<div class="bi-unassigned-stats"><strong>'+rows.length+'</strong> Belum Dialokasikan · <strong>'+
-    excluded+'</strong> Tidak Dihitung · <strong>'+unmarked+'</strong> Belum Ditandai</div>'+
+    excluded+'</strong> Tidak Dihitung · <strong>'+unmarked+'</strong> Belum Ditandai'+
+    (review?' · <strong>'+review+'</strong> Perlu Tinjau Ulang':'')+'</div>'+
     (MARKERS_AVAILABLE?'':'<p class="bi-mark-notice">Layanan penanda bersama belum diaktifkan. Semua assignment sementara tetap dihitung. Admin perlu menerbitkan pembaruan Apps Script terlebih dahulu.</p>')+
-    '<details class="bi-unassigned-details"><summary>Lihat daftar & alasan ('+rows.length+' assignment)</summary>'+
+    '<details class="bi-unassigned-details" id="bi-mark-list"><summary>Lihat daftar & alasan ('+rows.length+' assignment)</summary>'+
     '<div class="tablebox"><table class="bi-unassigned-table"><thead><tr>'+
     '<th>Survei</th><th>Assignment</th><th>Status FASIH</th><th>Perhitungan</th><th>Alasan / Catatan</th><th>Tindakan</th>'+
     '</tr></thead><tbody>'+details.map(row=>{
       const mark=row.boloMark;
-      const status=row.boloExcluded?'Tidak Dihitung':mark?'Tetap Dihitung':'Belum Ditandai · Dihitung';
+      const status=row.boloExcluded?'Tidak Dihitung':
+        mark?.perlu_tinjau?'Perlu Tinjau · Kembali Dihitung':
+        mark?'Tetap Dihitung':'Belum Ditandai · Dihitung';
       const note=mark?[mark.alasan,mark.catatan].filter(Boolean).join(' — '):'Belum ada catatan';
       return '<tr><td>'+esc(row.survei)+'</td><td>'+esc(row.nama_assignment)+'</td>'+
         '<td>'+esc(row.status)+'</td>'+
         '<td><span class="bi-mark-state'+(row.boloExcluded?' off':'')+'">'+esc(status)+'</span></td>'+
-        '<td>'+esc(note)+'</td><td><button type="button" class="bi-mark-row-btn" data-bi-open-marks>Atur</button></td></tr>';
+        '<td>'+esc(note)+'</td><td><button type="button" class="bi-mark-row-btn"'+
+        ' data-bi-mark-survey="'+esc(row.survei)+'" data-bi-mark-assignment="'+esc(row.nama_assignment)+'"'+
+        ((!MARKERS_AVAILABLE||duplicates.get(biMarkComposite(row))!==1)?' disabled':'')+
+        ' aria-label="Atur penanda assignment '+esc(row.nama_assignment)+'">Atur Penanda</button></td></tr>';
     }).join('')+'</tbody></table></div></details>'+
-    '<p class="bi-mark-footnote">Penanda disimpan oleh admin di Google Sheets, bukan pada browser. Jika baru mengubah penanda, klik <b>Muat Ulang Data</b> untuk menerapkan perhitungan terbaru. Assignment asli FASIH tetap tersimpan.</p>'+
+    '<p class="bi-mark-footnote">Klik <b>Atur Penanda</b> pada masing-masing assignment untuk mengubah keputusan dan catatan. '+
+    'Saat Updater memperbarui FASIH, catatan tetap tersimpan; jika status berubah, pengecualian dihentikan sampai diperiksa ulang. '+
+    'Sesudah menyimpan, klik <b>Muat Ulang Data</b> untuk menerapkan perhitungan terbaru.</p>'+
     '</section>';
 }
 
