@@ -33,6 +33,7 @@ function tlMonRead_(book,name,required){
 function tlMonStatus_(x){
   const s=tlMonText_(x).toUpperCase();
   if(s==='OPEN'||s==='DRAFT'||s.startsWith('REVOKED'))return 'OPEN';
+  if(['REJECT','SUBMIT','APPROVE','COMPLETE'].includes(s))return s;
   if(s.startsWith('REJECTED'))return 'REJECT';
   if(s.startsWith('SUBMITTED'))return 'SUBMIT';
   if(s.startsWith('COMPLETED'))return 'COMPLETE';
@@ -85,6 +86,7 @@ function tlMonBuild_(src,db){
   });
   if(idMap.size!==monitoring.length)throw Error('Monitoring dan assignment_identitas tidak lengkap atau jumlahnya berbeda.');
   const nameMap=tlMonNameIDs_(db),unverified=new Map(),assign=[],keys=new Set();
+  const registeredIds=new Set(read_(db,'petugas').map(r=>r.petugas_id).filter(Boolean));
   monitoring.forEach((r,i)=>{
     const id=idMap.get(i+2),c=byName.get(r.survei);
     if(!id||id.survei!==r.survei||id.nama_assignment!==r.nama_assignment)
@@ -95,7 +97,7 @@ function tlMonBuild_(src,db){
     if(keys.has(k))throw Error('Assignment ganda pada sumber.');keys.add(k);
     const ppl_id=tlMonPersonId_(r.ppl,nameMap),pml_id=tlMonPersonId_(r.pml,nameMap);
     for(const [role,name,pid] of [['PPL',r.ppl,ppl_id],['PML',r.pml,pml_id]]){
-      if(!pid.startsWith('monitor:'))continue;
+      if(!pid.startsWith('monitor:')||registeredIds.has(pid))continue;
       if(!unverified.has(pid))unverified.set(pid,{petugas_id:pid,nama:name,
         jumlah_assignment:0,survei:[],peran:[],jenis_id:'ALIAS_MONITORING'});
       const u=unverified.get(pid);u.jumlah_assignment++;
@@ -167,7 +169,8 @@ function apiSinkronMonitoring(token){
       if(prev&&prev.survey_id!==row.survey_id)throw Error('Survey ID berubah untuk periode '+row.nama_survei+'. Sinkronisasi dibatalkan.');
     }
     // Backup kedua snapshot sumber, bukan catatan/riwayat atau arsip.
-    const stamp=Utilities.formatDate(new Date(),'Asia/Jakarta','yyyyMMdd-HHmmss');
+    const stamp=Utilities.formatDate(new Date(),'Asia/Jakarta','yyyyMMdd-HHmmss')+
+      '-'+Utilities.getUuid().slice(0,5);
     for(const tab of ['sumber_assignment','sumber_survei']){
       const sh=db.getSheetByName(tab).copyTo(db);
       sh.setName(('backup_'+tab+'_'+stamp).slice(0,99));sh.hideSheet();
