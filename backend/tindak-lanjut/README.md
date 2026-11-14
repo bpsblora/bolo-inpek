@@ -6,6 +6,17 @@ Panduan paling ringkas: [SETUP-LANGKAH.md](./SETUP-LANGKAH.md).
 
 **GitHub menyimpan sumber `.gs`, tetapi tidak otomatis memasangnya ke Google Apps Script.** Karena backend produksi memakai deployment lama dan mempunyai data riwayat, tahap pemasangan pertama dilakukan di editor Apps Script dengan akun operator yang memiliki izin. Pemeriksaan ini bersifat **read-only**, jadi belum perlu deploy ulang. Setelah status `siap: true`, barulah backend produksi dapat diaudit per fungsi.
 
+## Update pemeriksaan kode produksi — 14 November 2026
+
+Pemilik memberikan kode backend (kode Apps Script) dan HTML Tindak Lanjut untuk ditinjau.
+Keputusan pemilik **tetap memakai login berbasis email yang dikenal tim**; perubahan autentikasi **bukan** bagian dari pekerjaan ini. Perlu diketahui, email yang diketik tidak membuktikan identitas pemilik alamat. Kode produksi sengaja **tidak** disalin ke repository publik agar konfigurasi dan detail akses backend tidak tersebar.
+
+Langkah pemeriksaan berikutnya: setelah `boloTlPeriksaIntegrasi()` menghasilkan `siap:true`, salin file [TindakLanjut_AuditIntegritas.gs](./TindakLanjut_AuditIntegritas.gs) sebagai **file tambahan** ke Apps Script aktif. Jalankan `boloTlAuditIntegritas_` dari **editor Apps Script**. Fungsi privat berakhiran garis bawah; tidak tersedia melalui `google.script.run`. Tidak melakukan penulisan ke spreadsheet, tidak membuat arsip, dan tidak menampilkan data pribadi dalam log.
+
+Audit memeriksa keunikan ID, hubungan riwayat–kontak, hubungan riwayat–assignment–periode, validitas status penanganan, pengingat yang masih aktif, dan survei ditutup tanpa arsip terverifikasi. Hasil yang diharapkan adalah `error: {}`; `peringatan` dapat menunjukkan data lama yang perlu diperiksa secara manual. `siap_untuk_uji:true` berarti **tidak ditemukan kesalahan struktur menurut audit ini**, bukan bahwa transaksi atau deployment sudah diuji.
+
+Dari telaah kode, proses `apiTutup` dapat mengarsipkan meskipun masih ada penanganan aktif; sistem memang menampilkan jumlahnya sebelum konfirmasi. **Jangan menjalankan penutupan pada data produksi untuk sekadar pengujian.** Lakukan uji penutupan di salinan data setelah aturan bisnis penutupan disepakati. Pencatatan kasus sudah menggunakan append-only lewat `apiCatatan` dan proses WhatsApp tetap manual; keduanya akan diuji sesudah audit integritas.
+
 ## Status audit awal (14 November 2026)
 
 Database operasional yang **sudah ada** berhasil dibaca melalui Google Sheets. Folder arsip penutupan juga ditemukan. Data operasional, riwayat, dan arsip lama tidak dimodifikasi.
