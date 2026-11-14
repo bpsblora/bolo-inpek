@@ -126,7 +126,14 @@ function apiDaftarPetugasAdmin(token) {
   var db = db_();
   var saved = read_(db, 'petugas').filter(function (p) { return !!p.petugas_id; });
   var source = read_(db, 'sumber_petugas').filter(function (p) { return !!p.petugas_id; });
-  var assignment = read_(db, 'sumber_assignment');
+  // Rekomendasi petugas baru mengikuti survei/periode AKTIF yang benar-benar
+  // tampil di dashboard; arsip, nonaktif, dan survei selesai dikecualikan.
+  var activePeriods=new Set(read_(db,'survei')
+    .filter(function(p){return text_(p.status_operasional).toUpperCase()==='AKTIF';})
+    .map(function(p){return text_(p.survey_period_id);}));
+  var assignment = read_(db, 'sumber_assignment').filter(function(a){
+    return activePeriods.has(text_(a.survey_period_id));
+  });
   var count = tlPetugasPetaAssignment_(assignment);
   var lookup = new Map(source.map(function (p) {return [p.petugas_id,p];}));
   var all = saved.map(function (p) {
