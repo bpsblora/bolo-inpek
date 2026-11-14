@@ -361,13 +361,13 @@ function biPanel(rows,key){
 function biKpis(rows){
   const c=biCounts(rows);
   const items=[
-    ['Total Assignment',rows.length,'seluruh status',false],
-    ['Belum Submit',c.pending,'OPEN / DRAFT',true],
-    ['Sudah Submit',c.submitted,'termasuk REJECTED / REVOKED',false],
-    ['REJECTED',c.rejected,'REVOKED tampil terpisah',false]
+    ['Total Assignment',rows.length,'',false],
+    ['Belum Submit',c.pending,'OPEN + DRAFT',true],
+    ['Sudah Submit',c.submitted,'',false],
+    ['REJECTED',c.rejected,'',false]
   ];
   return '<div class="bi-kpis">'+items.map(([label,n,note,warn])=>
-    '<div class="bi-kpi'+(warn?' alert':'')+'"><span>'+label+'</span><strong>'+format.format(n)+'</strong><small>'+note+'</small></div>').join('')+'</div>';
+    '<div class="bi-kpi'+(warn?' alert':'')+'"><span>'+label+'</span><strong>'+format.format(n)+'</strong>'+(note?'<small>'+note+'</small>':'')+'</div>').join('')+'</div>';
 }
 function biControls(rows){
   const pmls=biRoleNames(rows,'pml');
@@ -391,7 +391,7 @@ function biSurveyDashboard(survey){
     agg.end=end;return agg;
   },{end:0,parts:[]}).parts.join(',')+')'):'#e3ecf6';
   const head='<div class="bi-survey-head card"><div style="display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap">'+
-    '<div>'+title('Progres '+survey,'Grafik progres dan rincian petugas dari FASIH.',all.length)+periodeHtml(survey)+'</div>'+
+    '<div>'+title('Progres '+survey,'',all.length)+periodeHtml(survey)+'</div>'+
     '<div class="bi-donut-area">'+biUnitControl('survey')+
     '<div class="bi-donut" style="background:'+donutColor+'"><div class="bi-donut-center"><strong>'+
     (biUnitMode('survey')==='persentase'?(all.length?percent(count.submitted,all.length):'—'):format.format(count.submitted))+
@@ -401,23 +401,22 @@ function biSurveyDashboard(survey){
   return head+biKpis(all)+biProgressNavigation(survey,all)+biPplDetailPanel(survey);
 }
 function biProgressNavigation(survey,rows){
-  const counts=biCounts(rows);
   const ppl=biRoleNames(rows,'ppl').length,pml=biRoleNames(rows,'pml').length;
   const pairs=biPplPmlPairs(rows,'report').length;
   const cards=[
-    {view:'ppl',title:'Progres per PPL',subtitle:'Bar chart seluruh pencacah',count:ppl+' PPL',icon:'◉'},
-    {view:'pml',title:'Progres per PML',subtitle:'Bar chart seluruh pengawas',count:pml+' PML',icon:'◎'},
-    {view:'by-pml',title:'PPL menurut PML',subtitle:'Pilih pengawas untuk melihat PPL',count:pairs+' pasangan',icon:'▦'}
+    {view:'ppl',title:'Progres per PPL',count:ppl+' PPL',icon:'◉'},
+    {view:'pml',title:'Progres per PML',count:pml+' PML',icon:'◎'},
+    {view:'by-pml',title:'PPL menurut PML',count:pairs+' pasangan',icon:'▦'}
   ];
   return '<nav class="bi-progress-navigation" aria-label="Pilihan tampilan progres">'+cards.map(card=>
     '<button type="button" class="bi-progress-nav-card bi-nav-'+card.view+
       '" data-bi-popup-nav="'+card.view+'" data-bi-popup-survey="'+esc(survey)+'">'+
       '<span class="bi-nav-icon" aria-hidden="true">'+card.icon+'</span>'+
-      '<span class="bi-nav-copy"><strong>'+card.title+'</strong><small>'+card.subtitle+'</small></span>'+
+      '<span class="bi-nav-copy"><strong>'+card.title+'</strong></span>'+
       '<span class="bi-nav-count">'+card.count+'</span>'+
       '<span class="bi-nav-arrow" aria-hidden="true">↗</span></button>'
   ).join('')+'</nav>'+
-  '<p class="bi-nav-note">Prioritas urutan: <strong>Sudah Submit</strong> tertinggi, lalu <strong>APPROVED</strong> jika sama. Klik baris PPL untuk rincian status.</p>';
+  '';
 }
 function biOverview(){
   const surveys=biSurveyList();
@@ -468,11 +467,11 @@ function biPplDetailPanel(survey){
     :'jumlah Sudah Submit terbanyak, lalu APPROVED';
   return '<section class="bi-panel bi-main-ppl-panel" aria-label="Rincian progres PPL dengan PML">'+
     '<div class="bi-role-head"><div><h2>Rincian Progres Seluruh PPL</h2>'+
-    '<small>Urut dari '+orderText+'. Klik baris PPL untuk melihat OPEN, DRAFT, dan seluruh status FASIH.</small></div>'+
+    '<small>Urut: '+orderText+'. Pilih baris untuk rincian status.</small></div>'+
     '<div class="bi-panel-tools"><small>'+pairs.length+' pasangan PPL–PML</small>'+
     biUnitControl('report')+'</div></div>'+
-    '<div class="bi-export-banner"><div><h3>Laporan Seluruh PPL · '+esc(survey)+'</h3>'+
-    '<p>Ekspor Gambar/PDF tetap memuat semua PPL, status FASIH, grafik, PML, dan waktu pengambilan data.</p></div>'+
+    '<div class="bi-export-banner"><div><h3>Unduh Laporan PPL · '+esc(survey)+'</h3>'+
+    '</div>'+
     biExportButtons(survey,null)+'<p class="bi-feedback" role="status" aria-live="polite"></p></div>'+
     (pairs.length?'<div class="tablebox"><table class="bi-ppl-table bi-ppl-summary-table"><thead><tr>'+
       '<th>PPL</th><th>Assignment</th><th>Sudah Submit ↓</th><th>APPROVED</th><th>Progres</th><th>PML</th>'+
@@ -480,7 +479,7 @@ function biPplDetailPanel(survey){
         const c=biCounts(entry.rows);
         return '<tr class="bi-ppl-clickable" tabindex="0" data-bi-detail-pair="'+i+
           '" aria-label="Lihat rincian status PPL '+esc(entry.ppl)+' dengan PML '+esc(entry.pml)+'">'+
-          '<td><strong>'+esc(entry.ppl)+'</strong><small class="bi-click-hint">Klik untuk rincian ↗</small></td>'+
+          '<td><strong>'+esc(entry.ppl)+'</strong></td>'+
           '<td>'+format.format(entry.rows.length)+'</td>'+
           '<td><strong>'+biUnitText(c.submitted,entry.rows.length,'report')+'</strong></td>'+
           '<td>'+format.format(c.approvedStage)+'</td>'+
@@ -489,7 +488,7 @@ function biPplDetailPanel(survey){
           '<td>'+esc(entry.pml)+'</td></tr>';
       }).join('')+'</tbody></table></div>':
       '<div class="bi-empty">Belum ada PPL untuk survei ini.</div>')+
-    '<p class="bi-ppl-footnote">Sudah Submit = SUBMITTED + APPROVED + REJECTED + REVOKED + COMPLETED. OPEN dan DRAFT belum submit. Penanda Tidak Dihitung tidak masuk perhitungan. Klik tiap baris untuk melihat persentase dan jumlah seluruh status; PML tetap di kolom paling kanan.</p></section>';
+    '</section>';
 }
 function biPmlCards(survey){
   const rows=DATA.filter(row=>row.survei===survey);
