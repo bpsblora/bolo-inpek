@@ -22,11 +22,11 @@ function biUnitControl(scope){
     }).join('')+'</span>';
 }
 const biBuckets=[
-  {id:'pending',label:'Belum Submit',color:'#cbdcf0'},
-  {id:'sent',label:'Terkirim',color:'#84b2df'},
-  {id:'approved',label:'Disetujui / Selesai',color:'#265e9e'},
-  {id:'revision',label:'Perlu Perbaikan',color:'#5289bd'},
-  {id:'other',label:'Status Lain',color:'#a9bdcf'}
+  {id:'pending',label:'Belum Submit',color:'#f2b3b3'},
+  {id:'sent',label:'Terkirim',color:'#8cbcf0'},
+  {id:'approved',label:'Disetujui / Selesai',color:'#9ad9a5'},
+  {id:'revision',label:'Perlu Perbaikan',color:'#f6dc85'},
+  {id:'other',label:'Status Lain',color:'#c7d3df'}
 ];
 function biStatusBucket(value){
   const s=String(value||'').trim().toUpperCase();
@@ -496,10 +496,11 @@ function biCanvasPage(survey,pml,pairs,pageIndex,pages,totalCounts){
     ['PERBAIKAN',totalCounts.revision],
     ['LAINNYA',totalCounts.other]
   ];
+  const statTones=['#174679','#b75661','#174679','#316b9e','#2f805b','#98751b','#617388'];
   stats.forEach(([label,n],i)=>{
     const x=75+i*220;
     ctx.fillStyle='#5c7390';ctx.font='bold 14px Arial';ctx.fillText(label,x,220);
-    ctx.font='bold 30px Arial';ctx.fillStyle=i===1?'#5289bd':'#174679';
+    ctx.font='bold 30px Arial';ctx.fillStyle=statTones[i];
     ctx.fillText(String(n),x,260);
   });
   const headings=[
@@ -519,7 +520,8 @@ function biCanvasPage(survey,pml,pairs,pageIndex,pages,totalCounts){
     ctx.font='18px Arial';ctx.fillStyle='#163e68';
     biCanvasText(ctx,entry.ppl,68,y+28,246);
     const values=[entry.rows.length,c.pending,c.submitted,c.sent,c.approved,c.revision,c.other];
-    [330,400,480,580,660,745,820].forEach((x,j)=>{ctx.fillStyle=j===1?'#5289bd':j===2?'#265e9e':'#183e63';ctx.fillText(String(values[j]),x,y+28);});
+    const rowTones=['#183e63','#b75661','#174679','#316b9e','#2f805b','#98751b','#617388'];
+    [330,400,480,580,660,745,820].forEach((x,j)=>{ctx.fillStyle=rowTones[j];ctx.fillText(String(values[j]),x,y+28);});
     const barX=927,barY=y+26,barW=326,barH=9;
     ctx.font='bold 15px Arial';ctx.fillStyle='#245f98';
     biCanvasText(ctx,biUnitText(c.submitted,entry.rows.length,pml===null?'report':'cards'),barX,y+19,barW);
