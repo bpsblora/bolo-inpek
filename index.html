@@ -410,6 +410,11 @@
 #adminExit{border-color:#e4b3be;background:#ffecef;color:#893342}
 #adminExit:hover{background:#ffdae0}
 #adminTlMenu{border-color:#b7d8ff;background:#e8f2ff;color:#174478}
+#adminStaffMenu{gap:7px}
+#adminStaffPending{display:inline-flex;align-items:center;justify-content:center;
+  min-width:22px;height:22px;padding:0 6px;border-radius:16px;background:#bd512b;
+  color:#fff;font:850 11px/1 Arial,sans-serif}
+#adminStaffPending[hidden]{display:none!important}
 @media(max-width:890px){.survey-admin-top{justify-content:flex-start}#adminTools{justify-content:flex-start}#adminInfo{max-width:100%}}
 @media(max-width:600px){#adminTools{width:100%}#adminTools .survey-admin-btn{flex:1 1 155px}#adminEnter{width:100%}}
 .survey-admin-btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;border:1px solid #a8c8f1;background:#e8f2ff;color:#174478;border-radius:10px;padding:10px 15px;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap}
@@ -686,7 +691,7 @@ body.bolo-loading-active{overflow:hidden}
         <button type="button" class="survey-admin-btn" id="openSurveyAdmin">⚙ Kelola Survei</button>
         <a class="survey-admin-btn bolo-updater-btn" id="boloUpdaterOpen" href="https://github.com/bpsblora/bolo-inpek-appscript/releases/latest/download/BOLO-INPEK-Updater-Windows.zip" target="_blank" rel="noopener noreferrer" title="Unduh Updater Windows terbaru dari GitHub privat. Login GitHub diperlukan.">↻ Perbarui Survei</a>
         <button type="button" class="survey-admin-btn" id="adminTlMenu">✎ Tindak Lanjut</button>
-        <button type="button" class="survey-admin-btn" id="adminStaffMenu" title="Tambah dan perbarui biodata petugas, email, dan nomor WhatsApp">♙ Kelola Petugas</button>
+        <button type="button" class="survey-admin-btn" id="adminStaffMenu" title="Tambah dan perbarui biodata petugas, email, dan nomor WhatsApp">♙ Kelola Petugas <span id="adminStaffPending" hidden aria-label="Petugas baru belum didaftarkan"></span></button>
         <button type="button" class="survey-admin-btn" id="adminExit">Keluar</button>
       </div>
     </div>
@@ -2078,6 +2083,7 @@ body.bolo-loading-active{overflow:hidden}
   const exit=document.getElementById('adminExit');
   const allTL=document.getElementById('adminTlMenu');
   const staffMenu=document.getElementById('adminStaffMenu');
+  const staffBadge=document.getElementById('adminStaffPending');
   const name=document.getElementById('adminInfo');
   const modalTitle=document.getElementById('tlPopupTitle');
   let returnFocus=null, verifiedTLWindow=null, verifiedTLOrigin='';
@@ -2110,6 +2116,8 @@ body.bolo-loading-active{overflow:hidden}
     BOLO_ADMIN.since=0;
     BOLO_ADMIN.nama='';
     BOLO_ADMIN.email='';
+    staffBadge.hidden=true;staffBadge.textContent='';
+    staffMenu.title='Tambah dan perbarui biodata petugas, email, dan nomor WhatsApp';
     verifiedTLWindow=null;verifiedTLOrigin='';
     frame.src='about:blank';
     paintAdmin();
@@ -2194,6 +2202,13 @@ body.bolo-loading-active{overflow:hidden}
       paintAdmin();
       if(modal.open)modal.close();
       document.getElementById('adminTlMenu').focus();
+    }else if(msg.type==='BOLO_INPEK_PETUGAS_PENDING'){
+      if(!boloAdminActive()||!Number.isSafeInteger(msg.jumlah)||msg.jumlah<0||msg.jumlah>10000)return;
+      const missing=Number.isSafeInteger(msg.id_kosong)&&msg.id_kosong>=0?msg.id_kosong:0;
+      staffBadge.hidden=msg.jumlah===0;
+      staffBadge.textContent=msg.jumlah>99?'99+':String(msg.jumlah);
+      staffMenu.title=msg.jumlah+' petugas belum terdaftar; '+missing+
+        ' penugasan tanpa ID FASIH. Klik untuk meninjau dan menambahkan biodata.';
     }else if(msg.type==='BOLO_INPEK_ADMIN_LOGOUT'){
       if(modal.open)modal.close();
       expireAdmin();
