@@ -106,7 +106,9 @@ function biUnassignedPanel(survey){
     '<div class="bi-unassigned-stats"><strong>'+rows.length+'</strong> Belum Dialokasikan · <strong>'+
     excluded+'</strong> Tidak Dihitung · <strong>'+unmarked+'</strong> Belum Ditandai'+
     (review?' · <strong>'+review+'</strong> Perlu Tinjau Ulang':'')+'</div>'+
-    (MARKERS_AVAILABLE?'':'<p class="bi-mark-notice">Layanan penanda bersama belum diaktifkan. Semua assignment sementara tetap dihitung. Admin perlu menerbitkan pembaruan Apps Script terlebih dahulu.</p>')+
+    (MARKERS_AVAILABLE?'':'<div class="bi-mark-notice" role="status"><strong>Penanda belum aktif.</strong> '+
+      'Kode dashboard sudah tersedia, tetapi Apps Script produksi belum diperbarui. Semua assignment tetap dihitung.'+
+      ' <button type="button" class="bi-mark-activate-btn" data-bi-activation-help>Lihat Cara Mengaktifkan</button></div>')+
     '<details class="bi-unassigned-details" id="bi-mark-list"><summary>Lihat daftar & alasan ('+rows.length+' assignment)</summary>'+
     '<div class="tablebox"><table class="bi-unassigned-table"><thead><tr>'+
     '<th>Survei</th><th>Assignment</th><th>Status FASIH</th><th>Perhitungan</th><th>Alasan / Catatan</th><th>Tindakan</th>'+
@@ -116,13 +118,16 @@ function biUnassignedPanel(survey){
         mark?.perlu_tinjau?'Perlu Tinjau · Kembali Dihitung':
         mark?'Tetap Dihitung':'Belum Ditandai · Dihitung';
       const note=mark?[mark.alasan,mark.catatan].filter(Boolean).join(' — '):'Belum ada catatan';
+      const duplicated=duplicates.get(biMarkComposite(row))!==1;
+      const activate=!MARKERS_AVAILABLE;
       return '<tr><td>'+esc(row.survei)+'</td><td>'+esc(row.nama_assignment)+'</td>'+
         '<td>'+esc(row.status)+'</td>'+
         '<td><span class="bi-mark-state'+(row.boloExcluded?' off':'')+'">'+esc(status)+'</span></td>'+
         '<td>'+esc(note)+'</td><td><button type="button" class="bi-mark-row-btn"'+
-        ' data-bi-mark-survey="'+esc(row.survei)+'" data-bi-mark-assignment="'+esc(row.nama_assignment)+'"'+
-        ((!MARKERS_AVAILABLE||duplicates.get(biMarkComposite(row))!==1)?' disabled':'')+
-        ' aria-label="Atur penanda assignment '+esc(row.nama_assignment)+'">Atur Penanda</button></td></tr>';
+        (activate?' data-bi-activation-help':' data-bi-mark-survey="'+esc(row.survei)+'" data-bi-mark-assignment="'+esc(row.nama_assignment)+'"')+
+        (duplicated?' disabled title="Nama assignment ganda, penanda memerlukan ID unik"':'')+
+        ' aria-label="'+(duplicated?'Penanda tidak tersedia karena nama ganda':activate?'Buka panduan aktivasi penanda':'Atur penanda assignment '+esc(row.nama_assignment))+'">'+
+        (duplicated?'Nama Ganda':activate?'Aktifkan Penanda':'Atur Penanda')+'</button></td></tr>';
     }).join('')+'</tbody></table></div></details>'+
     '<p class="bi-mark-footnote">Klik <b>Atur Penanda</b> pada masing-masing assignment untuk mengubah keputusan dan catatan. '+
     'Saat Updater memperbarui FASIH, catatan tetap tersimpan; jika status berubah, pengecualian dihentikan sampai diperiksa ulang. '+
