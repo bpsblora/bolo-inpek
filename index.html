@@ -686,6 +686,7 @@ body.bolo-loading-active{overflow:hidden}
         <button type="button" class="survey-admin-btn" id="openSurveyAdmin">⚙ Kelola Survei</button>
         <a class="survey-admin-btn bolo-updater-btn" id="boloUpdaterOpen" href="https://github.com/bpsblora/bolo-inpek-appscript/releases/latest/download/BOLO-INPEK-Updater-Windows.zip" target="_blank" rel="noopener noreferrer" title="Unduh Updater Windows terbaru dari GitHub privat. Login GitHub diperlukan.">↻ Perbarui Survei</a>
         <button type="button" class="survey-admin-btn" id="adminTlMenu">✎ Tindak Lanjut</button>
+        <button type="button" class="survey-admin-btn" id="adminStaffMenu" title="Tambah dan perbarui biodata petugas, email, dan nomor WhatsApp">♙ Kelola Petugas</button>
         <button type="button" class="survey-admin-btn" id="adminExit">Keluar</button>
       </div>
     </div>
@@ -2076,9 +2077,10 @@ body.bolo-loading-active{overflow:hidden}
   const tools=document.getElementById('adminTools');
   const exit=document.getElementById('adminExit');
   const allTL=document.getElementById('adminTlMenu');
+  const staffMenu=document.getElementById('adminStaffMenu');
   const name=document.getElementById('adminInfo');
   const modalTitle=document.getElementById('tlPopupTitle');
-  let returnFocus=null;
+  let returnFocus=null, verifiedTLWindow=null, verifiedTLOrigin='';
 
   const okOrigin=origin=>{
     try {
@@ -2108,6 +2110,7 @@ body.bolo-loading-active{overflow:hidden}
     BOLO_ADMIN.since=0;
     BOLO_ADMIN.nama='';
     BOLO_ADMIN.email='';
+    verifiedTLWindow=null;verifiedTLOrigin='';
     frame.src='about:blank';
     paintAdmin();
   }
@@ -2134,13 +2137,29 @@ body.bolo-loading-active{overflow:hidden}
     if(!modal.open)modal.showModal();
     document.documentElement.style.overflow='hidden';
   }
+  function commandTL(type){
+    if(!boloAdminActive()||!verifiedTLWindow||!verifiedTLOrigin)return false;
+    try {
+      verifiedTLWindow.postMessage({type,nonce:BOLO_ADMIN.nonce},verifiedTLOrigin);
+      return true;
+    }catch(_){return false;}
+  }
   enter.addEventListener('click',beginLogin);
   exit.addEventListener('click',()=>{
     if(modal.open)modal.close();
     expireAdmin();
     enter.focus();
   });
-  allTL.addEventListener('click',openTL);
+  allTL.addEventListener('click',()=>{
+    openTL();
+    commandTL('BOLO_INPEK_ADMIN_SHOW_TL');
+  });
+  staffMenu.addEventListener('click',()=>{
+    if(!boloAdminActive()){beginLogin();return;}
+    openTL();
+    modalTitle.textContent='Kelola Biodata Petugas — BOLO INPEK';
+    commandTL('BOLO_INPEK_ADMIN_SHOW_PETUGAS');
+  });
   // Menjaga referensi iframe yang sudah login, sehingga user tidak perlu login
   // dua kali ketika membuka menu Tindak Lanjut. Survei dipilih melalui dropdown.
   document.addEventListener('click',e=>{
@@ -2149,6 +2168,7 @@ body.bolo-loading-active{overflow:hidden}
     e.preventDefault();
     if(!boloAdminActive()){beginLogin();return;}
     openTL(button.dataset.tindakSurvei||'');
+    commandTL('BOLO_INPEK_ADMIN_SHOW_TL');
   });
   document.getElementById('boloUpdaterOpen').addEventListener('click',e=>{
     if(boloAdminActive())return;
@@ -2169,6 +2189,8 @@ body.bolo-loading-active{overflow:hidden}
       BOLO_ADMIN.since=Date.now();
       BOLO_ADMIN.nama=msg.nama.slice(0,100);
       BOLO_ADMIN.email=msg.email.slice(0,160);
+      verifiedTLWindow=event.source;
+      verifiedTLOrigin=event.origin;
       paintAdmin();
       if(modal.open)modal.close();
       document.getElementById('adminTlMenu').focus();
