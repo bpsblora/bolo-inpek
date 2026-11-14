@@ -419,7 +419,7 @@
 #markAssignmentSetup a.survey-admin-btn{display:inline-flex;margin:10px 0;text-decoration:none}
 </style>
 
-<link rel="stylesheet" href="./dashboard-interaktif.css?v=17">
+<link rel="stylesheet" href="./dashboard-interaktif.css?v=18">
 </head>
 <body>
   <!-- HEADER: identitas BOLO INPEK dan BPS Kabupaten Blora -->
@@ -510,7 +510,7 @@
   </main>
   <footer>BOLO INPEK · Sumber: Google Sheets · Persentase dihitung dari seluruh assignment pada kelompok yang sedang dibuka. Data pendataan diperbarui setelah operator menjalankan Python. · <a href="./kebijakan-privasi.html">Kebijakan Privasi</a></footer>
   <noscript>Aktifkan JavaScript untuk menggunakan dashboard ini.</noscript>
-  <script src="./dashboard-interaktif.js?v=17"></script>
+  <script src="./dashboard-interaktif.js?v=18"></script>
   <script>
     // ========================================================
     // STATUS DASHBOARD: setiap assignment dihitung satu kali.
@@ -1391,6 +1391,7 @@
       try{
         tab=window.open('about:blank','_blank');
         if(tab&&!tab.closed){
+          try{tab.opener=null;}catch(_ignored){}
           // Tampilkan teks sementara tanpa memasukkan nama assignment ke HTML.
           try{
             tab.document.title='Membuka Penanda Assignment BOLO INPEK';
@@ -1428,8 +1429,21 @@
       const exportButton=event.target.closest('button[data-export]');
       if(exportButton){if(!exportButton.disabled)handleExport(exportButton);return;}
       if(event.target.closest('#retry')){loadData();return;}
+      const markFilter=event.target.closest('button[data-bi-mark-filter]');
+      if(markFilter){
+        const selected=markFilter.dataset.biMarkFilter;
+        if(['all','excluded','included','review','unmarked'].includes(selected)){
+          biView.markFilter=selected;
+          render(false);
+          const list=document.getElementById('bi-mark-list');
+          if(list){list.open=true;list.scrollIntoView({behavior:'smooth',block:'nearest'});}
+        }
+        return;
+      }
       const showMarks=event.target.closest('button[data-bi-show-marks]');
       if(showMarks){
+        biView.markFilter='all';
+        render(false);
         const list=document.getElementById('bi-mark-list');
         if(list){list.open=true;list.scrollIntoView({behavior:'smooth',block:'nearest'});}
         return;
