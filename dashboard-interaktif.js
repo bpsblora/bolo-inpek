@@ -256,9 +256,9 @@ function biSummary(){
     ((ALL_ASSIGNMENTS.length-DATA.length)>0?' <strong>'+format.format(ALL_ASSIGNMENTS.length-DATA.length)+' assignment dikecualikan dari perhitungan.</strong>':'')+'</p></section>';
 }
 function biRoleNames(rows,key){
-  // PPL: urutkan jumlah SUDAH SUBMIT (termasuk REJECTED/REVOKED).
-  // PML: urutkan jumlah APPROVED/COMPLETED menurut status FASIH terakhir.
-  // Tidak menyimpulkan pernah approve dari status REJECTED/REVOKED.
+  // Urutan mengikuti tombol panel masing-masing:
+  // Persentase = rasio capaian tertinggi, Angka = jumlah capaian terbanyak.
+  // PPL menghitung Sudah Submit; PML menghitung Approved / Completed.
   const groups=new Map();
   rows.forEach(row=>{
     const person=name(row,key);
@@ -267,12 +267,17 @@ function biRoleNames(rows,key){
   });
   const metric=key==='pml'?'approved':'submitted';
   const stats=new Map([...groups].map(([person,group])=>[person,biCounts(group)]));
+  const sortMode=biUnitMode(key);
   return [...groups.keys()].sort((a,b)=>{
     if(a===UNASSIGNED&&b!==UNASSIGNED)return 1;
     if(b===UNASSIGNED&&a!==UNASSIGNED)return -1;
-    return stats.get(b)[metric]-stats.get(a)[metric] ||
-      groups.get(b).length-groups.get(a).length ||
-      a.localeCompare(b,'id');
+    const countA=stats.get(a)[metric],countB=stats.get(b)[metric];
+    const totalA=groups.get(a).length,totalB=groups.get(b).length;
+    // Perkalian silang menghindari pembulatan persentase saat mengurutkan.
+    const byPercentage=countB*totalA-countA*totalB;
+    const byCount=countB-countA;
+    if(sortMode==='persentase')return byPercentage || byCount || a.localeCompare(b,'id');
+    return byCount || byPercentage || a.localeCompare(b,'id');
   });
 }
 function biRoleContent(rows,key){
@@ -302,8 +307,11 @@ function biRoleContent(rows,key){
 function biPanel(rows,key){
   const label=key==='pml'?'Pengawas / PML':'Pencacah / PPL';
   const rank=key==='pml'?'Approved / Completed':'Sudah Submit';
+  const orderLabel=biUnitMode(key)==='persentase'
+    ?'Persentase '+rank+' tertinggi ke terendah.'
+    :'Jumlah '+rank+' terbanyak ke paling sedikit.';
   return '<section class="bi-panel"><div class="bi-role-head"><div><h2>Progres '+label+'</h2>'+
-    '<small>Urutan: '+rank+' terbanyak ke paling sedikit.</small></div>'+
+    '<small>Urutan: '+orderLabel+'</small></div>'+
     '<div class="bi-panel-tools"><small>'+biRoleNames(rows,key).length+' petugas</small>'+
     biUnitControl(key)+'</div></div>'+
     biRoleContent(rows,key)+(biView.mode==='grafik'?biLegend():'')+'</section>';
