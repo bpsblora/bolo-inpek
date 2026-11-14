@@ -451,3 +451,20 @@
   .bi-inline-status-legend{gap:5px;margin-bottom:9px}
   .bi-inline-status-chip{font-size:10px;padding:5px 6px}
 }
+
+/* v35 — compact legends for all charts, preserving every distinct FASIH code. */
+.bi-legend-raw{
+  display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;
+  padding:8px 1px 9px;margin-top:10px;scrollbar-width:thin;
+  scrollbar-color:#c4d7ea transparent;-webkit-overflow-scrolling:touch;
+}
+.bi-legend-raw span{flex:0 0 auto;white-space:nowrap;font-size:10px;gap:5px;
+  padding:5px 7px;border-radius:8px}
+.bi-legend-raw i{width:10px;height:10px;flex-shrink:0}
+.bi-popup-status-item{grid-template-columns:13px minmax(165px,1.9fr) minmax(45px,1.3fr) 60px 62px}
+.bi-popup-status-label{overflow-wrap:anywhere}
+@media(max-width:600px){
+  .bi-legend-raw{gap:5px}
+  .bi-popup-status-item{grid-template-columns:11px minmax(108px,1.5fr) minmax(35px,1fr) 49px;
+    gap:5px}
+}
