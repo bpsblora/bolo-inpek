@@ -70,30 +70,54 @@ function biTabs(){
     }).join('')+'</div></section>';
 }
 function biRoleNames(rows,key){
-  return [...new Set(rows.map(r=>name(r,key)))].sort((a,b)=>a===UNASSIGNED?1:b===UNASSIGNED?-1:a.localeCompare(b,'id'));
+  // PPL: urutkan jumlah SUDAH SUBMIT (termasuk REJECTED/REVOKED).
+  // PML: urutkan jumlah APPROVED/COMPLETED menurut status FASIH terakhir.
+  // Tidak menyimpulkan pernah approve dari status REJECTED/REVOKED.
+  const groups=new Map();
+  rows.forEach(row=>{
+    const person=name(row,key);
+    if(!groups.has(person))groups.set(person,[]);
+    groups.get(person).push(row);
+  });
+  const metric=key==='pml'?'approved':'submitted';
+  const stats=new Map([...groups].map(([person,group])=>[person,biCounts(group)]));
+  return [...groups.keys()].sort((a,b)=>{
+    if(a===UNASSIGNED&&b!==UNASSIGNED)return 1;
+    if(b===UNASSIGNED&&a!==UNASSIGNED)return -1;
+    return stats.get(b)[metric]-stats.get(a)[metric] ||
+      groups.get(b).length-groups.get(a).length ||
+      a.localeCompare(b,'id');
+  });
 }
 function biRoleContent(rows,key){
   const names=biRoleNames(rows,key);
   if(!names.length)return '<div class="bi-empty">Tidak ada assignment untuk petugas atau filter yang dipilih.</div>';
+  const metric=key==='pml'?'approved':'submitted';
+  const metricName=key==='pml'?'Approved / Completed':'Sudah Submit';
   if(biView.mode==='tabel'){
     const body=names.map(person=>{
       const group=rows.filter(r=>name(r,key)===person),c=biCounts(group);
       return '<tr><td><button class="bi-link" data-level="'+key+'" data-value="'+esc(person)+'">'+esc(person)+' →</button></td>'+
-        '<td>'+group.length+'</td>'+biBuckets.map(b=>'<td>'+c[b.id]+'</td>').join('')+'</tr>';
+        '<td>'+group.length+'</td><td><strong>'+c[metric]+'</strong></td>'+
+        biBuckets.map(b=>'<td>'+c[b.id]+'</td>').join('')+'</tr>';
     }).join('');
     return '<div class="tablebox"><table class="bi-table"><thead><tr><th>'+key.toUpperCase()+'</th><th>Total</th>'+
+      '<th>'+metricName+' ↓</th>'+
       biBuckets.map(b=>'<th>'+esc(b.label)+'</th>').join('')+'</tr></thead><tbody>'+body+'</tbody></table></div>';
   }
   return '<div class="bi-bars">'+names.map(person=>{
     const group=rows.filter(r=>name(r,key)===person),counts=biCounts(group);
     return '<button type="button" class="bi-bar-row" data-level="'+key+'" data-value="'+esc(person)+'">'+
       '<span class="bi-name">'+esc(person)+'</span>'+biBar(group,person)+
-      '<span class="bi-row-stat"><strong>'+counts.pending+' belum</strong>'+group.length+' assignment</span></button>';
+      '<span class="bi-row-stat"><strong>'+counts[metric]+' '+(key==='pml'?'approve':'submit')+'</strong>'+
+      group.length+' assignment · '+counts.pending+' belum</span></button>';
   }).join('')+'</div>';
 }
 function biPanel(rows,key){
   const label=key==='pml'?'Pengawas / PML':'Pencacah / PPL';
-  return '<section class="bi-panel"><div class="bi-role-head"><h2>Progres '+label+'</h2>'+
+  const rank=key==='pml'?'Approved / Completed':'Sudah Submit';
+  return '<section class="bi-panel"><div class="bi-role-head"><div><h2>Progres '+label+'</h2>'+
+    '<small>Urutan: '+rank+' terbanyak ke paling sedikit.</small></div>'+
     '<small>'+biRoleNames(rows,key).length+' petugas</small></div>'+
     biRoleContent(rows,key)+(biView.mode==='grafik'?biLegend():'')+'</section>';
 }
@@ -163,8 +187,11 @@ function biPplPmlPairs(rows){
     if(!map.has(key))map.set(key,{ppl,pml,rows:[]});
     map.get(key).rows.push(row);
   });
-  return [...map.values()].sort((a,b)=>
-    a.pml.localeCompare(b.pml,'id')||a.ppl.localeCompare(b.ppl,'id'));
+  return [...map.values()].sort((a,b)=>{
+    const sa=biCounts(a.rows).submitted,sb=biCounts(b.rows).submitted;
+    return sb-sa || b.rows.length-a.rows.length ||
+      a.pml.localeCompare(b.pml,'id') || a.ppl.localeCompare(b.ppl,'id');
+  });
 }
 function biExportButtons(survey,pml){
   const attrs=' data-survey="'+esc(survey)+'" data-scope="'+(pml===null?'all':'pml')+'"'+
@@ -181,7 +208,7 @@ function biPplDetailPanel(survey){
   const pairs=biPplPmlPairs(rows);
   return '<section class="bi-panel" aria-label="Rincian progres PPL dengan PML">'+
     '<div class="bi-role-head"><div><h2>Rincian Progres Seluruh PPL</h2>'+
-    '<small>Nama PML ditampilkan pada kolom paling kanan. Klik Unduh untuk menyimpan laporan.</small></div>'+
+    '<small>Urut dari jumlah Sudah Submit PPL terbanyak. PML tetap pada kolom paling kanan.</small></div>'+
     '<small>'+pairs.length+' pasangan PPL–PML</small></div>'+
     '<div class="bi-export-banner"><div><h3>Laporan Seluruh PPL · '+esc(survey)+'</h3>'+
     '<p>Gambar dan PDF memuat progres setiap PPL, status assignment, grafik, serta PML penanggung jawab. Ekspor seluruh survei, tidak terpengaruh filter layar.</p></div>'+
@@ -202,14 +229,14 @@ function biPmlCards(survey){
   const rows=DATA.filter(row=>row.survei===survey);
   const names=biRoleNames(rows,'pml');
   return '<section class="bi-pml-collection"><div class="bi-role-head"><div>'+
-    '<h2>Progres PPL per PML</h2><small>Pilih kartu untuk melihat PPL binaan. Setiap PML bisa mengunduh laporan sendiri.</small>'+
+    '<h2>Progres PPL per PML</h2><small>Urut dari jumlah Approved / Completed PML terbanyak. Setiap PML bisa mengunduh laporan sendiri.</small>'+
     '</div><small>'+names.length+' PML</small></div>'+
     (names.length?'<div class="bi-pml-grid">'+names.map(pml=>{
       const group=rows.filter(row=>name(row,'pml')===pml);
       const pairs=biPplPmlPairs(group),stats=biCounts(group);
       return '<article class="bi-pml-card"><div class="bi-pml-top"><div><strong>'+esc(pml)+'</strong>'+
         '<small>'+pairs.length+' PPL · '+group.length+' assignment</small></div>'+
-        '<span class="bi-pml-count">'+stats.submitted+' sudah · '+stats.pending+' belum</span></div>'+
+        '<span class="bi-pml-count">'+stats.approved+' approve · '+stats.pending+' belum</span></div>'+
         biBar(group,pml)+biExportButtons(survey,pml)+
         '<p class="bi-feedback" role="status" aria-live="polite"></p>'+
         '<details><summary>Lihat progres '+pairs.length+' PPL</summary>'+
