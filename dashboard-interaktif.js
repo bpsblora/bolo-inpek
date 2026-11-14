@@ -67,14 +67,16 @@ function biSummary(){
   return '<section class="bi-summary" aria-labelledby="bi-summary-h">'+
     '<div class="bi-head"><div><div class="bi-eyebrow">RINGKASAN MONITORING</div><h2 id="bi-summary-h">Capaian Sudah Submit per Survei</h2>'+
     '<p>Ketuk kartu survei untuk melihat progres PML dan PPL. Kartu ini sekaligus menjadi filter survei.</p></div>'+
-    '<div class="bi-summary-actions"><span class="bi-county-total"><strong>'+
+    '<div class="bi-summary-actions"><span class="bi-county-total '+(denominator?(submitted===denominator?'is-success':submitted/denominator>=0.8?'is-warning':'is-danger'):'is-empty')+'"><strong>'+
     (denominator?percent(submitted,denominator):'—')+'</strong>'+
     '<span>'+format.format(submitted)+' dari '+format.format(denominator)+' assignment sudah submit · Kabupaten</span></span>'+
     (state.survey===null?'':'<button class="bi-back-all" type="button" data-level="home" data-value="">← Semua Survei</button>')+
     '</div></div>'+
     '<div class="bi-summary-grid">'+(surveys.map(survey=>{
       const rows=DATA.filter(r=>r.survei===survey),submitted=biCounts(rows).submitted;
-      return '<button type="button" class="bi-summary-tile'+(state.survey===survey?' selected':'')+
+      const rate=rows.length?submitted/rows.length*100:null;
+      const level=rate===null?'is-empty':rate>=100?'is-success':rate>=80?'is-warning':'is-danger';
+      return '<button type="button" class="bi-summary-tile '+level+(state.survey===survey?' selected':'')+
         '" data-level="survey" data-value="'+esc(survey)+'">'+
         '<span class="bi-summary-name">'+esc(survey)+'</span>'+
         '<span class="bi-summary-num">'+(rows.length?percent(submitted,rows.length):'—')+'</span>'+

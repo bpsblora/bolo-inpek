@@ -137,3 +137,28 @@
 .bi-mini-stack{min-width:180px}
 @media(min-width:900px){.bi-bar-row{grid-template-columns:minmax(135px,1.1fr) minmax(160px,2fr) minmax(143px,1fr)}}
 @media(max-width:600px){.bi-panel-tools{justify-content:flex-start}.bi-bar-row{grid-template-columns:minmax(0,1fr) minmax(135px,.8fr)}}
+
+/* Indikator prioritas, berdasarkan capaian yang benar-benar dihitung:
+   hijau 100%, kuning 80–<100%, merah <80%, abu untuk 0/0. */
+.bi-summary-tile.is-success{background:#edf9f1;border-color:#90d2a7;color:#145e37}
+.bi-summary-tile.is-success .bi-summary-name,.bi-summary-tile.is-success .bi-summary-num{color:#14763f!important}
+.bi-summary-tile.is-success .bi-summary-meta{color:#35654c}
+.bi-summary-tile.is-success .bi-summary-track{background:#cdebd8}
+.bi-summary-tile.is-success .bi-summary-track>span{background:#239654}
+.bi-summary-tile.is-warning{background:#fff9e8;border-color:#edd292;color:#825600}
+.bi-summary-tile.is-warning .bi-summary-name,.bi-summary-tile.is-warning .bi-summary-num{color:#946700!important}
+.bi-summary-tile.is-warning .bi-summary-meta{color:#896d32}
+.bi-summary-tile.is-warning .bi-summary-track{background:#f6e9b7}
+.bi-summary-tile.is-warning .bi-summary-track>span{background:#dca91b}
+.bi-summary-tile.is-danger{background:#fff2f0;border-color:#e9b5ad;color:#9a3838}
+.bi-summary-tile.is-danger .bi-summary-name,.bi-summary-tile.is-danger .bi-summary-num{color:#b63d36!important}
+.bi-summary-tile.is-danger .bi-summary-meta{color:#985856}
+.bi-summary-tile.is-danger .bi-summary-track{background:#f5d7d3}
+.bi-summary-tile.is-danger .bi-summary-track>span{background:#d8584a}
+.bi-summary-tile.is-empty{background:#f7f8fa;border-color:#d9e2eb}
+.bi-summary-tile.is-empty .bi-summary-num{color:#7c8b9b!important}
+.bi-summary-tile.selected{box-shadow:inset 0 0 0 2px currentColor,0 5px 16px #19549815}
+.bi-county-total.is-success{background:#e8f8ee!important;border-color:#a8ddba!important;color:#14663d!important}
+.bi-county-total.is-warning{background:#fff7df!important;border-color:#ecd38b!important;color:#855d00!important}
+.bi-county-total.is-danger{background:#fff0ed!important;border-color:#edb3aa!important;color:#aa3b34!important}
+.bi-county-total.is-empty{background:#f4f6f9!important;border-color:#d0dce8!important;color:#66788a!important}
