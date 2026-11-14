@@ -468,3 +468,93 @@
   .bi-popup-status-item{grid-template-columns:11px minmax(108px,1.5fr) minmax(35px,1fr) 49px;
     gap:5px}
 }
+
+/* v36 — Ringkasan survei lebih padat, tanpa ruang kosong di tengah kartu. */
+.bi-survey-hero{
+  position:relative;overflow:hidden;padding:19px 22px 14px;
+  border:1px solid #c9def5;
+  background:linear-gradient(115deg,#ffffff 0%,#fbfdff 69%,#f2f8ff 100%);
+  box-shadow:0 7px 24px rgba(19,67,116,.065);
+}
+.bi-survey-hero::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;
+  background:linear-gradient(180deg,#3988cc,#86c3e8);pointer-events:none}
+.bi-survey-layout{display:grid;grid-template-columns:minmax(0,1fr) 214px;
+  gap:21px;align-items:stretch}
+.bi-survey-main{min-width:0;display:flex;flex-direction:column;gap:17px;padding:6px 0 2px}
+.bi-survey-heading{display:flex;align-items:center;justify-content:flex-start;gap:17px;flex-wrap:wrap}
+.bi-survey-heading-text{min-width:0}
+.bi-survey-eyebrow{display:block;margin:0 0 5px;color:#4381bc;font-size:10px;
+  font-weight:850;letter-spacing:.16em}
+.bi-survey-heading h1{margin:0;color:#173c6c;font-size:clamp(23px,2.5vw,30px);
+  line-height:1.22;font-weight:850;letter-spacing:-.03em;overflow-wrap:anywhere}
+.bi-survey-period-row{display:flex;align-items:center;gap:6px;margin-top:7px}
+.bi-survey-period-row::before{content:"◷";font-size:15px;color:#4b8ac3}
+.bi-survey-hero .survey-period{display:block!important;margin:0!important;
+  color:#577697!important;font-weight:600!important;font-style:normal!important;
+  font-size:11px!important;line-height:1.5!important}
+.bi-survey-assignment-chip{display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:1px;min-width:94px;padding:9px 13px;border-radius:12px;
+  background:#eaf3ff;border:1px solid #c5dff7;color:#1a528a;white-space:nowrap}
+.bi-survey-assignment-chip strong{font-size:24px;font-variant-numeric:tabular-nums;line-height:1.06}
+.bi-survey-assignment-chip span{font-size:10px;font-weight:750;color:#587a9c}
+.bi-survey-progress-group{max-width:100%;min-width:0}
+.bi-survey-progress-heading{display:flex;align-items:center;justify-content:space-between;
+  gap:10px;margin:0 0 7px;font-size:11px;color:#5c7590}
+.bi-survey-progress-heading strong{color:#285780;font-weight:800}
+.bi-survey-progress-heading span{font-size:10px;white-space:nowrap}
+.bi-survey-fullbar .bi-stack{height:17px;border:1px solid #d8e5f4;background:#e8f1fa;
+  border-radius:50px}
+.bi-survey-hero .bi-head-actions{display:flex;align-items:center;gap:9px;margin-top:auto}
+.bi-survey-hero .bi-head-actions .export-actions{display:flex;gap:7px}
+.bi-survey-hero .export-button{border-radius:9px;min-height:36px;
+  padding:8px 11px;background:#f5faff}
+.bi-survey-hero .tombol-tindak-lanjut{min-width:160px;width:auto;
+  min-height:37px;padding:9px 17px;margin:0;border-radius:9px;
+  background:#194976;border-color:#194976;font-size:12px;box-shadow:0 3px 10px #153c781a}
+.bi-survey-hero .tombol-tindak-lanjut:hover{background:#123a64}
+.bi-survey-hero .export-feedback{flex-basis:100%;margin:0}
+.bi-survey-donut-panel{display:flex;align-items:center;justify-content:center;flex-direction:column;
+  gap:13px;min-width:0;padding:11px;border-radius:15px;
+  background:linear-gradient(150deg,#edf6ff,#eaf2fb);border:1px solid #d4e5f7}
+.bi-survey-donut-panel .bi-unit-toggle{align-self:center}
+.bi-survey-donut-panel .bi-donut{width:148px;height:148px;
+  box-shadow:0 5px 16px rgba(30,94,145,.07)}
+.bi-survey-donut-panel .bi-donut-center{width:106px;height:106px;gap:3px}
+.bi-survey-donut-panel .bi-donut-center strong{font-size:24px}
+.bi-survey-donut-panel .bi-donut-center small{font-size:10px}
+.bi-survey-donut-panel .bi-donut-center span{font-size:11px;font-weight:800;color:#46749a}
+.bi-survey-hero-legend{margin-top:13px;padding-top:0;border-top:1px solid #e5eff9}
+.bi-survey-hero-legend .bi-legend-raw{border:0;margin:0;padding:9px 0 0;gap:6px}
+.bi-survey-hero-legend .bi-legend-raw span{background:#f2f7fd}
+@media(max-width:850px){
+  .bi-survey-layout{grid-template-columns:minmax(0,1fr) 196px;gap:14px}
+  .bi-survey-donut-panel .bi-donut{width:136px;height:136px}
+  .bi-survey-donut-panel .bi-donut-center{width:98px;height:98px}
+  .bi-survey-heading{gap:10px}
+  .bi-survey-assignment-chip{padding:8px 10px}
+}
+@media(max-width:640px){
+  .bi-survey-hero{padding:15px 14px 12px}
+  .bi-survey-layout{grid-template-columns:minmax(0,1fr);gap:12px}
+  .bi-survey-main{gap:12px;padding:2px 0 0}
+  .bi-survey-heading{justify-content:space-between}
+  .bi-survey-heading h1{font-size:23px}
+  .bi-survey-assignment-chip{min-width:78px}
+  .bi-survey-assignment-chip strong{font-size:21px}
+  .bi-survey-donut-panel{display:grid;grid-template-columns:auto auto;
+    align-items:center;justify-content:space-between;padding:12px 16px;gap:10px}
+  .bi-survey-donut-panel .bi-donut{width:118px;height:118px;grid-column:2;grid-row:1}
+  .bi-survey-donut-panel .bi-donut-center{width:86px;height:86px}
+  .bi-survey-donut-panel .bi-donut-center strong{font-size:20px}
+  .bi-survey-donut-panel .bi-unit-toggle{grid-column:1;grid-row:1;align-self:center}
+  .bi-survey-hero .bi-head-actions .export-actions{flex-wrap:wrap}
+  .bi-survey-hero .tombol-tindak-lanjut{min-width:0}
+}
+@media(max-width:360px){
+  .bi-survey-assignment-chip{min-width:70px;padding:8px}
+  .bi-survey-hero .bi-head-actions{gap:6px}
+  .bi-survey-hero .tombol-tindak-lanjut{width:100%}
+}
+@media(prefers-reduced-motion:reduce){
+  .bi-survey-hero .tombol-tindak-lanjut{transition:none}
+}
