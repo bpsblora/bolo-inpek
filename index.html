@@ -173,17 +173,16 @@
         display: none;
       }
 
-    /* Waktu data saja; tidak menyisakan kolom kosong bekas legenda. */
+    /* Kartu waktu dan penjelasan status lengkap berada berdampingan. */
     .monitoring-info {
-      display: flex;
-      width: 100%;
-      align-items: flex-start;
-      margin: 20px 0 24px;
+      display: grid;
+      grid-template-columns: minmax(300px,1fr) minmax(0,2fr);
+      gap:18px;width:100%;align-items:stretch;margin:20px 0 24px;
     }
 
     .monitoring-info-card {
       min-width: 0;
-      width: min(100%, 450px);
+      width: 100%;
       max-width: none;
       margin: 0;
       padding: 22px;
@@ -205,11 +204,12 @@
     .monitoring-status-list {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 16px 24px;
+      gap: 12px 18px;
       margin: 0;
     }
 
     .monitoring-status-list dt {
+      overflow-wrap:anywhere;
       display: flex;
       align-items: center;
       gap: 8px;
@@ -252,15 +252,12 @@
     }
 
   @media (max-width: 760px) {
-    .monitoring-info {
-      grid-template-columns: 1fr;
-    }
+    .monitoring-info{grid-template-columns:1fr}
+    .monitoring-status-list{grid-template-columns:repeat(2,minmax(0,1fr))}
   }
 
   @media (max-width: 420px) {
-    .monitoring-status-list {
-      grid-template-columns: 1fr;
-    }
+    .monitoring-status-list{grid-template-columns:1fr}
   }
   
   /* Logo berbentuk lingkaran tanpa kotak putih dan padding */
@@ -601,7 +598,7 @@ body.bolo-loading-active{overflow:hidden}
 }
 </style>
 
-<link rel="stylesheet" href="./dashboard-interaktif.css?v=34">
+<link rel="stylesheet" href="./dashboard-interaktif.css?v=35">
 </head>
 <body>
 <div id="boloLoading" class="bolo-loading" role="status" aria-live="polite" aria-label="BOLO INPEK sedang memuat data" hidden>
@@ -726,15 +723,20 @@ body.bolo-loading-active{overflow:hidden}
           <br>Survei Statistik INPEK BPS Kabupaten Blora 
         </p>
       </section>
-
+      <section class="monitoring-info-card monitoring-status-card" aria-labelledby="statusExplanationTitle">
+        <h2 class="monitoring-info-title" id="statusExplanationTitle">Keterangan Status</h2>
+        <dl class="monitoring-status-list" id="statusLegendTop">
+          <div><dt>Memuat status FASIH…</dt></div>
+        </dl>
+      </section>
     </div>
-    
+
     <nav id="breadcrumbs" aria-label="Navigasi dashboard" hidden></nav>
     <section id="view" aria-label="Monitoring survei"></section>
   </main>
   <footer>BOLO INPEK · Sumber: FASIH-SM melalui Google Sheets · <a href="./kebijakan-privasi.html">Kebijakan Privasi</a></footer>
   <noscript>Aktifkan JavaScript untuk menggunakan dashboard ini.</noscript>
-  <script src="./dashboard-interaktif.js?v=34"></script>
+  <script src="./dashboard-interaktif.js?v=35"></script>
   <script>
     // ========================================================
     // STATUS DASHBOARD: setiap assignment dihitung satu kali.
@@ -752,19 +754,11 @@ body.bolo-loading-active{overflow:hidden}
     ];
     const statusKapital = value => String(value || '').trim().replace(/\s+/g,' ').toUpperCase() || 'STATUS TIDAK TERSEDIA';
     function statusColor(code){
-      // Selaraskan warna status rinci FASIH dengan grafik progres pastel.
-      const s=statusKapital(code);
-      if(s==='OPEN')return '#e9a4ad';
-      if(s==='DRAFT')return '#f4c6d2';
-      if(s.startsWith('SUBMITTED'))return '#8cbcf0';
-      if(s.startsWith('APPROVED'))return '#9ad9a5';
-      if(s.startsWith('REJECTED'))return '#f6dc85';
-      if(s.startsWith('REVOKED'))return '#f7bd90';
-      if(s.startsWith('COMPLETED'))return '#72cdbb';
-      return '#c7d3df';
+      // Satu sumber warna untuk status mentah FASIH di kartu, tabel, grafik, dan PDF.
+      return biStatusColor(code);
     }
     function daftarStatus(rows){
-      const active=[...new Set(rows.map(r=>r.status).filter(Boolean))];
+      const active=[...new Set(rows.map(r=>statusKapital(r.status)))];
       active.sort((a,b)=>{
         const x=STATUS_PRIORITAS.indexOf(a),y=STATUS_PRIORITAS.indexOf(b);
         const px=x<0?STATUS_PRIORITAS.length:x,py=y<0?STATUS_PRIORITAS.length:y;
@@ -1127,8 +1121,9 @@ body.bolo-loading-active{overflow:hidden}
     }
     function renderKeteranganStatus(rows){
       // Status mentah FASIH tetap utuh; penjelasan panjang menjadi tooltip.
-      const target=document.getElementById('statusLegend');
+      const target=document.getElementById(arguments.length>1&&arguments[1]==='top'?'statusLegendTop':'statusLegend');
       if(!target)return;
+      const isTop=target.id==='statusLegendTop';
       const statuses=daftarStatus(rows);
       if(!statuses.length){target.textContent='Belum ada status pada survei ini.';return;}
       const meaningFor=code=>{
@@ -1141,13 +1136,20 @@ body.bolo-loading-active{overflow:hidden}
         if(code.startsWith('COMPLETED'))return 'Telah selesai.';
         return 'Status sesuai data FASIH.';
       };
-      target.innerHTML='<strong class="bi-inline-status-heading">STATUS</strong>'+
-        statuses.map(s=>
-          '<span class="bi-inline-status-chip" role="listitem" title="'+
-            esc(s.label+' — '+meaningFor(s.code))+'">'+
-            '<i aria-hidden="true" style="background:'+s.color+'"></i>'+
-            '<span>'+esc(s.label)+'</span></span>'
+      if(isTop){
+        target.innerHTML=statuses.map(s=>
+          '<div><dt><span style="background:'+s.color+'"></span>'+esc(s.label)+
+          '</dt><dd>'+esc(meaningFor(s.code))+'</dd></div>'
         ).join('');
+      }else{
+        target.innerHTML='<strong class="bi-inline-status-heading">STATUS</strong>'+
+          statuses.map(s=>
+            '<span class="bi-inline-status-chip" role="listitem" title="'+
+              esc(s.label+' — '+meaningFor(s.code))+'">'+
+              '<i aria-hidden="true" style="background:'+s.color+'"></i>'+
+              '<span>'+esc(s.label)+'</span></span>'
+          ).join('');
+      }
     }
     async function loadData({preserveView=false}={}){
       if(loading)return;
@@ -1245,7 +1247,7 @@ body.bolo-loading-active{overflow:hidden}
               name(r,'ppl')===state.ppl && (!state.pml || name(r,'pml')===state.pml)))
             Object.assign(state,{ppl:null,status:null});
         }
-        renderKeteranganStatus(DATA);
+        renderKeteranganStatus(DATA,'top');
         render(false);
         connection.hidden = !memakaiCadanganTerverifikasi;
         if(memakaiCadanganTerverifikasi){
@@ -1265,7 +1267,7 @@ body.bolo-loading-active{overflow:hidden}
           return;
         }
         DATA=[];ALL_ASSIGNMENTS=[];MARKER_RULES=[];MARKERS_AVAILABLE=false;
-        renderKeteranganStatus([]);
+        renderKeteranganStatus([],'top');
         tampilkanWaktuPengambilan(null);
         connection.hidden = false;
         connection.textContent = String(error.message||'').includes('FILTER AKTIF/NONAKTIF')
@@ -1717,7 +1719,7 @@ body.bolo-loading-active{overflow:hidden}
       DATA=ALL_ASSIGNMENTS.filter(r=>!r.boloExcluded).map(r=>({
         ...r,status:r.boloStatusManual||r.status
       }));
-      renderKeteranganStatus(DATA);
+      renderKeteranganStatus(DATA,'top');
       render(false);
       if(markListModal.open)paintMarkList(false);
     }
