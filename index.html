@@ -498,11 +498,6 @@ body.bolo-loading-active{overflow:hidden}
   border-radius:50%;animation:boloLoadingDot .92s infinite ease-in-out}
 .bolo-loading-dots i:nth-child(2){animation-delay:.16s}
 .bolo-loading-dots i:nth-child(3){animation-delay:.32s}
-.bolo-loading-skip{margin-top:12px;border:0;background:none;color:#6583a5;
-  font-size:11px;font-weight:700;text-decoration:underline;text-underline-offset:3px;
-  cursor:pointer;animation:boloLoadingReveal .5s 2.8s ease both}
-.bolo-loading-skip:hover{color:#174f87}
-.bolo-loading-skip:focus-visible{outline:2px solid #245f9e;outline-offset:4px}
 @keyframes boloBpsFlight{
   0%{opacity:0;transform:translate(-50%,-50%) translate(-70vw,0) rotate(-35deg) scale(.62)}
   24%{opacity:1;transform:translate(-50%,-50%) translate(-14px,0) rotate(8deg) scale(1.04)}
@@ -553,7 +548,7 @@ body.bolo-loading-active{overflow:hidden}
 }
 @media(prefers-reduced-motion:reduce){
   .bolo-loading,.bolo-loading-logo,.bolo-loading-title,.bolo-loading-subtitle,
-  .bolo-loading-status,.bolo-loading-skip,.bolo-loading-stage::before,.bolo-loading-dots i{
+  .bolo-loading-status,.bolo-loading-stage::before,.bolo-loading-dots i{
     animation:none!important;transition:none!important}
   .bolo-loading-logo.bps{transform:translate(-50%,-50%) translate(-100px,0)}
   .bolo-loading-logo.inpek{transform:translate(-50%,-50%) translate(100px,0)}
@@ -579,7 +574,6 @@ body.bolo-loading-active{overflow:hidden}
     <h2 class="bolo-loading-title">BOLO <span>INPEK</span></h2>
     <p class="bolo-loading-subtitle">Blora Pengelolaan Statistik INPEK</p>
     <div class="bolo-loading-status">Loading<span class="bolo-loading-dots" aria-hidden="true"><i></i><i></i><i></i></span></div>
-    <button class="bolo-loading-skip" id="boloLoadingSkip" type="button">Lewati animasi</button>
   </div>
 </div>
   <!-- HEADER: identitas BOLO INPEK dan BPS Kabupaten Blora -->
@@ -945,11 +939,11 @@ body.bolo-loading-active{overflow:hidden}
       boloSplash.hidden=false;
       document.body.classList.add('bolo-loading-active');
     }
-    function hideBoloSplash(skip=false){
+    function hideBoloSplash(){
       if(!boloSplash||boloSplash.hidden)return;
       const token=boloSplashToken;
       const reduceMotion=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-      const minimum=skip||reduceMotion?0:3200;
+      const minimum=reduceMotion?0:3200;
       const remaining=Math.max(0,minimum-(Date.now()-boloSplashStarted));
       clearTimeout(boloSplashTimer);
       boloSplashTimer=setTimeout(()=>{
@@ -963,7 +957,6 @@ body.bolo-loading-active{overflow:hidden}
         },reduceMotion?0:360);
       },remaining);
     }
-    document.getElementById('boloLoadingSkip').addEventListener('click',()=>hideBoloSplash(true));
 
     function validatePayload(payload){
       if(!payload || payload.success!==true || !Array.isArray(payload.data)){
