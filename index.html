@@ -1377,7 +1377,7 @@
     // Semua isi daftar memakai data yang sudah tersedia pada ALL_ASSIGNMENTS.
     // Membuka/menutup kedua pop-up TIDAK menjalankan loadData() atau render().
     let markListSurvey=null;
-    let markListRenderedFor=null;
+    let markListRenderedFor=undefined; // berbeda dari scope null (Semua Survei) agar pembukaan pertama selalu menggambar daftar
     let markReturnFocus=null;
     let markEditSequence=0;
     let markAdminUrlPromise=null;
