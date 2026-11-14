@@ -401,7 +401,15 @@
 #surveyAdminModal::backdrop{background:#0e2b4d99}
 .survey-admin-bar{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#174478;padding:13px 18px;color:#fff}
 .survey-admin-bar strong{font-size:15px}.survey-admin-close{background:#ffffff22;border:0;border-radius:8px;color:white;padding:6px 12px;cursor:pointer}
-#surveyAdminFrame{width:100%;height:calc(100% - 58px);border:0;background:#f4f8fd}
+#surveyAdminModal[open]{display:flex;flex-direction:column}
+#surveyAdminFrame{width:100%;height:auto;flex:1 1 auto;min-height:0;border:0;background:#f4f8fd}
+.survey-admin-switcher{display:flex;align-items:center;gap:8px;padding:9px 14px;flex-wrap:wrap;flex:0 0 auto;background:#eff6fe;border-bottom:1px solid #d0e1f0}
+.survey-admin-tab{border:1px solid #ccdef0;border-radius:9px;background:#fff;padding:9px 12px;color:#245b8b;font-size:12px;font-weight:800;cursor:pointer}
+.survey-admin-tab[aria-pressed="true"]{background:#185081;color:#fff;border-color:#185081}
+.survey-admin-tab:hover:not([aria-pressed="true"]){background:#e2effc}
+.survey-admin-sync{margin-left:auto;border:1px solid #a8d9be;border-radius:9px;padding:9px 12px;background:#e9f8ef;color:#216b43;font-size:11px;font-weight:800;cursor:pointer}
+.survey-admin-help{flex:1;overflow:auto}
+@media(max-width:525px){.survey-admin-switcher{padding:8px;gap:6px}.survey-admin-tab{flex:1 1 128px}.survey-admin-sync{width:100%;margin:0}}
 .survey-admin-help{padding:28px;line-height:1.7;color:#3b516b}
 @media(max-width:780px){.header-inner{flex-wrap:wrap}.survey-admin-top{margin:0;width:100%}.survey-admin-btn{width:100%}}
 </style>
@@ -646,6 +654,11 @@ body.bolo-loading-active{overflow:hidden}
 </header>
 <dialog id="surveyAdminModal" aria-labelledby="surveyAdminTitle">
   <div class="survey-admin-bar"><strong id="surveyAdminTitle">Kelola Survei — BOLO INPEK</strong><span><a id="surveyAdminExternal" href="#" target="_blank" rel="noopener noreferrer" style="display:none;color:#fff;font-size:12px;margin-right:12px">Buka di Tab Baru</a><button type="button" class="survey-admin-close" id="closeSurveyAdmin">Tutup ×</button></span></div>
+  <div class="survey-admin-switcher" role="group" aria-label="Kelola survei dan arsip">
+    <button type="button" class="survey-admin-tab" id="surveyAdminTabKelola" aria-pressed="true">⚙ Daftar &amp; Pengaturan</button>
+    <button type="button" class="survey-admin-tab" id="surveyAdminTabArsip" aria-pressed="false">▣ Survei Selesai &amp; Pulihkan</button>
+    <button type="button" class="survey-admin-sync" id="surveyAdminSync" hidden>↻ Perbarui Dashboard</button>
+  </div>
   <div id="surveyAdminSetup" class="survey-admin-help" hidden><strong>Panel Admin Belum Disambungkan</strong><p>Pasang backend Apps Script Kelola Survei satu kali, kemudian isikan URL deployment di berkas <code>kelola-survei-link.json</code>. Setelah itu survei dapat ditambah, diedit, atau dinonaktifkan dari sini.</p></div>
   <iframe id="surveyAdminFrame" title="Form Kelola Survei BOLO INPEK" referrerpolicy="strict-origin-when-cross-origin"></iframe>
 </dialog>
@@ -1603,13 +1616,35 @@ body.bolo-loading-active{overflow:hidden}
       if(focus){const heading=view.querySelector('h1');if(heading)heading.focus({preventScroll:true});}
     }
 
-    document.getElementById('openSurveyAdmin').addEventListener('click',async()=>{
-      const modal=document.getElementById('surveyAdminModal');
+    // Satu menu untuk konfigurasi dan pengembalian survei DITUTUP.
+    let modeAdminSurvei='kelola',urlPanelAdmin='';
+    function tampilPanelAdmin(mode){
+      modeAdminSurvei=mode==='arsip'?'arsip':'kelola';
+      const arsip=modeAdminSurvei==='arsip';
       const frame=document.getElementById('surveyAdminFrame');
       const setup=document.getElementById('surveyAdminSetup');
-      frame.hidden=true;setup.hidden=false;
-      document.getElementById('surveyAdminExternal').style.display='none';
+      const external=document.getElementById('surveyAdminExternal');
+      document.getElementById('surveyAdminTabKelola').setAttribute('aria-pressed',String(!arsip));
+      document.getElementById('surveyAdminTabArsip').setAttribute('aria-pressed',String(arsip));
+      document.getElementById('surveyAdminSync').hidden=!arsip;
+      const tujuan=arsip?TINDAK_LANJUT_URL+'?mode=selesai':urlPanelAdmin;
+      if(tujuan){
+        frame.hidden=false;setup.hidden=true;
+        frame.title=arsip?'Survei Selesai dan Pemulihan':'Kelola Survei';
+        if(frame.src!==tujuan)frame.src=tujuan;
+        external.href=tujuan;external.style.display='inline';
+      }else{
+        frame.hidden=true;frame.src='about:blank';setup.hidden=false;
+        external.style.display='none';
+      }
+    }
+    document.getElementById('surveyAdminTabKelola').addEventListener('click',()=>tampilPanelAdmin('kelola'));
+    document.getElementById('surveyAdminTabArsip').addEventListener('click',()=>tampilPanelAdmin('arsip'));
+    document.getElementById('openSurveyAdmin').addEventListener('click',async()=>{
+      const modal=document.getElementById('surveyAdminModal');
+      urlPanelAdmin='';
       modal.showModal();
+      tampilPanelAdmin('kelola');
       try{
         const r=await fetch('./kelola-survei-link.json?t='+Date.now(),{cache:'no-store'});
         if(!r.ok)throw new Error('URL admin belum tersedia');
@@ -1617,16 +1652,19 @@ body.bolo-loading-active{overflow:hidden}
         const url=String(cfg.admin_webapp_url||'').trim();
         const ok=url.startsWith('https://script.google.com/macros/s/') && /\/exec([?].*)?$/.test(url);
         if(!ok)return;
-        setup.hidden=true;frame.hidden=false;frame.src=url;
-        const external=document.getElementById('surveyAdminExternal');external.href=url;external.style.display='inline';
+        urlPanelAdmin=url;
+        if(modal.open&&modeAdminSurvei==='kelola')tampilPanelAdmin('kelola');
       }catch(e){console.warn('Panel admin belum terhubung:',e.message)}
+    });
+    document.getElementById('surveyAdminSync').addEventListener('click',()=>{
+      document.getElementById('surveyAdminModal').close();
+      loadData({preserveView:true});
     });
     document.getElementById('closeSurveyAdmin').addEventListener('click',()=>document.getElementById('surveyAdminModal').close());
     document.getElementById('surveyAdminModal').addEventListener('close',()=>{
       document.getElementById('surveyAdminFrame').src='about:blank';
-      // Tidak reload otomatis saat dialog ditutup: pilihan survei/filter tidak hilang.
+      // Filter halaman utama tetap ada; reload eksplisit tersedia di tab arsip.
     });
-
 
     // Semua isi daftar memakai data yang sudah tersedia pada ALL_ASSIGNMENTS.
     // Membuka/menutup kedua pop-up TIDAK menjalankan loadData() atau render().
