@@ -137,6 +137,28 @@
 .tl-staff-table th{background:#eaf3fe;text-transform:none;font-size:12px;color:#224d78;text-align:left;padding:12px}
 .tl-staff-table td{border-top:1px solid #e2ebf4;padding:11px 12px;vertical-align:middle;font-size:12px;color:#274d71;overflow-wrap:anywhere}
 .tl-staff-table td:first-child{font-weight:800}
+.tl-staff-row-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.tl-staff-row-actions .tl-staff-deactivate{color:#974a25;border-color:#e7c6b4;background:#fff5ef}
+.tl-staff-row-actions .tl-staff-activate{color:#1c7049;border-color:#b3dfc5;background:#edf8f2}
+.tl-staff-row-actions .tl-staff-deactivate:hover{background:#ffe7d8}
+.tl-staff-row-actions .tl-staff-activate:hover{background:#d5f3e2}
+.tl-staff-alert{margin:15px 0;padding:15px 17px;border-radius:12px;background:#fff8ea;
+  border:1px solid #eed5a6;border-left:4px solid #ca8744;color:#7e4a1e;line-height:1.6}
+.tl-staff-alert[hidden],#staffDiscovery[hidden]{display:none!important}
+.tl-staff-alert strong{display:block;font-size:13px;margin-bottom:4px}
+.tl-staff-alert p{margin:0;font-size:12px}
+.tl-staff-discovery{margin:12px 0 18px;border:1px solid #c9def1;border-radius:14px;background:#f5faff;padding:16px}
+.tl-staff-discovery h3{margin:0 0 6px;font-size:16px;color:#174678}
+.tl-staff-discovery>p{margin:0 0 13px;font-size:12px;color:#506f8f;line-height:1.6}
+.tl-staff-candidate{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  background:white;border:1px solid #d9e7f3;border-radius:11px;padding:12px;margin-top:8px}
+.tl-staff-candidate strong{display:block;color:#1b4d7a;font-size:13px}
+.tl-staff-candidate small{display:block;margin-top:4px;overflow-wrap:anywhere;font-size:11px;color:#597690}
+.tl-staff-candidate button{flex:0 0 auto;padding:8px 12px;margin:0;font-size:11px;font-weight:800}
+.tl-staff-stat.needs-attention{border-color:#f0d6a6;background:#fff6e8}
+.tl-staff-stat.needs-attention strong{color:#af671c}
+@media(max-width:600px){.tl-staff-candidate{align-items:flex-start;flex-direction:column}
+.tl-staff-candidate button{width:100%}}
 .tl-staff-table button{margin:0;padding:7px 11px;font-size:11px}
 .tl-staff-chip{display:inline-block;border-radius:16px;padding:4px 10px;font-size:10px;font-weight:800;background:#e6f6ec;color:#196243}
 .tl-staff-chip.inactive{background:#fff0f0;color:#9d3e4a}
@@ -260,6 +282,15 @@
       <button type="button" class="secondary" id="staffBack">← Kembali ke Tindak Lanjut</button>
     </div>
     <div class="tl-staff-stats" id="staffStats" aria-live="polite"></div>
+    <section id="staffDiscovery" class="tl-staff-discovery" hidden aria-labelledby="staffDiscoveryTitle">
+      <h3 id="staffDiscoveryTitle">Petugas Baru Terdeteksi</h3>
+      <p id="staffDiscoveryIntro"></p>
+      <div id="staffCandidateList"></div>
+    </section>
+    <div id="staffMissingIdAlert" class="tl-staff-alert" hidden role="status" aria-live="polite">
+      <strong id="staffMissingIdTitle"></strong>
+      <p id="staffMissingIdInfo"></p>
+    </div>
     <p id="staffMessage" role="status" aria-live="polite"></p>
     <div class="tl-staff-toolbar">
       <label for="staffSearch">Cari petugas
@@ -383,12 +414,12 @@ const dateInput=(days=1)=>{const d=new Date(Date.now()+days*86400000);return new
 const iso=id=>$(id).value?new Date($(id).value).toISOString():'';
 
 /** Konfirmasi bergaya BOLO INPEK. Menutup dialog (Esc/Batal) = tidak melakukan tindakan. */
-function tlConfirm({judul,target,pesan,catatan,tombol='Lanjutkan',tone='restore'}){
+function tlConfirm({judul,target,pesan,catatan,tombol='Lanjutkan',tone='restore',kicker=''}){
   const d=$('tlConfirmDialog');
   if(d.open)return Promise.resolve(false);
   d.dataset.tone=tone==='warning'?'warning':'restore';
   $('tlConfirmSymbol').textContent=tone==='warning'?'!':'↺';
-  $('tlConfirmKicker').textContent=tone==='warning'?'TINDAKAN PENGARSIPAN':'PEMULIHAN SURVEI';
+  $('tlConfirmKicker').textContent=kicker||(tone==='warning'?'TINDAKAN PENGARSIPAN':'PEMULIHAN SURVEI');
   $('tlConfirmHeading').textContent=judul;
   $('tlConfirmDetail').textContent=target;
   $('tlConfirmMessage').textContent=pesan;
@@ -843,8 +874,9 @@ function staffStatsPaint(){
   const stats=$('staffStats');stats.replaceChildren();
   if(!staffData)return;
   for(const [label,value] of [['Total Petugas',staffData.total],['Aktif',staffData.aktif],
-    ['Nonaktif',staffData.nonaktif],['Calon dari FASIH',staffData.kandidat_fasih.length]]){
+    ['Nonaktif',staffData.nonaktif],['Belum Didaftarkan',staffData.kandidat_fasih.length]]){
     const box=document.createElement('div');box.className='tl-staff-stat';
+    if(label==='Belum Didaftarkan'&&value>0)box.classList.add('needs-attention');
     const strong=document.createElement('strong');strong.textContent=String(value);
     const caption=document.createElement('span');caption.textContent=label;
     box.append(strong,caption);stats.append(box);
@@ -877,18 +909,104 @@ function staffRowsPaint(){
       const note=document.createElement('div');note.className='muted';note.textContent='ID belum ada di sumber petugas FASIH';count.append(note);
     }
     const td=cell('');
+    const actions=document.createElement('div');actions.className='tl-staff-row-actions';
     const edit=document.createElement('button');edit.type='button';edit.className='secondary';
     edit.textContent='Edit Biodata';edit.setAttribute('aria-label','Edit biodata '+p.nama);
     edit.addEventListener('click',()=>staffOpenForm(p));
-    td.append(edit);body.append(tr);
+    const toggle=document.createElement('button');
+    toggle.type='button';
+    toggle.className=p.aktif?'tl-staff-deactivate':'tl-staff-activate';
+    toggle.textContent=p.aktif?'Nonaktifkan':'Aktifkan';
+    toggle.setAttribute('aria-label',(p.aktif?'Nonaktifkan ':'Aktifkan ')+p.nama);
+    toggle.addEventListener('click',()=>staffToggle(p));
+    actions.append(edit,toggle);td.append(actions);body.append(tr);
   }
+}
+function staffCandidateLabel(p){
+  return (p.nama||'Nama belum tersedia')+' · '+(p.jumlah_assignment||0)+' assignment';
+}
+function staffPrefillCandidate(p){
+  staffOpenForm();
+  $('staffSource').value=p.petugas_id;
+  $('staffId').value=p.petugas_id;
+  $('staffNama').value=p.nama||'';
+  $('staffEmail').value=p.email||'';
+  staffNotice('Calon petugas dari FASIH sudah dipilih. Periksa nama dan lengkapi WhatsApp sebelum Simpan Biodata.');
+  $('staffWa').focus({preventScroll:true});
 }
 function staffCandidatesPaint(){
   const select=$('staffSource');select.replaceChildren();
   option(select,'','— Tidak dipilih / input manual —');
-  for(const p of staffData?.kandidat_fasih||[]){
-    option(select,p.petugas_id,p.nama+' · '+p.jumlah_assignment+' assignment');
+  const candidates=staffData?.kandidat_fasih||[];
+  for(const p of candidates){
+    option(select,p.petugas_id,staffCandidateLabel(p)+(p.asal==='assignment'?' · muncul pada survei':' · sumber petugas'));
   }
+  const panel=$('staffDiscovery'),list=$('staffCandidateList');
+  list.replaceChildren();panel.hidden=!candidates.length;
+  if(candidates.length){
+    const fromAssignment=candidates.filter(x=>x.asal==='assignment').length;
+    $('staffDiscoveryTitle').textContent=candidates.length+' Petugas Belum Didaftarkan';
+    $('staffDiscoveryIntro').textContent=
+      fromAssignment+' ID petugas ditemukan pada assignment PPL/PML survei; '+
+      (candidates.length-fromAssignment)+' lainnya ada di sumber petugas FASIH. '+
+      'Periksa identitas dan tambahkan petugas agar dapat dihubungi melalui Ingatkan Petugas.';
+    for(const p of candidates){
+      const item=document.createElement('div');item.className='tl-staff-candidate';
+      const text=document.createElement('div');
+      const name=document.createElement('strong');name.textContent=p.nama||'Nama belum diketahui · Periksa ID FASIH';
+      const details=document.createElement('small');
+      const surveys=Array.isArray(p.daftar_survei)?p.daftar_survei:[];
+      const roles=Array.isArray(p.peran)?p.peran:[];
+      details.textContent=(p.asal==='assignment'?'Terdeteksi di assignment '+(roles.join('/')||'PPL/PML'):'Ditemukan di sumber petugas')+
+        ' · '+(p.jumlah_assignment||0)+' assignment'+
+        (surveys.length?' · Survei: '+surveys.slice(0,3).join(', ')+(surveys.length>3?' dan '+(surveys.length-3)+' lainnya':''):'')+
+        ' · ID '+p.petugas_id;
+      text.append(name,details);
+      const button=document.createElement('button');button.type='button';
+      button.textContent='Daftarkan Petugas';
+      button.setAttribute('aria-label','Daftarkan '+(p.nama||p.petugas_id));
+      button.addEventListener('click',()=>staffPrefillCandidate(p));
+      item.append(text,button);list.append(item);
+    }
+  }
+  const issues=Array.isArray(staffData?.id_petugas_kosong)?staffData.id_petugas_kosong:[];
+  $('staffMissingIdAlert').hidden=!issues.length;
+  if(issues.length){
+    const n=issues.reduce((sum,x)=>sum+(x.jumlah_assignment||0),0);
+    $('staffMissingIdTitle').textContent=n+' Penugasan PPL/PML Belum Memiliki ID Petugas';
+    $('staffMissingIdInfo').textContent='ID kosong tidak bisa digunakan untuk membuat identitas petugas secara aman. Periksa assignment di FASIH: '+
+      issues.slice(0,4).map(x=>x.nama+' ('+x.peran+', '+x.jumlah_assignment+' assignment)').join('; ')+
+      (issues.length>4?' dan '+(issues.length-4)+' nama lainnya.':'.');
+  }
+}
+async function staffToggle(p){
+  const deactivate=p.aktif;
+  const ok=await tlConfirm({
+    judul:deactivate?'Nonaktifkan petugas ini?':'Aktifkan kembali petugas ini?',
+    target:p.nama,
+    pesan:deactivate
+      ?'Petugas tidak akan tampil sebagai pilihan pada Ingatkan Petugas setelah dinonaktifkan. Data biodata tetap tersimpan.'
+      :'Petugas kembali aktif dan dapat dipilih untuk pengingat pada assignment survei yang menggunakan ID petugas ini.',
+    catatan:'Riwayat pengiriman WhatsApp, catatan tindak lanjut, dan assignment FASIH tidak dihapus. Status ini dapat diubah kembali.',
+    tombol:deactivate?'Nonaktifkan Petugas':'Aktifkan Petugas',
+    tone:deactivate?'warning':'restore',
+    kicker:'STATUS PETUGAS'
+  });
+  if(!ok)return;
+  action(async()=>{
+    try{
+      const req={mode:'edit',petugas_id:p.petugas_id,nama:p.nama,email:p.email,
+        nomor_whatsapp:p.nomor_whatsapp,aktif:!p.aktif,
+        expected:{nama:p.nama,email:p.email,nomor_whatsapp:p.nomor_whatsapp,aktif:p.aktif}};
+      await rpc('apiSimpanPetugasAdmin',token,req);
+      await staffLoad();
+      staffNotice(p.nama+' berhasil '+(deactivate?'dinonaktifkan':'diaktifkan kembali')+
+        '. Riwayat lama tetap tersimpan.');
+    }catch(error){
+      staffNotice(error.message||String(error),true);
+      throw error;
+    }
+  });
 }
 async function staffLoad(){
   if(!token)throw Error('Sesi operator berakhir. Masuk kembali.');
@@ -905,6 +1023,12 @@ async function staffLoad(){
     throw Error('Respons database petugas tidak sesuai. Hubungi admin BOLO INPEK.');
   }
   staffStatsPaint();staffRowsPaint();staffCandidatesPaint();
+  if(BOLO_ADMIN_GATE_NONCE){
+    notifyDashboardAdmin('BOLO_INPEK_PETUGAS_PENDING',{
+      jumlah:staffData.kandidat_fasih.length,
+      id_kosong:(staffData.id_petugas_kosong||[]).reduce((n,x)=>n+(x.jumlah_assignment||0),0)
+    });
+  }
 }
 async function staffOpen(){
   if(!token || data?.operator?.peran!=='ADMIN')throw Error('Kelola Petugas hanya tersedia untuk ADMIN INPEK.');
@@ -1039,6 +1163,15 @@ $('loginForm').onsubmit = e => {
         nama:String(x.operator.nama||'Admin INPEK'),
         email:String(x.operator.email||$('email').value).trim().toLowerCase()
       });
+      // Pemeriksaan ringan saat admin masuk: tampilkan jumlah calon petugas
+      // pada menu Admin tanpa mengirim biodata/nomor WA ke GitHub Pages.
+      rpc('apiDaftarPetugasAdmin',token).then(result=>{
+        if(!result || !Array.isArray(result.kandidat_fasih))return;
+        notifyDashboardAdmin('BOLO_INPEK_PETUGAS_PENDING',{
+          jumlah:result.kandidat_fasih.length,
+          id_kosong:(result.id_petugas_kosong||[]).reduce((n,x)=>n+(x.jumlah_assignment||0),0)
+        });
+      }).catch(()=>{});
     }
   });
 };
