@@ -440,7 +440,7 @@
   #markAssignmentExternal{font-size:10px}#markListBody .bi-mark-modal-intro{display:block}}
 </style>
 
-<link rel="stylesheet" href="./dashboard-interaktif.css?v=19">
+<link rel="stylesheet" href="./dashboard-interaktif.css?v=20">
 </head>
 <body>
   <!-- HEADER: identitas BOLO INPEK dan BPS Kabupaten Blora -->
@@ -543,7 +543,7 @@
   </main>
   <footer>BOLO INPEK · Sumber: Google Sheets · Persentase dihitung dari seluruh assignment pada kelompok yang sedang dibuka. Data pendataan diperbarui setelah operator menjalankan Python. · <a href="./kebijakan-privasi.html">Kebijakan Privasi</a></footer>
   <noscript>Aktifkan JavaScript untuk menggunakan dashboard ini.</noscript>
-  <script src="./dashboard-interaktif.js?v=19"></script>
+  <script src="./dashboard-interaktif.js?v=20"></script>
   <script>
     // ========================================================
     // STATUS DASHBOARD: setiap assignment dihitung satu kali.
@@ -1381,6 +1381,8 @@
     let markReturnFocus=null;
     let markEditSequence=0;
     let markAdminUrlPromise=null;
+    let pendingMarkEdit=null;
+    let markSavingInProgress=false;
     const markListModal=document.getElementById('markListModal');
     const markAssignmentModal=document.getElementById('markAssignmentModal');
     function markAdminUrl(){
@@ -1445,10 +1447,115 @@
         PENANDA_DEPLOY_URL);
       if(!markAssignmentModal.open)markAssignmentModal.showModal();
     }
+
+    function markNonce(){
+      // Kriptografis: pesan dari tab/iframe lain harus diabaikan, meskipun
+      // menggunakan origin Google yang sama.
+      if(window.crypto?.randomUUID)return window.crypto.randomUUID();
+      if(window.crypto?.getRandomValues){
+        const bytes=new Uint8Array(20);
+        window.crypto.getRandomValues(bytes);
+        return Array.from(bytes).map(b=>b.toString(16).padStart(2,'0')).join('');
+      }
+      throw new Error('Browser tidak mendukung pengamanan konfirmasi penanda.');
+    }
+    function refreshLocalMarkView(){
+      // Hanya hitung ulang data di MEMORI browser. Tidak memanggil API
+      // monitoring, tidak menjalankan Updater dan tidak mengubah filter.
+      DATA=ALL_ASSIGNMENTS.filter(r=>!r.boloExcluded).map(r=>({
+        ...r,status:r.boloStatusManual||r.status
+      }));
+      renderKeteranganStatus(DATA);
+      render(false);
+      if(markListModal.open)paintMarkList(false);
+    }
+    async function applySavedMarkFromForm(data){
+      const pending=pendingMarkEdit;
+      if(!pending||!markAssignmentModal.open||
+         pending.nonce!==data.nonce||pending.survey!==data.survei||
+         pending.assignment!==data.nama_assignment)return;
+      const saved=data.saved;
+      if(!saved||typeof saved!=='object'||typeof saved.dihitung!=='boolean'||
+         typeof saved.alasan!=='string'||typeof saved.catatan!=='string'||
+         typeof saved.status_perhitungan!=='string'||
+         typeof saved.status_saat_ditandai!=='string'||
+         saved.alasan.length>60||saved.catatan.length>220||
+         saved.status_perhitungan.length>120)return;
+      // Tidak boleh menganggap dua assignment bernama sama sebagai satu.
+      const matching=ALL_ASSIGNMENTS.filter(row=>
+        row.survei===pending.survey&&row.nama_assignment===pending.assignment&&
+        biUnassigned(row));
+      if(matching.length!==1)return;
+      const row=matching[0];
+      const rawFasih=String(row.status_asli||row.status||'').trim().toUpperCase();
+      const normalized=String(row.status||'').trim().toUpperCase();
+      const savedStatus=saved.status_saat_ditandai.trim().toUpperCase();
+      if(savedStatus!==rawFasih&&savedStatus!==normalized){
+        setMarkEditorInfo('Penanda Tersimpan · '+pending.survey,
+          'Google Sheets sudah menyimpan penanda, tetapi status asli FASIH lebih baru daripada data di dashboard. Untuk mencegah hitungan keliru, gunakan Muat Ulang Data setelah kembali ke dashboard.',
+          document.getElementById('markAssignmentExternal').href);
+        return;
+      }
+      if(!saved.dihitung&&!['OPEN','DRAFT'].includes(savedStatus))return;
+      const manual=saved.dihitung?saved.status_perhitungan.toUpperCase().trim():'';
+      if(manual&&!/^(OPEN|DRAFT|SUBMITTED BY |APPROVED BY |REJECTED BY |REVOKED BY |COMPLETED BY )/.test(manual))return;
+      const id=await biMarkHash(biMarkComposite(row));
+      if(!pendingMarkEdit||pendingMarkEdit.nonce!==pending.nonce||
+         !markAssignmentModal.open)return;
+      const newRule={
+        id,dihitung:saved.dihitung,berlaku:true,perlu_tinjau:false,
+        alasan:saved.alasan,catatan:saved.catatan,
+        status_perhitungan:manual
+      };
+      MARKER_RULES=[...MARKER_RULES.filter(m=>m.id!==id),newRule];
+      // Penanda dari FASIH tidak pernah menimpa status kolom asli.
+      const original=ALL_ASSIGNMENTS.map(old=>{
+        const {boloMark,boloExcluded,boloStatusManual,boloStatusFasih,...raw}=old;
+        return raw;
+      });
+      const reapplied=await biApplyMarkers(original,MARKER_RULES);
+      if(!pendingMarkEdit||pendingMarkEdit.nonce!==pending.nonce||
+         !markAssignmentModal.open)return;
+      ALL_ASSIGNMENTS=reapplied;
+      refreshLocalMarkView();
+      markSavingInProgress=false;
+      setMarkEditorInfo('Penanda Tersimpan · '+pending.survey+' · '+pending.assignment,
+        'Perubahan berhasil disimpan. Status Perhitungan, Perlakuan, Alasan/Catatan, dan capaian dashboard telah diperbarui otomatis. Pop-up daftar dan filternya tetap terbuka.',
+        document.getElementById('markAssignmentExternal').href);
+    }
+    window.addEventListener('message',event=>{
+      const data=event.data;
+      if(!data||data.type!=='BOLO_INPEK_MARK_SAVED_V1')return;
+      // Hanya konfirmasi dari origin resmi HTML Service Google yang
+      // diterima; nonce acak juga harus cocok dengan pop-up aktif.
+      let host='';
+      try{host=new URL(event.origin).hostname.toLowerCase()}catch(_){return;}
+      if(host!=='script.google.com'&&!host.endsWith('.googleusercontent.com'))return;
+      if(!pendingMarkEdit||!markAssignmentModal.open||
+         data.nonce!==pendingMarkEdit.nonce)return;
+      markSavingInProgress=true;
+      applySavedMarkFromForm(data).catch(err=>{
+        markSavingInProgress=false;
+        setMarkEditorInfo('Penanda Tersimpan — perlu sinkronisasi',
+          'Google Sheets berhasil menyimpan penanda, tetapi tampilan belum dapat diperbarui: '+
+          (err.message||String(err))+'. Pilih Muat Ulang Data untuk menyesuaikan.',
+          document.getElementById('markAssignmentExternal').href);
+      });
+    });
+
     async function openSingleAssignmentMark(survey,assignment,originButton){
       if(!MARKERS_AVAILABLE){openMarkActivationHelp();return;}
       markReturnFocus=originButton||document.activeElement;
       const seq=++markEditSequence;
+      let nonce;
+      try{nonce=markNonce()}catch(err){
+        setMarkEditorInfo('Browser Tidak Mendukung Penanda Otomatis',
+          err.message+' Gunakan tab baru sebagai alternatif.',null);
+        if(!markAssignmentModal.open)markAssignmentModal.showModal();
+        return;
+      }
+      pendingMarkEdit={survey,assignment,nonce,seq};
+      markSavingInProgress=false;
       const frame=document.getElementById('markAssignmentFrame');
       frame.hidden=true;
       setMarkEditorInfo('Atur Penanda · '+survey+' · '+assignment,
@@ -1461,6 +1568,7 @@
         target.searchParams.set('action','mark');
         target.searchParams.set('mark_survey',survey);
         target.searchParams.set('mark_assignment',assignment);
+        target.searchParams.set('mark_nonce',nonce);
         const address=target.href;
         // Template Mark.html mempunyai tampilan mandiri yang langsung
         // terlihat dan menggunakan google.script.run pada domain Google.
@@ -1483,6 +1591,8 @@
       // Penting: pop-up daftar tetap terbuka, filternya dan posisi gulir
       // tidak disegarkan. Hanya iframe editor yang dihentikan.
       ++markEditSequence;
+      pendingMarkEdit=null;
+      markSavingInProgress=false;
       document.getElementById('markAssignmentFrame').src='about:blank';
       document.getElementById('markAssignmentFrame').hidden=true;
       if(markReturnFocus?.isConnected)
