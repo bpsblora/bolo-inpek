@@ -2125,9 +2125,11 @@ body.bolo-loading-active{overflow:hidden}
     modal.showModal();
     document.documentElement.style.overflow='hidden';
   }
-  function openTL(){
+  function openTL(surveyName=''){
     if(!boloAdminActive()){beginLogin();return;}
-    modalTitle.textContent='Tindak Lanjut BOLO INPEK';
+    modalTitle.textContent=surveyName
+      ? 'Tindak Lanjut · '+String(surveyName).slice(0,100)+' — pilih survei di formulir'
+      : 'Tindak Lanjut BOLO INPEK';
     returnFocus=document.activeElement;
     if(!modal.open)modal.showModal();
     document.documentElement.style.overflow='hidden';
@@ -2146,7 +2148,7 @@ body.bolo-loading-active{overflow:hidden}
     if(!button)return;
     e.preventDefault();
     if(!boloAdminActive()){beginLogin();return;}
-    openTL();
+    openTL(button.dataset.tindakSurvei||'');
   });
   document.getElementById('boloUpdaterOpen').addEventListener('click',e=>{
     if(boloAdminActive())return;
