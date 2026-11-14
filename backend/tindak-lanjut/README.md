@@ -6,6 +6,13 @@ Panduan paling ringkas: [SETUP-LANGKAH.md](./SETUP-LANGKAH.md).
 
 **GitHub menyimpan sumber `.gs`, tetapi tidak otomatis memasangnya ke Google Apps Script.** Karena backend produksi memakai deployment lama dan mempunyai data riwayat, tahap pemasangan pertama dilakukan di editor Apps Script dengan akun operator yang memiliki izin. Pemeriksaan ini bersifat **read-only**, jadi belum perlu deploy ulang. Setelah status `siap: true`, barulah backend produksi dapat diaudit per fungsi.
 
+## Pembaruan UI Konfirmasi dan Pop-up
+
+- [Audit pop-up dan panduan deployment Apps Script](./POPUP-AUDIT.md)
+- [Versi siap dipasang: Index_TindakLanjutV2.html](./Index_TindakLanjutV2.html)
+
+Konfirmasi `Tampilkan Kembali` dan `Arsipkan & Tutup` telah dibuat sebagai dialog BOLO INPEK, bukan dialog native browser. **Perubahan ini belum aktif** pada Apps Script sebelum file HTML ditempel pada project produksi dan deployment lama diperbarui. Tidak ada operasi pada data aktif saat audit.
+
 ## Update pemeriksaan kode produksi — 14 November 2026
 
 Pemilik memberikan kode backend (kode Apps Script) dan HTML Tindak Lanjut untuk ditinjau.
