@@ -543,7 +543,7 @@
   </main>
   <footer>BOLO INPEK · Sumber: Google Sheets · Persentase dihitung dari seluruh assignment pada kelompok yang sedang dibuka. Data pendataan diperbarui setelah operator menjalankan Python. · <a href="./kebijakan-privasi.html">Kebijakan Privasi</a></footer>
   <noscript>Aktifkan JavaScript untuk menggunakan dashboard ini.</noscript>
-  <script src="./dashboard-interaktif.js?v=24"></script>
+  <script src="./dashboard-interaktif.js?v=25"></script>
   <script>
     // ========================================================
     // STATUS DASHBOARD: setiap assignment dihitung satu kali.
@@ -1144,7 +1144,13 @@
       return '<div class="export-actions">'+[['excel','Excel'],['image','Gambar']].map(([kind,label])=>'<button type="button" class="export-button" data-export="'+kind+'" data-survey="'+esc(survey)+'" aria-label="Unduh '+label+' '+esc(survey)+'">'+icon+label+'</button>').join('')+'</div>';
     }
     function exportTime() {
-      return lastFetched ? new Date(lastFetched).toLocaleString('id-ID',{timeZone:'Asia/Jakarta'})+' WIB' : 'Belum tercatat';
+      // Satu sumber kebenaran dengan kartu "DATA TERAKHIR DIAMBIL".
+      // Jangan mengganti cap waktu data dengan waktu ketika file diunduh.
+      if(!lastFetched)return 'Belum tercatat';
+      const tanggal=document.getElementById('last-fetch-date')?.textContent?.trim();
+      const jam=document.getElementById('last-fetch-time')?.textContent?.trim();
+      if(!tanggal||tanggal==='Belum tercatat'||!jam)return 'Belum tercatat';
+      return tanggal+' · '+jam;
     }
     function exportFilename(survey,extension) {
       return 'BOLO_INPEK_'+survey.replace(/[^a-z0-9_-]/gi,'_')+'.'+extension;
@@ -1160,6 +1166,18 @@
     async function downloadExcel(survey,rows) {
       const XLSX=await loadExcelLibrary();
       const workbook=XLSX.utils.book_new();
+      // Metadata laporan ada pada sheet tersendiri agar header dan isi
+      // tab monitoring tetap kompatibel dengan pembaca data lama.
+      const info=XLSX.utils.aoa_to_sheet([
+        ['BOLO INPEK · INFORMASI EKSPOR'],
+        ['Survei',survey],
+        ['Data terakhir diambil dari FASIH-SM',exportTime()],
+        ['Zona Waktu','WIB (Asia/Jakarta)'],
+        ['Sumber','FASIH-SM melalui Google Sheets'],
+        ['Keterangan','Waktu pengambilan data, bukan waktu unduhan.']
+      ]);
+      info['!cols']=[{wch:44},{wch:60}];
+      XLSX.utils.book_append_sheet(workbook,info,'informasi');
       // Susunan sama dengan tab monitoring; nilai kosong tetap kosong.
       const details=XLSX.utils.aoa_to_sheet([['survei','nama_assignment','status','status_asli','ppl','pml'],...rows.map(r=>[r.survei,r.nama_assignment,r.status,r.status_asli||'',r.ppl,r.pml])]);
       details['!cols']=[{wch:16},{wch:48},{wch:39},{wch:44},{wch:30},{wch:30}];
