@@ -3,11 +3,14 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {Script} from 'node:vm';
+import {createHash} from 'node:crypto';
 const root=process.cwd();
 const gs=readFileSync(join(root,'backend/tindak-lanjut/TindakLanjut_KelolaPetugas.gs'),'utf8');
+const sync=readFileSync(join(root,'backend/tindak-lanjut/TindakLanjut_SinkronMonitoring.gs'),'utf8');
 const html=readFileSync(join(root,'backend/tindak-lanjut/Index_TindakLanjutV2.html'),'utf8');
 const page=readFileSync(join(root,'index.html'),'utf8');
 new Script(gs);
+const monitorId=name=>'monitor:'+createHash('sha256').update(name.trim().toLowerCase()).digest('hex').slice(0,32);
 function fixture(){
   const tab={
     petugas:[{_row:2,petugas_id:'id-fasih-000000001',nama:'Andi',email:'andi@bps.go.id',nomor_whatsapp:'6281234567890',aktif:'TRUE'}],
@@ -25,7 +28,19 @@ function fixture(){
     tindak_lanjut:[{petugas_id:'id-fasih-000000001',catatan:'Tetap tersimpan'}],
     kontak:[{petugas_id:'id-fasih-000000001',isi_pesan:'Tetap tersimpan'}]
   };
-  const api=new Function('db_','read_','append_','patch_','lock_','session_','text_','uid_','tlMonAlias_','SpreadsheetApp',gs+
+  tab.getSheetByName=name=>tab[name]?{
+    getDataRange:()=>({getDisplayValues:()=>tab[name]}),
+    appendRow:row=>tab[name].push(row)
+  }:null;
+  tab.insertSheet=name=>{
+    assert.equal(name,'padanan_petugas');
+    tab[name]=[];
+    return {...tab.getSheetByName(name),
+      getRange:()=>({setValues:rows=>tab[name].push(...rows)}),
+      setFrozenRows(){}
+    };
+  };
+  const api=new Function('db_','read_','append_','patch_','lock_','session_','text_','uid_','Utilities','SpreadsheetApp','safe_',gs+'\n'+sync+
     ';return {list:apiDaftarPetugasAdmin,save:apiSimpanPetugasAdmin,link:apiTautkanPetugasAdmin,phone:tlPetugasNormalisasiNomor_};')(
     ()=>tab,(db,name)=>db[name].map(r=>({...r})),
     (db,name,rows)=>rows.forEach(r=>db[name].push({...r,_row:db[name].length+2})),
@@ -33,7 +48,9 @@ function fixture(){
     fn=>fn(),
     (token,admin)=>{if(token!=='admin'||!admin)throw Error('not authorized');return {nama:'Admin'};},
     s=>String(s??'').trim(),()=>('generated-uuid-'+Date.now()),
-    name=>'monitor:'+'a'.repeat(32),{flush(){}}
+    {DigestAlgorithm:{SHA_256:'sha256'},Charset:{UTF_8:'UTF_8'},
+      computeDigest:(_,name)=>[...createHash('sha256').update(name).digest()]},
+    {flush(){}},String
   );
   return {tab,api};
 }
@@ -171,7 +188,7 @@ test('ignores personnel only in archived and inactive survey assignments',()=>{
 });
 
 test('link confirmed same-name monitoring alias to one existing petugas and preserve history',()=>{
- const f=fixture(),alias='monitor:'+'a'.repeat(32);
+ const f=fixture(),alias=monitorId('Andi');
  const original=f.tab.petugas[0];
  f.tab.sumber_assignment.push({ppl_id:alias,ppl:'Andi',pml_id:'',
     survei:'VIMK_TH26',survey_period_id:'periode-IMK'});
@@ -185,20 +202,6 @@ test('link confirmed same-name monitoring alias to one existing petugas and pres
     verifikasi_identitas:true}),/authorized/);
  assert.throws(()=>f.api.link('admin',{alias_monitoring:alias,petugas_id:original.petugas_id,
     verifikasi_identitas:false}),/mengonfirmasi/);
- f.tab.getSheetByName=(name)=>name==='padanan_petugas' && f.tab.padanan_petugas?{
-    getDataRange:()=>({getDisplayValues:()=>f.tab.padanan_petugas}),
-    appendRow:(row)=>f.tab.padanan_petugas.push(row)
- }:null;
- f.tab.insertSheet=(name)=>{
-   assert.equal(name,'padanan_petugas');
-   f.tab.padanan_petugas=[];
-   return {
-     getRange:()=>({setValues:(vals)=>f.tab.padanan_petugas.push(...vals)}),
-     setFrozenRows:()=>{},
-     getDataRange:()=>({getDisplayValues:()=>f.tab.padanan_petugas}),
-     appendRow:(row)=>f.tab.padanan_petugas.push(row)
-   };
- };
  const result=f.api.link('admin',{alias_monitoring:alias,petugas_id:original.petugas_id,
     verifikasi_identitas:true});
  assert.equal(result.success,true);
@@ -212,15 +215,21 @@ test('link confirmed same-name monitoring alias to one existing petugas and pres
  assert.equal(f.tab.tindak_lanjut[0].catatan,'Tetap tersimpan');
  assert.equal(f.tab.kontak[0].isi_pesan,'Tetap tersimpan');
 });
-test('linking only permits exactly matching verified names on active assignments',()=>{
- const f=fixture(),alias='monitor:'+'a'.repeat(32);
- f.tab.sumber_assignment.push({ppl_id:alias,ppl:'Cici Baru',pml_id:'',
+test('Admin can link a differently formatted name or original FASIH ID after verifying identity',()=>{
+ const f=fixture(),alias=monitorId('AndiFASIH');
+ const target=f.tab.petugas[0].petugas_id;
+ f.tab.sumber_assignment.push({ppl_id:alias,ppl:'AndiFASIH',pml_id:'',
   survei:'VIMK_TH26',survey_period_id:'periode-IMK'});
- assert.throws(()=>f.api.link('admin',{
-  alias_monitoring:alias,petugas_id:'id-fasih-000000001',verifikasi_identitas:true
- }),/Nama monitoring tidak sama/);
- f.tab.sumber_assignment[f.tab.sumber_assignment.length-1].survey_period_id='periode-ARSIP';
- assert.throws(()=>f.api.link('admin',{
-  alias_monitoring:alias,petugas_id:'id-fasih-000000001',verifikasi_identitas:true
- }),/tidak ada pada assignment survei aktif/);
+ const req={alias_monitoring:alias,petugas_id:target,verifikasi_identitas:true};
+ const row=f.tab.sumber_assignment.at(-1);
+ row.survey_period_id='periode-ARSIP';
+ assert.throws(()=>f.api.link('admin',req),/tidak ada pada assignment survei aktif/);
+ row.survey_period_id='periode-IMK';
+ row.ppl='Nama Tidak Sesuai Alias';
+ assert.throws(()=>f.api.link('admin',req),/Alias tidak sesuai/);
+ row.ppl='AndiFASIH';
+ assert.equal(f.api.link('admin',req).nama,'Andi');
+ assert.equal(f.api.link('admin',{...req,alias_monitoring:'id-fasih-000000002'}).success,true);
+ assert.throws(()=>f.api.save('admin',{mode:'tambah',petugas_id:alias,nama:'AndiFASIH',
+   nomor_whatsapp:'081355553333',aktif:true,verifikasi_alias:true}),/sudah ditautkan/);
 });

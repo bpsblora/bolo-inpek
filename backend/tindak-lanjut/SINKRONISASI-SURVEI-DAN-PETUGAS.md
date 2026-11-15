@@ -30,8 +30,8 @@ Pemicu dipasang **satu kali** pada login Admin saat fungsi sinkronisasi dipanggi
 
 - Pencocokan nama menggunakan normalisasi Unicode, huruf kecil/besar, serta spasi ganda. **Biodata `petugas` yang telah dikelola Admin diprioritaskan** daripada identitas dari `sumber_petugas`.
 - Jika nama **dan ID FASIH** cocok dengan satu petugas terdaftar, penugasan langsung memakai ID lama, termasuk ketika petugas bekerja di survei lain.
-- Jika **hanya nama yang sama** tetapi ID FASIH belum ada atau berbeda—termasuk jika terdapat beberapa biodata bernama sama—sistem tidak langsung menyamakan orangnya. Panel **Petugas Baru Terdeteksi** menawarkan **Tautkan ke Petugas Terdaftar** dengan empat digit akhir WhatsApp untuk pembeda. Admin memverifikasi identitas lalu menyetujui dialog konfirmasi.
-- Konfirmasi disimpan di tab baru **`padanan_petugas`** (dibuat otomatis saat diperlukan). Berkas ini hanya mencatat `alias_monitoring,petugas_id,nama_monitoring,waktu_taut,ditautkan_oleh`. Riwayat `kontak` dan `tindak_lanjut` tidak diubah.
+- Panel **Petugas Belum Didaftarkan** menyediakan **Tautkan Petugas** pada setiap kandidat. Nama yang cocok muncul sebagai saran. Admin bisa memilih biodata lain untuk variasi ejaan, memeriksa email dan empat angka akhir WhatsApp, lalu mengonfirmasi identitas.
+- Konfirmasi disimpan di tab **`padanan_petugas`**. Kolom `alias_monitoring` memuat alias monitoring atau ID FASIH kandidat. Penautan memakai biodata tujuan saat sinkronisasi dan mempertahankan riwayat `kontak` dan `tindak_lanjut`.
 - Apabila petugas benar-benar berbeda meskipun namanya sama, pilih **Daftarkan Baru** untuk membuat biodata terpisah.
 - Jangan menganggap kecocokan nama sebagai verifikasi kepemilikan nomor WhatsApp. Admin tetap wajib memastikan orang yang dihubungi benar sebelum mengirim pengingat.
 

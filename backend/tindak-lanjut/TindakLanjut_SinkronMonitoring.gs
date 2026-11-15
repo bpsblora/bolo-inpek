@@ -88,7 +88,9 @@ function tlMonLinkMap_(db){
   values.slice(1).forEach((row,n)=>{
     const alias=tlMonText_(row[0]),target=tlMonText_(row[1]),name=tlMonText_(row[2]);
     if(!alias&&!target&&!name)return;
-    if(!/^monitor:[a-f0-9]{32}$/.test(alias)||tlMonAlias_(name)!==alias||!registered.has(target))
+    if(!/^[a-zA-Z0-9_.:-]{8,100}$/.test(alias)||
+      (alias.startsWith('monitor:')&&(!name||tlMonAlias_(name)!==alias))||
+      !registered.has(target)||alias===target)
       throw Error('Padanan petugas tidak valid pada baris '+(n+2)+'.');
     if(map.has(alias)&&map.get(alias)!==target)
       throw Error('Alias petugas memiliki dua tujuan berbeda. Periksa padanan_petugas.');
@@ -100,8 +102,9 @@ function tlMonPersonId_(name,map,links){
   const k=tlMonNormalize_(name);
   if(!k||['belum dialokasikan','belum ditetapkan','-','tidak ada'].includes(k))return '';
   const alias=tlMonAlias_(name);
+  const id=map.get(k)||alias;
   // Tautan yang sudah dikonfirmasi admin mengatasi ambiguitas nama.
-  return (links&&links.get(alias))||map.get(k)||alias;
+  return links?.get(alias)||links?.get(id)||id;
 }
 function tlMonBuild_(src,db){
   const config=tlMonRead_(src,'konfigurasi_survei',

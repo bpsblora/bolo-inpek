@@ -173,3 +173,21 @@ test('same-name collision among registered profiles is not automatically merged'
  assert.equal(f.data.kontak[1][1],'Jangan diubah');
  assert.equal(f.data.tindak_lanjut[1][1],'Jangan diubah');
 });
+
+test('Admin-confirmed links for a spelling variant and a FASIH ID survive synchronization',()=>{
+ const f=fixture();
+ f.data.sumber_petugas.push(['fasih-variation','Nama Sumber','','']);
+ f.source.monitoring[2][4]='Nama Sumber';
+ f.api.run('admin');
+ const alias=f.data.sumber_assignment[2][7];
+ assert.equal(f.data.sumber_assignment[2][9],'fasih-variation');
+ f.data.padanan_petugas=[
+   ['alias_monitoring','petugas_id','nama_monitoring','waktu_taut','ditautkan_oleh'],
+   [alias,'fasih-sari','Baru','2026-11-15T00:00:00Z','admin@bps.go.id'],
+   ['fasih-variation','fasih-budi','Nama Sumber','2026-11-15T00:00:00Z','admin@bps.go.id']
+ ];
+ assert.equal(f.api.run('admin').berubah,true);
+ assert.equal(f.data.sumber_assignment[2][7],'fasih-sari');
+ assert.equal(f.data.sumber_assignment[2][9],'fasih-budi');
+ assert.equal(f.api.run('admin').berubah,false);
+});
