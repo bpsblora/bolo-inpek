@@ -401,13 +401,17 @@
 }
 </style>
 <style>
-.survey-admin-top{margin-left:auto;display:flex;align-items:center;gap:8px}
-#adminTools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.survey-admin-top{margin-left:auto;min-width:0}
+.survey-admin-top:has(#adminTools:not([hidden])){flex:1 1 690px}
+#adminTools{display:grid;gap:10px}
 #adminTools[hidden],#adminEnter[hidden]{display:none!important}
+.admin-session{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.admin-actions{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.admin-actions .survey-admin-btn{min-width:0;min-height:42px;text-align:center;white-space:normal;padding-inline:10px}
 #adminEnter{background:#fff;border-color:#fff;color:#174478;box-shadow:0 4px 13px #052d5825}
 #adminEnter:hover{background:#e1efff}
-#adminInfo{font-size:11px;font-weight:800;color:#edf5ff;padding:6px 8px;border-radius:9px;border:1px solid #ffffff30;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#adminExit{border-color:#e4b3be;background:#ffecef;color:#893342}
+#adminInfo{font-size:11px;font-weight:800;color:#edf5ff;padding:6px 8px;border-radius:9px;border:1px solid #ffffff30;min-width:0;overflow-wrap:anywhere}
+#adminExit{flex:none;border-color:#e4b3be;background:#ffecef;color:#893342}
 #adminExit:hover{background:#ffdae0}
 #adminTlMenu{border-color:#b7d8ff;background:#e8f2ff;color:#174478}
 #adminStaffMenu{gap:7px}
@@ -415,13 +419,10 @@
   min-width:22px;height:22px;padding:0 6px;border-radius:16px;background:#bd512b;
   color:#fff;font:850 11px/1 Arial,sans-serif}
 #adminStaffPending[hidden]{display:none!important}
-@media(max-width:890px){.survey-admin-top{justify-content:flex-start}#adminTools{justify-content:flex-start}#adminInfo{max-width:100%}}
-@media(max-width:600px){#adminTools{width:100%}#adminTools .survey-admin-btn{flex:1 1 155px}#adminEnter{width:100%}}
 .survey-admin-btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;border:1px solid #a8c8f1;background:#e8f2ff;color:#174478;border-radius:10px;padding:10px 15px;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap}
 .survey-admin-btn:hover{background:#d6e8ff}
 .bolo-updater-btn{background:#fff;color:#16457a;border-color:#fff}
 .bolo-updater-btn:hover{background:#e0efff}
-@media(max-width:780px){.survey-admin-top{flex-wrap:wrap}.bolo-updater-btn{width:100%}}
 
 #surveyAdminModal{border:0;border-radius:16px;width:min(1150px,96vw);height:min(850px,92vh);padding:0;box-shadow:0 24px 90px #092f5666;overflow:hidden}
 #surveyAdminModal::backdrop{background:#0e2b4d99}
@@ -445,7 +446,13 @@
 #surveyAdminArchiveGuide button:hover{background:#124878}
 @media(max-width:525px){.survey-admin-switcher{padding:8px;gap:6px}.survey-admin-tab{flex:1 1 128px}.survey-admin-sync{width:100%;margin:0}}
 .survey-admin-help{padding:28px;line-height:1.7;color:#3b516b}
-@media(max-width:780px){.header-inner{flex-wrap:wrap}.survey-admin-top{margin:0;width:100%}.survey-admin-btn{width:100%}}
+@media(max-width:920px){
+  .header-inner{flex-wrap:wrap}
+  .survey-admin-top:has(#adminTools:not([hidden])){flex-basis:100%}
+  .admin-actions{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:780px){.survey-admin-top{margin:0;width:100%}#adminEnter{width:100%}}
+@media(max-width:600px){.admin-actions{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 <style>
 /* Pop-up 1: daftar assignment, tidak mempengaruhi dashboard di belakangnya. */
@@ -685,14 +692,18 @@ body.bolo-loading-active{overflow:hidden}
     </div>
     <div class="survey-admin-top">
       <button type="button" class="survey-admin-btn" id="adminEnter" title="Masuk memakai email ADMIN yang telah terdaftar pada database Tindak Lanjut">🔐 Masuk Admin INPEK</button>
-      <div id="adminTools" hidden aria-label="Menu Admin INPEK">
-        <span id="adminInfo" role="status" aria-live="polite"></span>
-        <button type="button" class="survey-admin-btn" id="refreshBoloData" title="Ambil data terbaru tanpa menghapus filter yang sedang dipilih">↻ Muat Ulang Data</button>
-        <button type="button" class="survey-admin-btn" id="openSurveyAdmin">⚙ Kelola Survei</button>
-        <a class="survey-admin-btn bolo-updater-btn" id="boloUpdaterOpen" href="https://github.com/bpsblora/bolo-inpek-appscript/releases/latest/download/BOLO-INPEK-Updater-Windows.zip" target="_blank" rel="noopener noreferrer" title="Unduh Updater Windows terbaru dari GitHub privat. Login GitHub diperlukan.">↻ Perbarui Survei</a>
-        <button type="button" class="survey-admin-btn" id="adminTlMenu">✎ Tindak Lanjut</button>
-        <button type="button" class="survey-admin-btn" id="adminStaffMenu" title="Tambah dan perbarui biodata petugas, email, dan nomor WhatsApp">♙ Kelola Petugas <span id="adminStaffPending" hidden aria-label="Petugas baru belum didaftarkan"></span></button>
-        <button type="button" class="survey-admin-btn" id="adminExit">Keluar</button>
+      <div id="adminTools" hidden role="group" aria-label="Menu Admin INPEK">
+        <div class="admin-session">
+          <span id="adminInfo" role="status" aria-live="polite"></span>
+          <button type="button" class="survey-admin-btn" id="adminExit">Keluar</button>
+        </div>
+        <div class="admin-actions">
+          <button type="button" class="survey-admin-btn" id="refreshBoloData" title="Ambil data terbaru tanpa menghapus filter yang sedang dipilih">↻ Muat Ulang Data</button>
+          <button type="button" class="survey-admin-btn" id="openSurveyAdmin">⚙ Kelola Survei</button>
+          <a class="survey-admin-btn bolo-updater-btn" id="boloUpdaterOpen" href="https://github.com/bpsblora/bolo-inpek-appscript/releases/latest/download/BOLO-INPEK-Updater-Windows.zip" target="_blank" rel="noopener noreferrer" title="Unduh Updater Windows terbaru dari GitHub privat. Login GitHub diperlukan.">↻ Perbarui Survei</a>
+          <button type="button" class="survey-admin-btn" id="adminTlMenu">✎ Tindak Lanjut</button>
+          <button type="button" class="survey-admin-btn" id="adminStaffMenu" title="Tambah dan perbarui biodata petugas, email, dan nomor WhatsApp">♙ Kelola Petugas <span id="adminStaffPending" hidden aria-label="Petugas baru belum didaftarkan"></span></button>
+        </div>
       </div>
     </div>
   </div>
