@@ -405,9 +405,9 @@
 .survey-admin-top:has(#adminTools:not([hidden])){flex:1 1 690px}
 #adminTools{display:grid;gap:10px}
 #adminTools[hidden],#adminEnter[hidden]{display:none!important}
-.admin-session{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.admin-actions{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
-.admin-actions .survey-admin-btn{min-width:0;min-height:42px;text-align:center;white-space:normal;padding-inline:10px}
+.admin-session{display:flex;align-items:center;justify-content:flex-end;gap:10px}
+.admin-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px}
+.admin-actions .survey-admin-btn{min-height:42px}
 #adminEnter{background:#fff;border-color:#fff;color:#174478;box-shadow:0 4px 13px #052d5825}
 #adminEnter:hover{background:#e1efff}
 #adminInfo{font-size:11px;font-weight:800;color:#edf5ff;padding:6px 8px;border-radius:9px;border:1px solid #ffffff30;min-width:0;overflow-wrap:anywhere}
@@ -415,7 +415,7 @@
 #adminExit:hover{background:#ffdae0}
 #adminTlMenu{border-color:#b7d8ff;background:#e8f2ff;color:#174478}
 #adminStaffMenu{gap:7px}
-#adminStaffPending{display:inline-flex;align-items:center;justify-content:center;
+#adminStaffPending{display:inline-flex;align-items:center;justify-content:center;flex:none;
   min-width:22px;height:22px;padding:0 6px;border-radius:16px;background:#bd512b;
   color:#fff;font:850 11px/1 Arial,sans-serif}
 #adminStaffPending[hidden]{display:none!important}
@@ -423,6 +423,8 @@
 .survey-admin-btn:hover{background:#d6e8ff}
 .bolo-updater-btn{background:#fff;color:#16457a;border-color:#fff}
 .bolo-updater-btn:hover{background:#e0efff}
+#refreshBoloData{display:none;margin-top:12px;padding:6px 10px;font-size:12px}
+body:has(#adminTools:not([hidden])) #refreshBoloData{display:inline-flex}
 
 #surveyAdminModal{border:0;border-radius:16px;width:min(1150px,96vw);height:min(850px,92vh);padding:0;box-shadow:0 24px 90px #092f5666;overflow:hidden}
 #surveyAdminModal::backdrop{background:#0e2b4d99}
@@ -449,10 +451,9 @@
 @media(max-width:920px){
   .header-inner{flex-wrap:wrap}
   .survey-admin-top:has(#adminTools:not([hidden])){flex-basis:100%}
-  .admin-actions{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
 @media(max-width:780px){.survey-admin-top{margin:0;width:100%}#adminEnter{width:100%}}
-@media(max-width:600px){.admin-actions{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.admin-actions .survey-admin-btn{flex:1 0 auto;padding-inline:10px}}
 </style>
 <style>
 /* Pop-up 1: daftar assignment, tidak mempengaruhi dashboard di belakangnya. */
@@ -698,7 +699,6 @@ body.bolo-loading-active{overflow:hidden}
           <button type="button" class="survey-admin-btn" id="adminExit">Keluar</button>
         </div>
         <div class="admin-actions">
-          <button type="button" class="survey-admin-btn" id="refreshBoloData" title="Ambil data terbaru tanpa menghapus filter yang sedang dipilih">↻ Muat Ulang Data</button>
           <button type="button" class="survey-admin-btn" id="openSurveyAdmin">⚙ Kelola Survei</button>
           <a class="survey-admin-btn bolo-updater-btn" id="boloUpdaterOpen" href="https://github.com/bpsblora/bolo-inpek-appscript/releases/latest/download/BOLO-INPEK-Updater-Windows.zip" target="_blank" rel="noopener noreferrer" title="Unduh Updater Windows terbaru dari GitHub privat. Login GitHub diperlukan.">↻ Perbarui Survei</a>
           <button type="button" class="survey-admin-btn" id="adminTlMenu">✎ Tindak Lanjut</button>
@@ -799,6 +799,7 @@ body.bolo-loading-active{overflow:hidden}
           Waktu selesai pengambilan data dari FASIH-SM
           <br>Survei Statistik INPEK BPS Kabupaten Blora 
         </p>
+        <button type="button" class="survey-admin-btn" id="refreshBoloData" title="Baca ulang data yang sudah tersimpan tanpa menghapus filter yang sedang dipilih">↻ Muat Ulang Data</button>
       </section>
       <section class="monitoring-info-card monitoring-status-card" aria-labelledby="statusExplanationTitle">
         <h2 class="monitoring-info-title" id="statusExplanationTitle">Keterangan Status</h2>
