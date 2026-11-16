@@ -124,10 +124,13 @@ test('Apps Script verifies ADMIN role through apiLogin and exposes no token to p
   assert.match(tl,/const x = await rpc\('apiLogin', \$\('email'\)\.value\)/);
   assert.match(tl,/BOLO_ADMIN_GATE_NONCE && x\?\.operator\?\.peran!=='ADMIN'/);
   assert.match(tl,/notifyDashboardAdmin\('BOLO_INPEK_ADMIN_VERIFIED'/);
-  assert.match(tl,/BOLO_INPEK_ADMIN_LOGOUT/);
+  assert.doesNotMatch(tl,/id="(?:logout|keluarSelesai)"/);
   assert.match(tl,/ancestor\.postMessage\(message,BOLO_ADMIN_PARENT\)/);
   assert.match(tl,/Pilih Survei dan Periode/);
-  assert.match(tl,/id="openCompletedTL"/);
+  assert.doesNotMatch(tl,/id="(?:openCompletedTL|openStaffTL|closeMenu)"/);
+  assert.match(tl,/method==='close'/);
+  assert.match(tl,/method==='restore'/);
+  assert.match(tl,/BOLO_INPEK_ADMIN_SHOW_PETUGAS/);
   assert.match(tl,/id="backToTL"/);
   assert.doesNotMatch(tl,/postMessage\([^;\n]*token\b/);
   const js=tl.split('<script>')[1].split('</script>')[0];
