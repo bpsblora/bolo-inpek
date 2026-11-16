@@ -13,6 +13,7 @@ const padding='/*'+'.'.repeat(1200)+'*/';
 const staffCode='function apiDaftarPetugasAdmin(){};function apiSimpanPetugasAdmin(){}'+padding;
 const monitoringCode='function apiSinkronMonitoring(){};function apiPratinjauSinkronMonitoring(){}'+padding;
 const automaticCode='function apiStatusDeteksiOtomatis(){};function apiAktifkanDeteksiOtomatis(){}'+padding;
+const lifecycleCode='function apiKelolaSiklusSurvei(){};function tlSurveyClose_(){};function tlSurveyRestore_(){}'+padding;
 function fixture({backend=true,html=true,manifest=true}={}){
   const d=mkdtempSync(join(tmpdir(),'bolo-tl-test-'));
   const repoRoot=join(d,'repo'),liveDir=join(d,'live');
@@ -26,8 +27,12 @@ function fixture({backend=true,html=true,manifest=true}={}){
     monitoringCode);
   writeFileSync(join(repoRoot,'backend','tindak-lanjut','TindakLanjut_DeteksiOtomatis.gs'),
     automaticCode);
+  writeFileSync(join(repoRoot,'backend','tindak-lanjut','TindakLanjut_SiklusSurvei.gs'),
+    lifecycleCode);
   if(backend)writeFileSync(join(liveDir,'KodeV2.js'),
-    'function doGet(){return HtmlService.createTemplateFromFile("Index_TindakLanjutV2");}\nconst privateKey="retained";');
+    'function doGet(){return HtmlService.createTemplateFromFile("Index_TindakLanjutV2");}\nconst privateKey="retained";\n'+
+    'function apiTutup(token,k,note,confirmed) {\n  return snapshot_(null,k);\n}\n'+
+    'function apiBukaKembali(token,pilihan,confirmed) {\n  return pilihan.status_operasional;\n}');
   if(html)writeFileSync(join(liveDir,'Index_TindakLanjutV2.html'),'<p>Old</p>');
   if(manifest)writeFileSync(join(liveDir,'appsscript.json'),'{"timeZone":"Asia/Jakarta"}');
   writeFileSync(join(liveDir,'TindakLanjut_AuditIntegritas.js'),'function stay(){}');
@@ -64,15 +69,18 @@ test('requires exactly one deployed existing web app URL',()=>{
  assert.throws(()=>deploymentIdFromIndex(index+index),/ganda/);
 });
 
-test('explicit backend mode installs only three allowlisted scripts and preserves core',()=>{
+test('explicit backend mode installs allowlisted scripts and updates only the lifecycle entry points',()=>{
  const f=fixture();try{
   const before=readFileSync(join(f.liveDir,'KodeV2.js'),'utf8');
   const r=stageSync({...f,includeBackend:true});
   assert.equal(r.changed,true);
   assert.deepEqual(r.backendChanged,
-    ['TindakLanjut_KelolaPetugas','TindakLanjut_SinkronMonitoring','TindakLanjut_DeteksiOtomatis']);
-  assert.equal(r.filesCreated,3);
-  assert.equal(readFileSync(join(f.liveDir,'KodeV2.js'),'utf8'),before);
+    ['TindakLanjut_KelolaPetugas','TindakLanjut_SinkronMonitoring','TindakLanjut_DeteksiOtomatis',
+     'TindakLanjut_SiklusSurvei','KodeV2']);
+  assert.equal(r.filesCreated,4);
+  const after=readFileSync(join(f.liveDir,'KodeV2.js'),'utf8');
+  assert.equal(after,before.replace('snapshot_(null,k)','tlSurveyClose_(token,k,note,confirmed)')
+    .replace('pilihan.status_operasional','tlSurveyRestore_(token,pilihan,confirmed)'));
   assert.equal(readFileSync(join(f.liveDir,'TindakLanjut_KelolaPetugas.js'),'utf8'),
     staffCode);
   assert.equal(readFileSync(join(f.liveDir,'TindakLanjut_DeteksiOtomatis.js'),'utf8'),
@@ -104,3 +112,4 @@ test('backend mode rejects wrong or malformed source before clasp push',()=>{
   assert.throws(()=>stageSync({...f,includeBackend:true}),SyntaxError);
  }finally{f.done()}
 });
+

@@ -1307,9 +1307,36 @@ window.addEventListener('message',event=>{
     action(staffOpen);
   }else if(msg.type==='BOLO_INPEK_ADMIN_SHOW_TL'){
     if(!$('staffPanel').hidden || !$('halamanSelesai').hidden)staffReturnHome();
+  }else if(msg.type==='BOLO_INPEK_SURVEY_REQUEST'){
+    handleSurveyRequest(msg);
   }
 });
 
+async function handleSurveyRequest({requestId,method,surveyId,periodId,note}){
+  if(typeof requestId!=='string'||requestId.length>80)return;
+  try{
+    let result;
+    if(method==='list'){
+      result=await rpc('apiKelolaSiklusSurvei',token);
+    }else{
+      const ids={survey_id:surveyId,survey_period_id:periodId};
+      if(![surveyId,periodId].every(id=>typeof id==='string'&&id.length>0&&id.length<=100))
+        throw Error('ID survei dan periode belum valid.');
+      if(method==='close'){
+        if(!await tlEnsureMonitoring(true))
+          throw Error('Sinkronisasi Monitoring belum berhasil. Muat ulang sebelum menutup survei.');
+        result=await rpc('apiTutup',token,key(ids),String(note||'').trim(),true);
+      }else if(method==='restore'){
+        result=await rpc('apiBukaKembali',token,ids,true);
+      }else{
+        throw Error('Tindakan survei tidak dikenal.');
+      }
+    }
+    notifyDashboardAdmin('BOLO_INPEK_SURVEY_RESULT',{requestId,method,result});
+  }catch(e){
+    notifyDashboardAdmin('BOLO_INPEK_SURVEY_RESULT',{requestId,method,error:e.message||String(e)});
+  }
+}
 
 $('loginForm').onsubmit = e => {
   e.preventDefault();
@@ -1556,7 +1583,7 @@ $('closeBtn').onclick=async()=>{
   const ok=await tlConfirm({
     judul:'Arsipkan dan tutup periode survei?',
     target:s.nama_survei+' — '+s.nama_periode,
-    pesan:'Sistem akan membuat arsip Google Sheets, memverifikasi salinannya, lalu menandai periode sebagai DITUTUP. Survei akan disembunyikan dari monitoring berjalan.',
+     pesan:'Sistem akan menyimpan dan memverifikasi rekap Google Sheets untuk periode ini. Survei selesai disembunyikan dari Dashboard dan dilewati Updater.',
     catatan:'Setelah arsip berhasil diverifikasi, catatan tindak lanjut yang aktif pada periode ini dibersihkan dari database operasional. Riwayat tetap tersimpan di file arsip dan tidak hilang.',
     tombol:'Arsipkan & Tutup',
     tone:'warning'
@@ -1567,7 +1594,8 @@ $('closeBtn').onclick=async()=>{
     try{
       const x=await rpc('apiTutup',token,key(s),catatan,true);
       await load();
-      notice('Periode berhasil ditutup dan arsip diverifikasi. Klik Perbarui Dashboard di Kelola Survei untuk menyegarkan monitoring.');
+       notice('Survei selesai. Rekap dan catatan telah disimpan.');
+       notifyDashboardAdmin('BOLO_INPEK_SURVEY_CHANGED');
       const a=document.createElement('a');a.href=x.url;a.target='_blank';a.rel='noopener noreferrer';a.textContent='Buka arsip survei';
       $('notice').append(document.createElement('br'),a);
     }catch(e){
@@ -1630,7 +1658,7 @@ async function tampilkanSurveiSelesai() {
             judul: 'Tampilkan kembali survei ini?',
             target: s.nama_survei + ' — ' + s.nama_periode,
             pesan: 'Periode survei akan diaktifkan kembali agar dapat ditampilkan pada monitoring berjalan. Arsip hasil penutupan sebelumnya tetap tersimpan dan tidak dihapus.',
-            catatan: 'Riwayat lama tetap berada di file arsip, bukan otomatis dikembalikan sebagai catatan aktif. Setelah berhasil, klik Perbarui Dashboard pada menu Kelola Survei.',
+             catatan: 'Saat survei selesai lagi, spreadsheet rekap yang sama diperbarui dan catatan sebelumnya tetap tersimpan.',
             tombol: 'Tampilkan Kembali',
             tone: 'restore'
           });
@@ -1642,7 +1670,8 @@ async function tampilkanSurveiSelesai() {
               survey_period_id: s.survey_period_id
             }, true);
             await tampilkanSurveiSelesai();
-            notice('Survei berhasil diaktifkan kembali. Kembali ke Kelola Survei lalu klik Perbarui Dashboard agar kartu diperiksa dan dimunculkan sesuai filter aktif.');
+             notice('Survei dipulihkan. Kartu kembali tampil jika konfigurasi surveinya aktif.');
+             notifyDashboardAdmin('BOLO_INPEK_SURVEY_CHANGED');
           });
         };
 
@@ -1674,3 +1703,4 @@ $('keluarSelesai').onclick = () => action(async () => {
 });
 
 </script></body></html>
+

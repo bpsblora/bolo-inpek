@@ -16,7 +16,9 @@ const BACKEND_FILES=[
   {source:'backend/tindak-lanjut/TindakLanjut_SinkronMonitoring.gs',
    base:'TindakLanjut_SinkronMonitoring',functions:['apiSinkronMonitoring','apiPratinjauSinkronMonitoring']},
   {source:'backend/tindak-lanjut/TindakLanjut_DeteksiOtomatis.gs',
-   base:'TindakLanjut_DeteksiOtomatis',functions:['apiStatusDeteksiOtomatis','apiAktifkanDeteksiOtomatis']}
+   base:'TindakLanjut_DeteksiOtomatis',functions:['apiStatusDeteksiOtomatis','apiAktifkanDeteksiOtomatis']},
+  {source:'backend/tindak-lanjut/TindakLanjut_SiklusSurvei.gs',
+   base:'TindakLanjut_SiklusSurvei',functions:['apiKelolaSiklusSurvei','tlSurveyClose_']}
 ];
 
 export function validateHtml(source) {
@@ -107,6 +109,13 @@ export function stageSync({repoRoot,liveDir,includeBackend=false}) {
   // Push otomatis, bila diaktifkan kelak, selalu HTML-only.
   const extra=includeBackend?stageBackend({repoRoot,liveDir}):
     {changedFiles:[],createdFiles:[]};
+  if(includeBackend){
+    const updated=stageSurveyLifecycle(script);
+    if(updated!==script){
+      writeFileSync(join(liveDir,backend),updated,'utf8');
+      extra.changedFiles.push('KodeV2');
+    }
+  }
   const after=readdirSync(liveDir);
   const added=new Set(extra.createdFiles.map(x=>x.split(/[\\/]/).at(-1)));
   const expected=new Set([...all,...added]);
@@ -120,8 +129,42 @@ export function stageSync({repoRoot,liveDir,includeBackend=false}) {
     deploymentId
   };
 }
+export function stageSurveyLifecycle(source) {
+  let next=source;
+  const entries=[
+    {name:'apiTutup',args:'token,k,note,confirmed',target:'tlSurveyClose_',guard:/\bsnapshot_\s*\(/},
+    {name:'apiBukaKembali',args:'token,pilihan,confirmed',target:'tlSurveyRestore_',guard:/\bstatus_operasional\b/}
+  ];
+  for(const {name,args,target,guard} of entries){
+    const matches=[...next.matchAll(new RegExp('^function '+name+'\\s*\\([^\\n]*\\)\\s*\\{','gm'))];
+    if(matches.length!==1)throw Error('Fungsi '+name+' tidak ditemukan secara unik di KodeV2.');
+    const start=matches[0].index;
+    const end=next.indexOf('\n}',start);
+    if(end<0)throw Error('Akhir fungsi '+name+' tidak ditemukan.');
+    const before=next.slice(start,end+2);
+    const delegate='function '+name+'('+args+') {\n  return '+target+'('+args+');\n}';
+    if(before!==delegate && !guard.test(before))
+      throw Error('Isi fungsi '+name+' berbeda dari kontrak produksi.');
+    next=next.slice(0,start)+delegate+next.slice(end+2);
+  }
+  const closedOnly=".filter(s => s.status_operasional === 'DITUTUP')";
+  const block="if (p.action === 'closed')";
+  const endpointStart=next.indexOf(block);
+  if(endpointStart>=0){
+    const endpointEnd=next.indexOf('.map(',endpointStart);
+    const prefix=next.slice(endpointStart,endpointEnd);
+    if(prefix.includes(closedOnly)){
+      const amended=prefix.replace(closedOnly,
+        ".filter(s => ['DITUTUP','PENGARSIPAN'].includes(s.status_operasional))");
+      next=next.slice(0,endpointStart)+amended+next.slice(endpointEnd);
+    }
+  }
+  new Script(next,{filename:'KodeV2'});
+  return next;
+}
 export function publishToActionsEnv(report,envFile){
   if(!envFile)return;
   appendFileSync(envFile,'TL_SYNC_CHANGED='+String(report.changed)+'\n');
   appendFileSync(envFile,'TL_DEPLOYMENT_ID='+report.deploymentId+'\n');
 }
+
