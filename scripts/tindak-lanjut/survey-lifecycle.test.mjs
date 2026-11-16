@@ -10,18 +10,19 @@ const key_=r=>JSON.stringify([r.survey_id,r.survey_period_id]);
 function stub(){
   const record={...survey};
   const archive=[],notes=[],books=[];
-  let failTable='', registryActive=true, periodActive=true;
+  let failTable='', failTrash=false, googleEmail='admin', registryActive=true, periodActive=true;
   function book(){
     const sheets=new Map();
     const value={
-      sheets,getId:()=>String(books.indexOf(value)+1),
+      sheets,trashed:false,deleted:false,getId:()=>String(books.indexOf(value)+1),
       getUrl:()=> 'https://docs.google.com/spreadsheets/d/'+value.getId(),
       getSheetByName:n=>sheets.get(n),sheet(n,rows){
         const table={
           rows:rows.map(row=>[...row]),getDataRange:()=>({getDisplayValues:()=>table.rows}),
           getLastRow:()=>table.rows.length,getMaxRows:()=>100,
-          getRange(start,_,length){
+          getRange(start,column,length){
             const range={setNumberFormat:()=>range,setValues(values){table.rows.splice(start-1,length,...values)},
+              setValue(value){table.rows[start-1][column-1]=value},
               getDisplayValues:()=>table.rows.slice(start-1,start-1+length)};
             return range;
           }
@@ -32,10 +33,16 @@ function stub(){
     books.push(value);
     return value;
   }
+  const db=book();
+  books.length=0;
   const env={
     SpreadsheetApp:{
       openById(id){
-        if(id!=='monitor')return books[Number(id)-1];
+        if(id!=='monitor'){
+          const result=books[Number(id)-1];
+          if(!result||result.trashed||result.deleted)throw Error('File lama tidak tersedia');
+          return result;
+        }
         return {getSheetByName(tab){
           const config=tab==='konfigurasi_survei';
           return {
@@ -47,10 +54,24 @@ function stub(){
         }};
       },create:book,flush(){}
     },
-    DriveApp:{getFileById:()=>({moveTo(){}}),getFolderById:()=>({})},
+    DriveApp:{
+      getFileById(id){
+        const result=books[Number(id)-1];
+        if(!result||result.deleted)throw Error('File lama tidak tersedia');
+        return {
+          moveTo(){},isTrashed:()=>result.trashed,
+          getParents(){
+            let available=true;
+            return {hasNext:()=>available,next(){available=false;return {getId:()=> 'folder'}}};
+          },
+          setTrashed(value){if(failTrash)throw Error('Simulasi gagal pindah ke Sampah');result.trashed=value}
+        };
+      },getFolderById:()=>({})
+    },
+    Session:{getActiveUser:()=>({getEmail:()=>googleEmail})},
     TL:{folder:'folder',headers:{tindak_lanjut:['riwayat_id','assignment_id','catatan'],kontak:['kontak_id']}},
     TL_MON:{id:'monitor'},lock_:fn=>fn(),session_:token=>{if(token!=='admin')throw Error('Admin');return {email:'admin'}},
-    db_:()=>null,read_:(_,tab)=>tab==='arsip'?archive:[record],survey_:()=>({...record}),key_,
+    db_:()=>db,read_:(_,tab)=>tab==='arsip'?archive:[record],survey_:()=>({...record}),key_,
     text_:String,safe_:String,now_:()=> '2026-11-16T01:00:00Z',uid_:()=>String(archive.length+1),
     patch_:(_,tab,row,change)=>Object.assign(tab==='arsip'?archive[row-2]:record,change),
     append_:(_,tab,rows)=>rows.forEach(r=>archive.push({...r,_row:archive.length+2})),
@@ -63,9 +84,9 @@ function stub(){
   createContext(env);
   runInContext(source,env);
   return {env,record,archive,books,notes,active:()=>[registryActive,periodActive],
-    fail(name){failTable=name}};
+    fail(name){failTable=name},failTrash(value){failTrash=value},googleEmail(value){googleEmail=value}};
 }
-test('close → restore → close writes to one spreadsheet and preserves old and new notes',()=>{
+test('close → restore → close creates a new spreadsheet with all notes after old file expires',()=>{
   const s=stub(),k=key_(survey);
   assert.throws(()=>s.env.apiKelolaSiklusSurvei('operator'),/Admin/);
   s.notes.push({riwayat_id:'first',assignment_id:'one',catatan:'Catatan awal'});
@@ -75,6 +96,9 @@ test('close → restore → close writes to one spreadsheet and preserves old an
   s.env.tlSurveyRestore_('admin',survey,true);
   assert.equal(s.record.status_operasional,'AKTIF');
   assert.deepEqual(s.active(),[true,true]);
+  assert.equal(s.books[0].trashed,true);
+  assert.equal(s.env.apiKelolaSiklusSurvei('admin')[0].arsip_url,'');
+  s.books[0].deleted=true;
   s.notes.push({riwayat_id:'second',assignment_id:'one',catatan:'Catatan setelah pulih'});
   s.fail('Ringkasan');
   assert.throws(()=>s.env.tlSurveyClose_('admin',k,'Penutupan kedua',true),/gagal tulis/);
@@ -83,12 +107,42 @@ test('close → restore → close writes to one spreadsheet and preserves old an
   assert.deepEqual(s.active(),[false,false]);
   s.fail('');
   const second=s.env.tlSurveyClose_('admin',k,'Penutupan kedua',true);
-  assert.equal(first.url,second.url);
-  assert.equal(s.books.length,1);
-  assert.equal(s.env.apiKelolaSiklusSurvei('admin')[0].arsip_url,first.url);
-  assert.deepEqual(Array.from(s.books[0].sheets.get('Riwayat tindak lanjut').rows.slice(1),r=>r[2]),
+  assert.notEqual(first.url,second.url);
+  assert.equal(s.books.length,2);
+  assert.equal(s.env.apiKelolaSiklusSurvei('admin')[0].arsip_url,second.url);
+  assert.deepEqual(Array.from(s.books[1].sheets.get('Riwayat tindak lanjut').rows.slice(1),r=>r[2]),
     ['Catatan awal','Catatan setelah pulih']);
-  assert.equal(s.books[0].sheets.get('Riwayat penyelesaian').rows.length,3);
-  assert.equal(s.env.tlSurveyClose_('admin',k,'Penutupan kedua',true).url,first.url);
+  assert.equal(s.books[1].sheets.get('Riwayat penyelesaian').rows.length,3);
+  assert.equal(s.env.tlSurveyClose_('admin',k,'Penutupan kedua',true).url,second.url);
   assert.equal(s.archive.length,2);
+});
+
+test('failed Drive trash can be retried without losing the completed state',()=>{
+  const s=stub(),k=key_(survey);
+  s.notes.push({riwayat_id:'first',assignment_id:'one',catatan:'Catatan awal'});
+  s.env.tlSurveyClose_('admin',k,'Penutupan awal',true);
+  s.googleEmail('');
+  assert.throws(()=>s.env.tlSurveyRestore_('admin',survey,true),/Masuk ke Google/);
+  assert.equal(s.books[0].trashed,false);
+  s.googleEmail('admin');
+  s.failTrash(true);
+  assert.throws(()=>s.env.tlSurveyRestore_('admin',survey,true),/gagal pindah/);
+  assert.equal(s.books[0].trashed,false);
+  assert.equal(s.record.status_operasional,'DITUTUP');
+  assert.deepEqual(s.active(),[false,false]);
+  s.failTrash(false);
+  s.env.tlSurveyRestore_('admin',survey,true);
+  assert.equal(s.books[0].trashed,true);
+  assert.equal(s.record.status_operasional,'AKTIF');
+});
+
+test('closing an already restored legacy period retires its existing archive and retains notes',()=>{
+  const s=stub(),k=key_(survey);
+  s.notes.push({riwayat_id:'first',assignment_id:'one',catatan:'Catatan awal'});
+  const first=s.env.tlSurveyClose_('admin',k,'Penutupan lama',true);
+  s.record.status_operasional='AKTIF';
+  const second=s.env.tlSurveyClose_('admin',k,'Penutupan baru',true);
+  assert.notEqual(first.url,second.url);
+  assert.equal(s.books[0].trashed,true);
+  assert.equal(s.books[1].sheets.get('Riwayat tindak lanjut').rows[1][2],'Catatan awal');
 });

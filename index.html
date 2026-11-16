@@ -1263,7 +1263,7 @@ body.bolo-loading-active{overflow:hidden}
           memakaiCadanganTerverifikasi=true;
         }
         if(REGISTRY){
-          SURVEYS = REGISTRY.filter(s=>s.aktif).sort((a,b)=>a.urutan-b.urutan).map(s=>s.name);
+          SURVEYS = REGISTRY.filter(s=>s.aktif).map(s=>s.name);
           for(const sv of REGISTRY){
             const period=PERIODE_SURVEI.find(p=>p?.survei===sv.name);
             if(period){

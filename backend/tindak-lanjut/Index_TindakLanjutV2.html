@@ -1630,13 +1630,11 @@ async function tampilkanSurveiSelesai() {
 
     kartu.append(judul, catatan);
 
-    // Semua versi arsip tetap dapat dibuka.
-    for (const arsip of s.arsip) {
-      if (!arsip.arsip_url) continue;
-
+    const arsip = s.arsip[0];
+    if (arsip?.arsip_url) {
       const tautan = document.createElement('a');
       tautan.className = 'btn';
-      tautan.textContent = 'Buka Arsip · Versi ' + arsip.versi;
+      tautan.textContent = 'Buka Rekap';
       tautan.href = arsip.arsip_url;
       tautan.target = '_blank';
       tautan.rel = 'noopener noreferrer';
@@ -1657,8 +1655,8 @@ async function tampilkanSurveiSelesai() {
           const setuju = await tlConfirm({
             judul: 'Tampilkan kembali survei ini?',
             target: s.nama_survei + ' — ' + s.nama_periode,
-            pesan: 'Periode survei akan diaktifkan kembali agar dapat ditampilkan pada monitoring berjalan. Arsip hasil penutupan sebelumnya tetap tersimpan dan tidak dihapus.',
-             catatan: 'Saat survei selesai lagi, spreadsheet rekap yang sama diperbarui dan catatan sebelumnya tetap tersimpan.',
+            pesan: 'Survei kembali aktif. Spreadsheet rekap lama dipindahkan ke Sampah setelah riwayatnya disalin.',
+            catatan: 'Saat survei ditandai selesai lagi, spreadsheet baru memuat catatan lama dan baru.',
             tombol: 'Tampilkan Kembali',
             tone: 'restore'
           });
