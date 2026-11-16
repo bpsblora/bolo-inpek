@@ -718,7 +718,10 @@ function biOriginalStatusButtons(rows){
     statuses.set(status,(statuses.get(status)||0)+1);
   }
   if(!statuses.size)return '<p class="bi-popup-detail-subtitle">Tidak ada assignment pada kategori ini.</p>';
-  return '<div class="bi-popup-status-list">'+[...statuses].sort(([a],[b])=>{
+  return '<div class="bi-popup-status-list">'+
+    '<button type="button" class="bi-popup-group bi-all-assignments" data-bi-all-assignments aria-haspopup="dialog" aria-controls="biAssignmentDetailModal">'+
+    '<span class="bi-popup-group-top"><strong>Lihat Semua Assignment ›</strong><b>'+format.format(rows.length)+' assignment</b></span></button>'+
+    [...statuses].sort(([a],[b])=>{
     const pa=BI_STATUS_PRIORITY.indexOf(biDashboardStatus(a)),pb=BI_STATUS_PRIORITY.indexOf(biDashboardStatus(b));
     return (pa<0?Infinity:pa)-(pb<0?Infinity:pb)||a.localeCompare(b,'id');
   }).map(([label,count])=>{
@@ -779,6 +782,7 @@ const BI_ASSIGNMENT_COLUMNS=[
   {key:'assignment',label:'Nama Assignment',width:44,value:row=>row.nama_assignment},
   {key:'survey',label:'Survei',width:17,value:row=>row.survei},
   {key:'status',label:'Status untuk Perhitungan',width:22,value:row=>row.status},
+  {key:'originalStatus',label:'Status Asli FASIH',width:28,value:biOriginalStatus},
   {key:'ppl',label:'PPL',width:24,value:row=>name(row,'ppl')},
   {key:'pml',label:'PML',width:24,value:row=>name(row,'pml')}
 ];
@@ -800,10 +804,11 @@ function biAssignmentSelection(rows,query,filters,sort){
   });
   return matching;
 }
-function biMountAssignmentList(root,rows,{title,context,showStatus=false}){
+function biMountAssignmentList(root,rows,{title,context,showStatus=false,showOriginalStatus=false}){
   const surveys=new Set(rows.map(row=>row.survei));
   const showSurvey=surveys.size>1;
-  const columns=BI_ASSIGNMENT_COLUMNS.filter(c=>(c.key!=='survey'||showSurvey)&&(c.key!=='status'||showStatus));
+  const columns=BI_ASSIGNMENT_COLUMNS.filter(c=>
+    (c.key!=='survey'||showSurvey)&&(c.key!=='status'||showStatus)&&(c.key!=='originalStatus'||showOriginalStatus));
   const items=rows.map((row,index)=>{
     const cells=Object.fromEntries(columns.map(c=>[c.key,String(c.value(row)??'')]));
     return {row,index,cells,search:biAssignmentText([...Object.values(cells),biOriginalStatus(row),row.boloStatusManual||''].join(' '))};
@@ -828,7 +833,7 @@ function biMountAssignmentList(root,rows,{title,context,showStatus=false}){
     '<span data-assignment-order>Urutkan dengan klik judul kolom. Klik kolom lain untuk menambah urutan.</span></div>'+
     '<div class="bi-assignment-feedback" data-assignment-feedback role="status"></div></div>'+
     '<div class="tablebox bi-assignment-scroll" tabindex="0" role="region" aria-label="Tabel assignment">'+
-    '<table class="bi-assignment-detail-table'+(showSurvey?' bi-multi-survey':'')+'"><thead><tr>'+
+    '<table class="bi-assignment-detail-table'+(showSurvey?' bi-multi-survey':'')+(showOriginalStatus?' bi-assignment-all-status':'')+'"><thead><tr>'+
     columns.map(c=>'<th scope="col"><button type="button" data-assignment-sort="'+c.key+'">'+esc(c.label)+
       ' <span aria-hidden="true" data-assignment-indicator>↕</span></button></th>').join('')+
     '</tr></thead><tbody></tbody></table></div>';
@@ -920,13 +925,14 @@ function biMountAssignmentList(root,rows,{title,context,showStatus=false}){
 }
 function biPopupOpenAssignments(status,trigger){
   const source=trigger.closest('#biKpiModal')?biPopupState.kpi:biPopupState.personDetail;
-  const rows=source?.rows.filter(row=>biOriginalStatus(row)===status);
+  const allStatuses=status===null;
+  const rows=allStatuses?source?.rows:source?.rows.filter(row=>biOriginalStatus(row)===status);
   if(!rows?.length)return;
-  const title='Assignment · '+status;
+  const title=allStatuses?'Assignment · Semua Status':'Assignment · '+status;
   biPopupState.focus.biAssignmentDetailModal=trigger;
   document.getElementById('biAssignmentDetailTitle').textContent=title;
   const body=document.getElementById('biAssignmentDetailBody');
-  biMountAssignmentList(body,rows,{title,context:source.context});
+  biMountAssignmentList(body,rows,{title,context:source.context,showOriginalStatus:allStatuses});
   document.getElementById('biAssignmentDetailModal').showModal();
   body.scrollTop=0;
 }
@@ -1192,13 +1198,15 @@ async function biExportAssignmentList(type,report,feedback){
   if(type==='xlsx'){
     const XLSX=await loadExcelLibrary();
     const book=XLSX.utils.book_new();
+    const columns=report.columns.some(c=>c.key==='originalStatus')?report.columns:
+      [...report.columns,BI_ASSIGNMENT_COLUMNS.find(c=>c.key==='originalStatus')];
     const data=XLSX.utils.aoa_to_sheet([
-      [...report.columns.map(c=>c.label),'Status Asli FASIH','Status Manual'],
+      [...columns.map(c=>c.label),'Status Manual'],
       ...report.items.map(({row,cells})=>[
-        ...report.columns.map(c=>cells[c.key]),biOriginalStatus(row),row.boloStatusManual?row.status:''
+        ...columns.map(c=>cells[c.key]??c.value(row)),row.boloStatusManual?row.status:''
       ])
     ]);
-    data['!cols']=[...report.columns.map(c=>({wch:c.width})),{wch:38},{wch:38}];
+    data['!cols']=[...columns.map(c=>({wch:c.width})),{wch:38}];
     data['!autofilter']={ref:data['!ref']};
     XLSX.utils.book_append_sheet(book,data,'Assignment');
     const info=XLSX.utils.aoa_to_sheet([

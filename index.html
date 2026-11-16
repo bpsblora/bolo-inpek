@@ -633,7 +633,7 @@ body.bolo-loading-active{overflow:hidden}
 }
 </style>
 
-<link rel="stylesheet" href="./dashboard-interaktif.css?v=44">
+<link rel="stylesheet" href="./dashboard-interaktif.css?v=45">
 </head>
 <body>
 <div id="boloLoading" class="bolo-loading" role="status" aria-live="polite" aria-label="BOLO INPEK sedang memuat data" hidden>
@@ -800,7 +800,7 @@ body.bolo-loading-active{overflow:hidden}
   </main>
   <footer>BOLO INPEK · Sumber: FASIH-SM melalui Google Sheets · <a href="./kebijakan-privasi.html">Kebijakan Privasi</a></footer>
   <noscript>Aktifkan JavaScript untuk menggunakan dashboard ini.</noscript>
-  <script src="./dashboard-interaktif.js?v=47"></script>
+  <script src="./dashboard-interaktif.js?v=48"></script>
   <script>
     // ========================================================
     // STATUS DASHBOARD: setiap assignment dihitung satu kali.
@@ -1882,8 +1882,8 @@ body.bolo-loading-active{overflow:hidden}
       if(closePopup){biPopupClose(closePopup.dataset.biPopupClose);return;}
       const kpi=event.target.closest('button[data-bi-kpi]');
       if(kpi){biPopupOpenKpi(kpi.dataset.biKpi,kpi);return;}
-      const originalStatus=event.target.closest('button[data-bi-original-status]');
-      if(originalStatus){biPopupOpenAssignments(originalStatus.dataset.biOriginalStatus,originalStatus);return;}
+      const originalStatus=event.target.closest('button[data-bi-original-status],button[data-bi-all-assignments]');
+      if(originalStatus){biPopupOpenAssignments(originalStatus.dataset.biOriginalStatus??null,originalStatus);return;}
       const scopedStatus=event.target.closest('button[data-bi-status-scope]');
       if(scopedStatus){biPopupOpenScopedStatus(scopedStatus);return;}
       const navPopup=event.target.closest('button[data-bi-popup-nav]');

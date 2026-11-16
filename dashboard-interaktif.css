@@ -393,12 +393,16 @@
 .bi-popup-status-track{height:11px;border-radius:99px;background:#e9eff6;overflow:hidden}
 .bi-popup-status-track>span{display:block;height:100%;border-radius:99px}
 .bi-popup-status-item strong,.bi-popup-status-item small{white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
+.bi-popup-group.bi-all-assignments{background:#eaf3ff;border-color:#a9c9ec}
+.bi-popup-group.bi-all-assignments:hover{background:#dcecff;border-color:#7aa9d8}
 .bi-original-status{width:100%;text-align:left;border-color:#cadef1}
 .bi-original-status:hover{background:#edf5ff;border-color:#8bb6de}
 .bi-original-status .bi-popup-status-label::after{content:' ›';color:#286fae}
 .bi-assignment-detail-table{min-width:0;table-layout:fixed;overflow-wrap:anywhere}
 .bi-assignment-detail-table th:first-child{width:46%}
-.bi-assignment-detail-table.bi-multi-survey th:first-child{width:36%}
+.bi-assignment-detail-table.bi-multi-survey th:first-child,
+.bi-assignment-detail-table.bi-assignment-all-status th:first-child{width:36%}
+.bi-assignment-detail-table.bi-multi-survey.bi-assignment-all-status th:first-child{width:32%}
 .bi-assignment-detail-table th,.bi-assignment-detail-table td{padding:10px 12px;font-size:13px;vertical-align:top}
 .bi-assignment-detail-table small{display:block;margin-top:4px;color:#55708d}
 
@@ -439,7 +443,9 @@
   .bi-assignment-filter[open]{flex-basis:100%}
   .bi-assignment-filter-options{position:static;width:100%;margin-top:4px}
   .bi-assignment-detail-table th,.bi-assignment-detail-table td{padding:8px;font-size:12px}
-  .bi-assignment-detail-table.bi-multi-survey{min-width:440px}
+  .bi-assignment-detail-table.bi-multi-survey,
+  .bi-assignment-detail-table.bi-assignment-all-status{min-width:440px}
+  .bi-assignment-detail-table.bi-multi-survey.bi-assignment-all-status{min-width:500px}
 }
 .bi-popup-info{margin:16px 0 0;color:#6c829b;font-size:11px;line-height:1.6}
 @media(max-width:850px){.bi-progress-navigation{grid-template-columns:1fr}.bi-progress-nav-card{min-height:87px}}
