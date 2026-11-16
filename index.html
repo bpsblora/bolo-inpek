@@ -786,7 +786,7 @@ body.bolo-loading-active{overflow:hidden}
   </main>
   <footer>BOLO INPEK · Sumber: FASIH-SM melalui Google Sheets · <a href="./kebijakan-privasi.html">Kebijakan Privasi</a></footer>
   <noscript>Aktifkan JavaScript untuk menggunakan dashboard ini.</noscript>
-  <script src="./dashboard-interaktif.js?v=40"></script>
+  <script src="./dashboard-interaktif.js?v=41"></script>
   <script>
     // ========================================================
     // STATUS DASHBOARD: setiap assignment dihitung satu kali.
@@ -1293,7 +1293,8 @@ body.bolo-loading-active{overflow:hidden}
         }));
         tampilkanWaktuPengambilan(payload.data_terakhir_diambil);
         if(!snapshot){
-          Object.assign(state,{survey:null,pml:null,ppl:null,status:null});
+          const requestedSurvey=new URLSearchParams(window.location.search).get('survei');
+          Object.assign(state,{survey:SURVEYS.includes(requestedSurvey)?requestedSurvey:null,pml:null,ppl:null,status:null});
         }else{
           // Pertahankan posisi/filter jika survei dan petugasnya masih tersedia.
           if(state.survey && !SURVEYS.includes(state.survey))

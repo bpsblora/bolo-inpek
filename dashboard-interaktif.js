@@ -772,7 +772,7 @@ function biCanvasText(ctx,text,x,y,maxWidth){
   while(t.length>1&&ctx.measureText(t+'…').width>maxWidth)t=t.slice(0,-1);
   ctx.fillText(t+'…',x,y);
 }
-function biCanvasPage(survey,pml,pairs,pageIndex,pages,totalCounts,{pdf=false}={}){
+function biCanvasPage(survey,pml,pairs,pageIndex,pages,totalCounts){
   const width=1684,height=1191;
   const canvas=document.createElement('canvas');
   canvas.width=width;canvas.height=height;
@@ -784,9 +784,7 @@ function biCanvasPage(survey,pml,pairs,pageIndex,pages,totalCounts,{pdf=false}={
   ctx.fillText('BOLO INPEK  /  PROGRES PPL',58,64);
   ctx.font='20px Arial';ctx.fillStyle='#dcecff';
   biCanvasText(ctx,'Survei: '+survey,58,98,1250);
-  const pairCount=pairs.length+' pasangan PPL–PML';
-  const coverage=pml===null?'Seluruh PPL':('PML '+pml);
-  biCanvasText(ctx,pdf?pairCount:'Cakupan: '+coverage,58,122,1300);
+  biCanvasText(ctx,pairs.length+' pasangan PPL–PML',58,122,1300);
   ctx.font='bold 17px Arial';ctx.fillStyle='#ffffff';
   biCanvasText(ctx,'DATA TERAKHIR DIAMBIL: '+(typeof exportTime==='function'?exportTime():'Belum tercatat'),58,150,1525);
   ctx.textAlign='right';ctx.font='bold 24px Arial';ctx.fillStyle='#ffffff';
@@ -850,27 +848,39 @@ function biCanvasPage(survey,pml,pairs,pageIndex,pages,totalCounts,{pdf=false}={
   });
   const footY=1120;
   ctx.fillStyle='#607991';ctx.font='16px Arial';
-  if(!pdf){
-    biCanvasText(ctx,'Belum Submit = OPEN + DRAFT + REJECTED BY PENGAWAS  |  Status REJECTED lain dihitung Sudah Submit',65,footY,1540);
-  }
   biCanvasText(ctx,'Data terakhir diambil: '+(typeof exportTime==='function'?exportTime():'Belum tercatat')+
     (totalCounts.manual?' | '+totalCounts.manual+' assignment memakai status manual':''),
     65,footY+31,1500);
   ctx.textAlign='right';ctx.fillStyle='#1c578f';
-  const pageLabel='Halaman '+(pageIndex+1)+' / '+pages;
-  ctx.fillText(pdf?pageLabel:pageLabel+' · '+pairCount,1618,footY+31);
+  ctx.fillText('Halaman '+(pageIndex+1)+' / '+pages,1618,footY+31);
   ctx.textAlign='left';
   return canvas;
 }
-function biDownloadBlob(blob,filename){
-  if(!blob)throw new Error('Tidak dapat menghasilkan gambar.');
-  const url=URL.createObjectURL(blob),a=document.createElement('a');
-  a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),60000);
+function biDownloadLink(blob,filename,label){
+  const url=URL.createObjectURL(blob);
+  const link=document.createElement('a');
+  link.href=url;
+  link.download=filename;
+  link.textContent=label;
+  setTimeout(()=>{
+    URL.revokeObjectURL(url);
+    link.removeAttribute('href');
+  },10*60*1000);
+  return link;
 }
 function biCanvasBlob(canvas,type,quality){
   return new Promise((resolve,reject)=>canvas.toBlob(blob=>
     blob?resolve(blob):reject(new Error('Ekspor gambar tidak berhasil.')),type,quality));
+}
+function biDirectReportLink(survey){
+  const url=new URL('https://bpsblora.github.io/bolo-inpek/');
+  url.searchParams.set('survei',survey);
+  const link=document.createElement('a');
+  link.href=url.href;
+  link.target='_blank';
+  link.rel='noopener noreferrer';
+  link.textContent='Buka Dashboard di tab baru';
+  return link;
 }
 async function biExportProgress(button){
   if(button.disabled)return;
@@ -888,15 +898,16 @@ async function biExportProgress(button){
   siblings.forEach(x=>x.disabled=true);
   if(feedback)feedback.textContent='Menyiapkan laporan '+(button.dataset.biExport==='pdf'?'PDF':'gambar')+' untuk '+pairs.length+' pasangan PPL–PML…';
   try{
+    const downloads=[];
     if(button.dataset.biExport==='pdf'){
       const JsPDF=await biLoadPdfLib();
       const doc=new JsPDF({orientation:'landscape',unit:'mm',format:'a4',compress:true});
       for(let i=0;i<pages;i++){
-        const canvas=biCanvasPage(survey,pml,pairs,i,pages,summary,{pdf:true});
+        const canvas=biCanvasPage(survey,pml,pairs,i,pages,summary);
         if(i>0)doc.addPage('a4','landscape');
         doc.addImage(canvas.toDataURL('image/jpeg',0.88),'JPEG',0,0,297,210);
       }
-      doc.save('BOLO_INPEK_Progres_PPL_'+namePart+'.pdf');
+      downloads.push(biDownloadLink(doc.output('blob'),'BOLO_INPEK_Progres_PPL_'+namePart+'.pdf','Unduh PDF'));
     }else{
       // Satu gambar tinggi jika memungkinkan; untuk laporan sangat panjang,
       // beberapa berkas PNG per 5 halaman menghindari batas ukuran canvas Windows.
@@ -912,13 +923,31 @@ async function biExportProgress(button){
           context.drawImage(pg,0,j*1191);
         }
         const blob=await biCanvasBlob(combined,'image/png');
-        biDownloadBlob(blob,'BOLO_INPEK_Progres_PPL_'+namePart+(pages>5?'_Bagian_'+part:'')+'.png');
+        downloads.push(biDownloadLink(blob,
+          'BOLO_INPEK_Progres_PPL_'+namePart+(pages>5?'_Bagian_'+part:'')+'.png',
+          pages>5?'Unduh Gambar Bagian '+part:'Unduh Gambar'));
         startPage+=portion;part++;
       }
     }
-    if(feedback)feedback.textContent='Laporan berhasil dibuat. Silakan periksa unduhan browser.'+
-      (button.dataset.biExport==='png'&&pages>5?' Laporan panjang dibagi menjadi beberapa gambar.':'');
+    if(feedback){
+      feedback.textContent=downloads.length===1?'Laporan siap. Jika belum terunduh, klik ':'Laporan siap. Unduh setiap bagian ';
+      downloads.forEach((link,i)=>{
+        if(i)feedback.append(' · ');
+        feedback.append(link);
+      });
+    }
+    if(feedback&&window.self!==window.top)
+      feedback.append(' · Jika unduhan diblokir, ',biDirectReportLink(survey),'.');
+    if(downloads.length===1){
+      const link=downloads[0];
+      if(!feedback)document.body.appendChild(link);
+      link.click();
+      if(!feedback)link.remove();
+    }
   }catch(error){
-    if(feedback)feedback.textContent='Gagal ekspor: '+(error.message||String(error));
+    if(feedback){
+      feedback.textContent='Gagal ekspor: '+(error.message||String(error));
+      if(window.self!==window.top)feedback.append(' · ',biDirectReportLink(survey),'.');
+    }
   }finally{siblings.forEach(x=>x.disabled=false);}
 }
