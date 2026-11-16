@@ -366,14 +366,15 @@
   <button id="remindMenu" type="button">Ingatkan Petugas</button>
   <button id="noteMenu" type="button">Tambahkan Catatan Survei</button>
 </nav>
-<button type="button" id="openReminders" class="panel reminder-trigger" aria-haspopup="dialog" aria-controls="reminderDialog">
+<button type="button" id="openReminders" class="panel reminder-trigger" aria-haspopup="dialog" aria-controls="reminderDialog" hidden>
   <span>Pengingat Operator · <span id="reminderCount" class="reminder-count">0 perlu ditindaklanjuti</span></span>
   <span aria-hidden="true">›</span>
 </button>
-<dialog id="reminderDialog" class="reminder-dialog" aria-labelledby="reminderHeading" aria-describedby="reminderDialogCount">
+<dialog id="reminderDialog" class="reminder-dialog" aria-labelledby="reminderHeading" aria-describedby="reminderDialogSurvey reminderDialogCount">
   <div class="reminder-dialog-heading">
     <div>
       <h2 id="reminderHeading">Pengingat Operator</h2>
+      <p id="reminderDialogSurvey" class="muted" style="margin:0"></p>
       <span id="reminderDialogCount" class="reminder-count"></span>
     </div>
     <form method="dialog">
@@ -804,12 +805,12 @@ $('survey').replaceChildren();
 if(BOLO_ADMIN_GATE_NONCE)option($('survey'),'','— Pilih Survei dan Periode —');
 data.survei.forEach(s=>option($('survey'),key(s),surveyPickerLabel(s)));let match=data.survei.find(s=>key(s)===prev);
 if(!initialUsed){match=data.survei.find(s=>s.survey_period_id===initial.periode&&(!initial.survei||s.nama_survei===initial.survei));initialUsed=true;if(initial.periode&&!match)notice('Survei dari dashboard sudah ditutup atau tidak ditemukan. Pilih survei aktif lainnya.');}
-if(match)$('survey').value=key(match);$('greeting').textContent='Halo '+(data.operator.peran==='ADMIN'?'Admin':'Operator')+' Bolo INPEK, '+data.operator.nama+'!';renderSurvey();renderReminders();}
+if(match)$('survey').value=key(match);$('greeting').textContent='Halo '+(data.operator.peran==='ADMIN'?'Admin':'Operator')+' Bolo INPEK, '+data.operator.nama+'!';renderSurvey();}
 function renderSurvey(){chain=null;konteksCatatanKirim=null;noteId='';for(const p of ['remindPanel','notePanel'])$(p).hidden=true;const s=selected();
 $('surveyPickerValue').textContent=s?surveyPickerLabel(s):'Pilih Survei dan Periode';
 $('remindMenu').disabled=!s;
 $('noteMenu').disabled=!s;
-$('context').textContent=s?s.nama_survei+' — '+s.nama_periode:data?.survei.length?'Survei dan periode':'Tidak ada survei aktif.';$('sourceTime').textContent=s?'Data sumber: '+[...new Set(data.assignment.filter(a=>key(a)===key(s)).map(a=>a.waktu_data_monitoring))].map(fmt).join(' | '):'';renderHistory();renderPerson();}
+$('context').textContent=s?s.nama_survei+' — '+s.nama_periode:data?.survei.length?'Survei dan periode':'Tidak ada survei aktif.';$('sourceTime').textContent=s?'Data sumber: '+[...new Set(data.assignment.filter(a=>key(a)===key(s)).map(a=>a.waktu_data_monitoring))].map(fmt).join(' | '):'';renderHistory();renderPerson();renderReminders();}
 const REPAIR_STATUSES=['OPEN','DRAFT','REJECT'];
 const REMINDER_STATUS_ORDER=['OPEN','DRAFT','REJECT','SUBMIT'];
 
@@ -1245,11 +1246,16 @@ function renderHistory(){const s=selected();$('history').replaceChildren();const
 
 function renderReminders() {
   $('reminders').replaceChildren();
+  const survey=selected();
+  $('openReminders').hidden=!survey;
+  $('reminderDialogSurvey').textContent=survey?survey.nama_survei+' — '+survey.nama_periode:'';
+  const surveyKey=survey?key(survey):null;
 
-  // Ambil catatan terbaru untuk setiap tindak lanjut.
+  // Ambil catatan terbaru untuk setiap tindak lanjut dalam periode ini.
   const terbaru = new Map();
 
-  for (const r of data.riwayat) {
+  for (const r of data?.riwayat||[]) {
+    if(!surveyKey||key(r)!==surveyKey)continue;
     const id = r.tindak_lanjut_id || r.riwayat_id;
     if (!id) continue;
 

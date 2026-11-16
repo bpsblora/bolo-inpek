@@ -633,7 +633,7 @@ body.bolo-loading-active{overflow:hidden}
 }
 </style>
 
-<link rel="stylesheet" href="./dashboard-interaktif.css?v=43">
+<link rel="stylesheet" href="./dashboard-interaktif.css?v=44">
 </head>
 <body>
 <div id="boloLoading" class="bolo-loading" role="status" aria-live="polite" aria-label="BOLO INPEK sedang memuat data" hidden>
@@ -800,7 +800,7 @@ body.bolo-loading-active{overflow:hidden}
   </main>
   <footer>BOLO INPEK · Sumber: FASIH-SM melalui Google Sheets · <a href="./kebijakan-privasi.html">Kebijakan Privasi</a></footer>
   <noscript>Aktifkan JavaScript untuk menggunakan dashboard ini.</noscript>
-  <script src="./dashboard-interaktif.js?v=46"></script>
+  <script src="./dashboard-interaktif.js?v=47"></script>
   <script>
     // ========================================================
     // STATUS DASHBOARD: setiap assignment dihitung satu kali.
@@ -1547,15 +1547,6 @@ body.bolo-loading-active{overflow:hidden}
       }).join('');
       return '<div class="tablebox"><table><thead><tr><th>'+key.toUpperCase()+'</th><th>Total</th>'+header+'</tr></thead><tbody>'+body+'</tbody></table></div>';
     }
-    function assignmentTable(rows){
-      return '<div class="tablebox"><table><thead><tr><th>Nama assignment</th><th>Status untuk Perhitungan</th><th>PPL</th><th>PML</th></tr></thead><tbody>'+rows.map(r=>{
-        const manual=r.boloStatusManual?'<small class="fasih-raw-status">Status Perhitungan Manual · Status Asli FASIH: '+
-          esc(r.boloStatusFasih||r.status_asli||r.status)+'</small>':'';
-        const raw=!manual&&r.status==='STATUS BELUM DIRINCI'?'<small class="fasih-raw-status">Rincian FASIH belum tersedia dari API</small>':'';
-        return '<tr><td>'+esc(r.nama_assignment)+'</td><td><span class="statuslabel"><span class="dot" style="background:'+statusColor(r.status)+'"></span>'+esc(r.status)+'</span>'+manual+raw+'</td><td>'+esc(name(r,'ppl'))+'</td><td>'+esc(name(r,'pml'))+'</td></tr>';
-      }).join('')+'</tbody></table></div>';
-    }
-    
     // Mengurutkan survei berdasarkan deadline paling awal.
     // Survei tanpa tanggal yang valid ditempatkan terakhir.
     function surveiUrutDeadline() {
@@ -1641,8 +1632,10 @@ body.bolo-loading-active{overflow:hidden}
         view.innerHTML=top+title('Progres Pendataan Survei INPEK 2026',
           '',DATA.length)+biUnassignedPanel(null)+biOverview();
       }else if(state.status!==null){
-        view.innerHTML=top+title('Assignment · '+state.status,
-          [state.survey,state.pml,state.ppl].filter(Boolean).join(' · '),rows.length)+assignmentTable(rows);
+        const assignmentTitle='Assignment · '+state.status;
+        const context=[state.survey,state.pml,state.ppl].filter(Boolean).join(' · ');
+        view.innerHTML=top+title(assignmentTitle,context,rows.length)+'<div id="biFullAssignmentList"></div>';
+        biMountAssignmentList(document.getElementById('biFullAssignmentList'),rows,{title:assignmentTitle,context,showStatus:true});
       }else if(state.ppl!==null){
         view.innerHTML=top+title(state.ppl,'Rincian PPL · '+state.survey,rows.length)+peopleTable(rows,'ppl');
       }else if(state.pml!==null){

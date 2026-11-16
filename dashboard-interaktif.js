@@ -774,21 +774,159 @@ function biPopupOpenScopedStatus(trigger){
   const label=status||(bucket?biBuckets.find(item=>item.id===bucket)?.label:BI_KPI_LABELS[metric]);
   biPopupOpenStatusList(rows,label,context,trigger);
 }
+const BI_ASSIGNMENT_COLLATOR=new Intl.Collator('id-ID',{numeric:true,sensitivity:'base'});
+const BI_ASSIGNMENT_COLUMNS=[
+  {key:'assignment',label:'Nama Assignment',width:44,value:row=>row.nama_assignment},
+  {key:'survey',label:'Survei',width:17,value:row=>row.survei},
+  {key:'status',label:'Status untuk Perhitungan',width:22,value:row=>row.status},
+  {key:'ppl',label:'PPL',width:24,value:row=>name(row,'ppl')},
+  {key:'pml',label:'PML',width:24,value:row=>name(row,'pml')}
+];
+function biAssignmentText(value){
+  return String(value??'').normalize('NFD').replace(/\p{M}/gu,'').toLocaleLowerCase('id-ID').trim();
+}
+function biAssignmentSelection(rows,query,filters,sort){
+  const words=biAssignmentText(query).split(/\s+/).filter(Boolean);
+  const active=[...filters].filter(([,values])=>values.size);
+  const matching=rows.filter(item=>
+    active.every(([key,values])=>values.has(item.cells[key]))&&
+    words.every(word=>item.search.includes(word)));
+  if(sort.length)matching.sort((a,b)=>{
+    for(const {key,direction} of sort){
+      const difference=BI_ASSIGNMENT_COLLATOR.compare(a.cells[key],b.cells[key]);
+      if(difference)return direction==='asc'?difference:-difference;
+    }
+    return a.index-b.index;
+  });
+  return matching;
+}
+function biMountAssignmentList(root,rows,{title,context,showStatus=false}){
+  const surveys=new Set(rows.map(row=>row.survei));
+  const showSurvey=surveys.size>1;
+  const columns=BI_ASSIGNMENT_COLUMNS.filter(c=>(c.key!=='survey'||showSurvey)&&(c.key!=='status'||showStatus));
+  const items=rows.map((row,index)=>{
+    const cells=Object.fromEntries(columns.map(c=>[c.key,String(c.value(row)??'')]));
+    return {row,index,cells,search:biAssignmentText([...Object.values(cells),biOriginalStatus(row),row.boloStatusManual||''].join(' '))};
+  });
+  const filters=new Map(),sort=[];
+  const filterControls=columns.map(column=>{
+    const values=[...new Set(items.map(item=>item.cells[column.key]))].sort(BI_ASSIGNMENT_COLLATOR.compare);
+    return '<details class="bi-assignment-filter"><summary>'+esc(column.label)+' <span data-filter-count="'+column.key+'"></span></summary>'+
+      '<div class="bi-assignment-filter-options" role="group" aria-label="Filter '+esc(column.label)+'">'+
+      values.map(value=>'<label><input type="checkbox" data-assignment-filter="'+column.key+'" value="'+esc(value)+'"> <span>'+esc(value||'Kosong')+'</span></label>').join('')+
+      '</div></details>';
+  }).join('');
+  root.innerHTML='<p class="bi-popup-detail-subtitle">'+esc(context)+'</p>'+
+    '<div class="bi-assignment-tools"><div class="bi-assignment-actions">'+
+    '<label class="bi-assignment-search">Cari assignment atau petugas<input type="search" data-assignment-search placeholder="Ketik kata kunci"></label>'+
+    '<div class="bi-assignment-downloads" role="group" aria-label="Unduh daftar assignment">'+
+    [['pdf','PDF'],['png','Gambar'],['xlsx','Excel']].map(([type,label])=>
+      '<button type="button" class="export-button" data-assignment-export="'+type+'">Unduh '+label+'</button>').join('')+'</div></div>'+
+    '<div class="bi-assignment-filters" role="group" aria-label="Filter per kolom">'+filterControls+
+    '<button type="button" class="export-button" data-assignment-reset>Reset</button></div>'+
+    '<div class="bi-assignment-meta"><span data-assignment-count role="status"></span>'+
+    '<span data-assignment-order>Urutkan dengan klik judul kolom. Klik kolom lain untuk menambah urutan.</span></div>'+
+    '<div class="bi-assignment-feedback" data-assignment-feedback role="status"></div></div>'+
+    '<div class="tablebox bi-assignment-scroll" tabindex="0" role="region" aria-label="Tabel assignment">'+
+    '<table class="bi-assignment-detail-table'+(showSurvey?' bi-multi-survey':'')+'"><thead><tr>'+
+    columns.map(c=>'<th scope="col"><button type="button" data-assignment-sort="'+c.key+'">'+esc(c.label)+
+      ' <span aria-hidden="true" data-assignment-indicator>↕</span></button></th>').join('')+
+    '</tr></thead><tbody></tbody></table></div>';
+
+  const search=root.querySelector('[data-assignment-search]');
+  const tableBody=root.querySelector('tbody');
+  const scroll=root.querySelector('.bi-assignment-scroll');
+  const sortButtons=[...root.querySelectorAll('[data-assignment-sort]')];
+  const downloadButtons=[...root.querySelectorAll('[data-assignment-export]')];
+  const count=root.querySelector('[data-assignment-count]');
+  const order=root.querySelector('[data-assignment-order]');
+  const feedback=root.querySelector('[data-assignment-feedback]');
+  let visible=[],exporting=false;
+  function paint(){
+    visible=biAssignmentSelection(items,search.value,filters,sort);
+    count.textContent=format.format(visible.length)+' dari '+format.format(items.length)+' assignment';
+    for(const button of sortButtons){
+      const index=sort.findIndex(item=>item.key===button.dataset.assignmentSort);
+      const column=columns.find(c=>c.key===button.dataset.assignmentSort);
+      const direction=sort[index]?.direction;
+      button.querySelector('[data-assignment-indicator]').textContent=index<0?'↕':
+        (direction==='asc'?'↑':'↓')+' '+(index+1);
+      const th=button.closest('th');
+      if(index===0)th.setAttribute('aria-sort',direction==='asc'?'ascending':'descending');
+      else th.removeAttribute('aria-sort');
+      button.setAttribute('aria-label',column.label+(index<0?', urutkan naik':
+        ', urutan '+(index+1)+' '+(direction==='asc'?'naik, urutkan turun':'turun, hapus urutan')));
+    }
+    order.textContent=sort.length?'Urutan: '+sort.map(({key,direction})=>
+      columns.find(c=>c.key===key).label+(direction==='asc'?' ↑':' ↓')).join(' → '):
+      'Urutkan dengan klik judul kolom. Klik kolom lain untuk menambah urutan.';
+    for(const c of columns){
+      const size=filters.get(c.key)?.size||0;
+      root.querySelector('[data-filter-count="'+c.key+'"]').textContent=size?' ('+size+')':'';
+    }
+    tableBody.innerHTML=visible.length?visible.map(({row,cells})=>'<tr>'+columns.map(({key})=>
+      '<td>'+esc(cells[key])+(key==='assignment'&&row.boloStatusManual?
+        '<small>Status perhitungan manual · '+esc(row.status)+'</small>':'')+'</td>').join('')+'</tr>').join(''):
+      '<tr><td class="empty" colspan="'+columns.length+'">Tidak ada assignment yang cocok.</td></tr>';
+    scroll.scrollTop=0;
+    downloadButtons.forEach(button=>button.disabled=exporting||!visible.length);
+  }
+  root.oninput=event=>{if(event.target===search)paint();};
+  root.onchange=event=>{
+    const input=event.target.closest('[data-assignment-filter]');
+    if(!input)return;
+    const key=input.dataset.assignmentFilter;
+    if(!filters.has(key))filters.set(key,new Set());
+    const values=filters.get(key);
+    if(input.checked)values.add(input.value);
+    else values.delete(input.value);
+    paint();
+  };
+  root.onclick=async event=>{
+    const button=event.target.closest('button');
+    if(!button)return;
+    if(button.hasAttribute('data-assignment-reset')){
+      search.value='';
+      filters.clear();
+      sort.length=0;
+      root.querySelectorAll('[data-assignment-filter]').forEach(input=>input.checked=false);
+      paint();
+      return;
+    }
+    const key=button.dataset.assignmentSort;
+    if(key){
+      const index=sort.findIndex(item=>item.key===key);
+      if(index<0)sort.push({key,direction:'asc'});
+      else if(sort[index].direction==='asc')sort[index].direction='desc';
+      else sort.splice(index,1);
+      paint();
+      return;
+    }
+    const type=button.dataset.assignmentExport;
+    if(!type||!visible.length||exporting)return;
+    exporting=true;
+    downloadButtons.forEach(control=>control.disabled=true);
+    feedback.textContent='Menyiapkan unduhan…';
+    try{
+      await biExportAssignmentList(type,{title,context,columns,items:visible,time:exportTime()},feedback);
+    }catch(error){
+      feedback.textContent=error.message||'Unduhan gagal. Silakan coba lagi.';
+    }finally{
+      exporting=false;
+      downloadButtons.forEach(control=>control.disabled=!visible.length);
+    }
+  };
+  paint();
+}
 function biPopupOpenAssignments(status,trigger){
   const source=trigger.closest('#biKpiModal')?biPopupState.kpi:biPopupState.personDetail;
   const rows=source?.rows.filter(row=>biOriginalStatus(row)===status);
   if(!rows?.length)return;
+  const title='Assignment · '+status;
   biPopupState.focus.biAssignmentDetailModal=trigger;
-  document.getElementById('biAssignmentDetailTitle').textContent='Assignment · '+status;
+  document.getElementById('biAssignmentDetailTitle').textContent=title;
   const body=document.getElementById('biAssignmentDetailBody');
-  const showSurvey=new Set(rows.map(row=>row.survei)).size>1;
-  body.innerHTML='<p class="bi-popup-detail-subtitle">'+esc(source.context)+' · '+format.format(rows.length)+' assignment</p>'+
-    '<div class="tablebox"><table class="bi-assignment-detail-table'+(showSurvey?' bi-multi-survey':'')+'"><thead><tr>'+
-    '<th scope="col">Nama Assignment</th>'+(showSurvey?'<th scope="col">Survei</th>':'')+'<th scope="col">PPL</th><th scope="col">PML</th></tr></thead><tbody>'+
-    rows.map(row=>'<tr><td>'+esc(row.nama_assignment)+(row.boloStatusManual?
-      '<small>Status perhitungan manual · '+esc(row.status)+'</small>':'')+
-      '</td>'+(showSurvey?'<td>'+esc(row.survei)+'</td>':'')+'<td>'+esc(name(row,'ppl'))+'</td><td>'+esc(name(row,'pml'))+'</td></tr>').join('')+
-    '</tbody></table></div>';
+  biMountAssignmentList(body,rows,{title,context:source.context});
   document.getElementById('biAssignmentDetailModal').showModal();
   body.scrollTop=0;
 }
@@ -965,6 +1103,147 @@ function biDownloadLink(blob,filename,label){
 function biCanvasBlob(canvas,type,quality){
   return new Promise((resolve,reject)=>canvas.toBlob(blob=>
     blob?resolve(blob):reject(new Error('Ekspor gambar tidak berhasil.')),type,quality));
+}
+function biAssignmentWrap(ctx,value,maxWidth){
+  const lines=[];
+  let line='';
+  for(const word of String(value).match(/\S+/g)||[]){
+    const next=line?line+' '+word:word;
+    if(ctx.measureText(next).width<=maxWidth){line=next;continue;}
+    if(line)lines.push(line);
+    line='';
+    for(const char of word){
+      if(line&&ctx.measureText(line+char).width>maxWidth){lines.push(line);line='';}
+      line+=char;
+    }
+  }
+  lines.push(line);
+  return lines;
+}
+function biAssignmentPages(report){
+  const canvas=document.createElement('canvas');
+  canvas.width=1600;
+  canvas.height=1131;
+  const ctx=canvas.getContext('2d',{alpha:false});
+  if(!ctx)throw new Error('Canvas tidak tersedia untuk membuat laporan.');
+  const margin=48,top=214,bottom=1054,lineHeight=23,rowPadding=12;
+  const usableWidth=canvas.width-2*margin;
+  const weight=report.columns.reduce((sum,column)=>sum+column.width,0);
+  const widths=report.columns.map(column=>usableWidth*column.width/weight);
+  const pages=[];
+  let page=[],y=top;
+  ctx.font='18px Arial';
+  for(const item of report.items){
+    const cells=report.columns.map(({key},i)=>{
+      const value=item.cells[key]+(key==='assignment'&&item.row.boloStatusManual?
+        ' · Status perhitungan manual: '+item.row.status:'');
+      return biAssignmentWrap(ctx,value,widths[i]-24);
+    });
+    const length=Math.max(...cells.map(lines=>lines.length));
+    let offset=0;
+    while(offset<length){
+      let capacity=Math.floor((bottom-y-2*rowPadding)/lineHeight);
+      if(capacity<=0||(offset===0&&length<=Math.floor((bottom-top-2*rowPadding)/lineHeight)&&length>capacity)){
+        pages.push(page);
+        page=[];
+        y=top;
+        capacity=Math.floor((bottom-y-2*rowPadding)/lineHeight);
+      }
+      const size=Math.min(length-offset,capacity);
+      const height=2*rowPadding+size*lineHeight;
+      page.push({y,height,cells:cells.map(lines=>lines.slice(offset,offset+size)),odd:item.index%2});
+      y+=height;
+      offset+=size;
+    }
+  }
+  if(page.length)pages.push(page);
+  return {canvas,pages,draw(index){
+    ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle='#174775';ctx.fillRect(0,0,canvas.width,153);
+    ctx.fillStyle='#fff';ctx.font='bold 30px Arial';
+    biCanvasText(ctx,'BOLO INPEK · '+report.title,margin,53,usableWidth);
+    ctx.font='20px Arial';
+    biCanvasText(ctx,report.context+' · '+format.format(report.items.length)+' assignment',margin,91,usableWidth);
+    biCanvasText(ctx,'Data terakhir diambil: '+report.time,margin,124,usableWidth);
+    ctx.fillStyle='#e8f2ff';ctx.fillRect(margin,164,usableWidth,50);
+    ctx.fillStyle='#173b5e';ctx.font='bold 19px Arial';
+    let x=margin;
+    report.columns.forEach((column,i)=>{biCanvasText(ctx,column.label,x+12,196,widths[i]-24);x+=widths[i];});
+    ctx.font='18px Arial';
+    for(const row of pages[index]){
+      ctx.fillStyle=row.odd?'#f2f7fd':'#fff';
+      ctx.fillRect(margin,row.y,usableWidth,row.height);
+      ctx.fillStyle='#193b5d';
+      x=margin;
+      row.cells.forEach((lines,i)=>{
+        lines.forEach((line,j)=>ctx.fillText(line,x+12,row.y+rowPadding+17+j*lineHeight));
+        x+=widths[i];
+      });
+      ctx.fillStyle='#dae5ef';ctx.fillRect(margin,row.y+row.height-1,usableWidth,1);
+    }
+    ctx.font='17px Arial';ctx.fillStyle='#55708d';
+    ctx.fillText('BPS Kabupaten Blora · FASIH-SM',margin,1091);
+    ctx.textAlign='right';ctx.fillText('Halaman '+(index+1)+' / '+pages.length,canvas.width-margin,1091);ctx.textAlign='left';
+    return canvas;
+  }};
+}
+async function biExportAssignmentList(type,report,feedback){
+  const filename='BOLO_INPEK_Assignment_'+biReportName(report.context+'_'+report.title);
+  if(type==='xlsx'){
+    const XLSX=await loadExcelLibrary();
+    const book=XLSX.utils.book_new();
+    const data=XLSX.utils.aoa_to_sheet([
+      [...report.columns.map(c=>c.label),'Status Asli FASIH','Status Manual'],
+      ...report.items.map(({row,cells})=>[
+        ...report.columns.map(c=>cells[c.key]),biOriginalStatus(row),row.boloStatusManual?row.status:''
+      ])
+    ]);
+    data['!cols']=[...report.columns.map(c=>({wch:c.width})),{wch:38},{wch:38}];
+    data['!autofilter']={ref:data['!ref']};
+    XLSX.utils.book_append_sheet(book,data,'Assignment');
+    const info=XLSX.utils.aoa_to_sheet([
+      ['BOLO INPEK',report.title],['Cakupan',report.context],
+      ['Jumlah assignment',report.items.length],['Data terakhir diambil',report.time],
+      ['Sumber','FASIH-SM melalui Google Sheets']
+    ]);
+    info['!cols']=[{wch:24},{wch:75}];
+    XLSX.utils.book_append_sheet(book,info,'Informasi');
+    XLSX.writeFile(book,filename+'.xlsx',{compression:true});
+    feedback.textContent='Excel siap. Periksa unduhan browser.';
+    return;
+  }
+
+  const reportPages=biAssignmentPages(report);
+  const pageCount=reportPages.pages.length;
+  if(type==='pdf'){
+    const JsPDF=await biLoadPdfLib();
+    const pdf=new JsPDF({orientation:'landscape',unit:'mm',format:'a4',compress:true});
+    for(let i=0;i<pageCount;i++){
+      if(i)pdf.addPage();
+      pdf.addImage(reportPages.draw(i).toDataURL('image/jpeg',.92),'JPEG',0,0,
+        pdf.internal.pageSize.getWidth(),pdf.internal.pageSize.getHeight());
+    }
+    pdf.save(filename+'.pdf');
+    feedback.textContent='PDF siap. Periksa unduhan browser.';
+    return;
+  }
+
+  const links=[];
+  for(let i=0;i<pageCount;i++){
+    const blob=await biCanvasBlob(reportPages.draw(i),'image/png');
+    const suffix=pageCount>1?'_Halaman_'+(i+1):'';
+    links.push(biDownloadLink(blob,filename+suffix+'.png','Gambar '+(i+1)));
+  }
+  if(links.length===1){
+    document.body.append(links[0]);links[0].click();links[0].remove();
+    feedback.textContent='Gambar siap. Periksa unduhan browser.';
+  }else{
+    feedback.textContent='Unduh gambar per halaman: ';
+    for(const link of links){
+      link.className='export-button';
+      feedback.append(link);
+    }
+  }
 }
 function biDirectReportUrl(survey){
   const url=new URL('https://bpsblora.github.io/bolo-inpek/');
