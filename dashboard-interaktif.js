@@ -856,17 +856,58 @@ function biCanvasPage(survey,pml,pairs,pageIndex,pages,totalCounts){
   ctx.textAlign='left';
   return canvas;
 }
-function biDownloadLink(blob,filename,label){
+function biDownloadFile(blob,filename,label){
   const url=URL.createObjectURL(blob);
   const link=document.createElement('a');
   link.href=url;
   link.download=filename;
   link.textContent=label;
+  const controls=[link];
+  if(window.self===window.top&&typeof window.showSaveFilePicker==='function'){
+    const save=document.createElement('button');
+    save.type='button';
+    save.className='bi-export-btn';
+    save.textContent='Simpan ke Folder Lain';
+    save.setAttribute('aria-label',label+' ke folder lain');
+    const status=document.createElement('span');
+    status.setAttribute('role','status');
+    save.addEventListener('click',async()=>{
+      status.textContent='';
+      save.disabled=true;
+      let stream;
+      try{
+        const ext=filename.endsWith('.pdf')?'.pdf':'.png';
+        const handle=await window.showSaveFilePicker({
+          suggestedName:filename,
+          startIn:'documents',
+          types:[{
+            description:ext==='.pdf'?'Dokumen PDF':'Gambar PNG',
+            accept:{[blob.type]:[ext]}
+          }]
+        });
+        stream=await handle.createWritable();
+        await stream.write(blob);
+        await stream.close();
+        status.textContent=' File tersimpan.';
+      }catch(error){
+        if(stream)await stream.abort().catch(()=>{});
+        if(error.name!=='AbortError'){
+          status.textContent=error.name==='NotAllowedError'||error.name==='NoModificationAllowedError'
+            ?' Chrome tidak bisa menulis ke lokasi ini. Coba folder Dokumen atau Desktop.'
+            :' Gagal menyimpan. Coba folder lain atau gunakan tautan unduh.';
+        }
+      }finally{
+        if(link.hasAttribute('href'))save.disabled=false;
+      }
+    });
+    controls.push(' ',save,status);
+    setTimeout(()=>{save.disabled=true;},10*60*1000);
+  }
   setTimeout(()=>{
     URL.revokeObjectURL(url);
     link.removeAttribute('href');
   },10*60*1000);
-  return link;
+  return {link,controls};
 }
 function biCanvasBlob(canvas,type,quality){
   return new Promise((resolve,reject)=>canvas.toBlob(blob=>
@@ -907,7 +948,7 @@ async function biExportProgress(button){
         if(i>0)doc.addPage('a4','landscape');
         doc.addImage(canvas.toDataURL('image/jpeg',0.88),'JPEG',0,0,297,210);
       }
-      downloads.push(biDownloadLink(doc.output('blob'),'BOLO_INPEK_Progres_PPL_'+namePart+'.pdf','Unduh PDF'));
+      downloads.push(biDownloadFile(doc.output('blob'),'BOLO_INPEK_Progres_PPL_'+namePart+'.pdf','Unduh PDF'));
     }else{
       // Satu gambar tinggi jika memungkinkan; untuk laporan sangat panjang,
       // beberapa berkas PNG per 5 halaman menghindari batas ukuran canvas Windows.
@@ -923,23 +964,23 @@ async function biExportProgress(button){
           context.drawImage(pg,0,j*1191);
         }
         const blob=await biCanvasBlob(combined,'image/png');
-        downloads.push(biDownloadLink(blob,
+        downloads.push(biDownloadFile(blob,
           'BOLO_INPEK_Progres_PPL_'+namePart+(pages>5?'_Bagian_'+part:'')+'.png',
           pages>5?'Unduh Gambar Bagian '+part:'Unduh Gambar'));
         startPage+=portion;part++;
       }
     }
     if(feedback){
-      feedback.textContent=downloads.length===1?'Laporan siap. Jika belum terunduh, klik ':'Laporan siap. Unduh setiap bagian ';
-      downloads.forEach((link,i)=>{
-        if(i)feedback.append(' · ');
-        feedback.append(link);
+      feedback.textContent='Laporan siap. ';
+      downloads.forEach(({controls},i)=>{
+        if(i)feedback.append(document.createElement('br'));
+        feedback.append(...controls);
       });
     }
     if(feedback&&window.self!==window.top)
       feedback.append(' · Jika unduhan diblokir, ',biDirectReportLink(survey),'.');
     if(downloads.length===1){
-      const link=downloads[0];
+      const {link}=downloads[0];
       if(!feedback)document.body.appendChild(link);
       link.click();
       if(!feedback)link.remove();
