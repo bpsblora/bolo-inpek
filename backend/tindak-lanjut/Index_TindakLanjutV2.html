@@ -155,8 +155,25 @@
   gap: 8px;
   margin: 12px 0;
 }
-.reminder-choices .choice { margin: 0; border: 1px solid #c7d7e8; }
+.reminder-recipient {
+  min-width: 0;
+  background: #edf4ff;
+  border: 1px solid #c7d7e8;
+  border-radius: 8px;
+}
+.reminder-recipient .choice { margin: 0; overflow-wrap: anywhere; }
+.reminder-recipient > button { margin: 0 10px 10px; padding: 6px 10px; font-size: 12px; }
 .reminder-choices small { display: block; }
+.reminder-assignment-list h3 { margin: 0 0 8px; font-size: 14px; }
+.reminder-assignment-list ul { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.reminder-assignment-list li {
+  padding: 10px 12px;
+  background: #fff;
+  border: 1px solid #b6c9df;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+.reminder-assignment-list small { display: block; color: #46627f; }
 .reminder-staff-alert {
   background: #fff6ea;
   border: 1px solid #ebcc9f;
@@ -364,6 +381,18 @@
     </form>
   </div>
   <div id="reminders"></div>
+</dialog>
+<dialog id="assignmentDetailDialog" class="reminder-dialog survey-picker-dialog" aria-labelledby="assignmentDetailHeading" aria-describedby="assignmentDetailPerson">
+  <div class="reminder-dialog-heading">
+    <div>
+      <h2 id="assignmentDetailHeading">Detail Assignment</h2>
+      <p id="assignmentDetailPerson" class="muted" style="margin:0"></p>
+    </div>
+    <form method="dialog">
+      <button type="submit" class="tl-confirm-dismiss" aria-label="Tutup detail assignment" autofocus>×</button>
+    </form>
+  </div>
+  <div id="assignmentDetailList" class="survey-picker-list reminder-assignment-list"></div>
 </dialog>
 <section id="remindPanel" class="panel" hidden>
   <h2>Ingatkan Petugas</h2>
@@ -891,6 +920,38 @@ function updateReminderSelection(){
   $('draftBtn').textContent=count?'Susun '+count+' pesan WhatsApp':'Susun pesan WhatsApp';
 }
 
+function showReminderAssignments(recipient){
+  const list=$('assignmentDetailList');
+  $('assignmentDetailPerson').textContent=recipient.name;
+  list.replaceChildren();
+  for(const [role,assignments] of Object.entries(recipient.jobs)){
+    if(!assignments.length)continue;
+    const group=document.createElement('section');
+    const heading=document.createElement('h3');
+    heading.textContent=role+' · '+assignments.length+' assignment';
+    const items=document.createElement('ul');
+    const sorted=assignments.slice().sort((a,b)=>
+      REMINDER_STATUS_ORDER.indexOf(reminderStatus(a))-REMINDER_STATUS_ORDER.indexOf(reminderStatus(b))||
+      String(a.nama_assignment||'').localeCompare(String(b.nama_assignment||''),'id'));
+    for(const assignment of sorted){
+      const row=document.createElement('li');
+      const name=document.createElement('strong');
+      name.textContent=assignment.nama_assignment||assignment.assignment_id||'Nama assignment belum tersedia';
+      const status=document.createElement('small');
+      status.textContent=assignmentStatus(assignment);
+      if(role==='PML'){
+        status.textContent+=' · PPL: '+(assignment.ppl||recipient.namesById.get(assignment.ppl_id)||'Belum ditetapkan');
+      }
+      row.append(name,status);
+      items.append(row);
+    }
+    group.append(heading,items);
+    list.append(group);
+  }
+  $('assignmentDetailDialog').showModal();
+  list.scrollTop=0;
+}
+
 function renderPerson(){
   clearDraft();
   const survey=selected();
@@ -906,6 +967,8 @@ function renderPerson(){
   $('phone').textContent=recipients.length?'':'Tidak ada pekerjaan yang perlu diingatkan pada periode ini.';
 
   for(const p of recipients){
+    const card=document.createElement('div');
+    card.className='reminder-recipient';
     const label=document.createElement('label');
     label.className='choice';
     const check=document.createElement('input');
@@ -926,7 +989,16 @@ function renderPerson(){
       details.append(warning);
     }
     label.append(check,details);
-    choices.append(label);
+    const detailButton=document.createElement('button');
+    detailButton.type='button';
+    detailButton.className='secondary';
+    detailButton.textContent='Lihat Detail Assignment';
+    detailButton.setAttribute('aria-label','Lihat detail assignment '+p.name);
+    detailButton.setAttribute('aria-haspopup','dialog');
+    detailButton.setAttribute('aria-controls','assignmentDetailDialog');
+    detailButton.onclick=()=>showReminderAssignments(p);
+    card.append(label,detailButton);
+    choices.append(card);
   }
   updateReminderSelection();
 }
