@@ -549,11 +549,21 @@ function biExportButtons(survey,pml){
   const attrs=' data-survey="'+esc(survey)+'" data-scope="'+(pml===null?'all':'pml')+'"'+
     (pml===null?'':' data-pml="'+esc(pml)+'"');
   const target=pml===null?'semua PPL':'PPL pada PML '+pml;
-  return '<span class="bi-export-buttons">'+
+  const saveOptions=window.self!==window.top
+    ?'<a class="bi-export-btn" href="'+esc(biDirectReportUrl(survey))+
+      '" target="_blank" rel="noopener noreferrer">Buka Dashboard di tab baru</a>'
+    :typeof window.showSaveFilePicker==='function'
+      ?'<details class="bi-export-save"><summary>Simpan ke Folder Lain</summary>'+
+        '<button type="button" class="bi-export-btn" data-bi-export="png" data-bi-save-as'+attrs+
+        ' aria-label="Simpan gambar progres '+esc(target)+' ke folder lain">Gambar</button> '+
+        '<button type="button" class="bi-export-btn" data-bi-export="pdf" data-bi-save-as'+attrs+
+        ' aria-label="Simpan PDF progres '+esc(target)+' ke folder lain">PDF</button></details>'
+      :'';
+  return '<div class="bi-export-buttons">'+
     '<button type="button" class="bi-export-btn" data-bi-export="png"'+attrs+
     ' aria-label="Unduh gambar progres '+esc(target)+'">▧ Gambar</button>'+
     '<button type="button" class="bi-export-btn pdf" data-bi-export="pdf"'+attrs+
-    ' aria-label="Unduh PDF progres '+esc(target)+'">↓ PDF</button></span>';
+    ' aria-label="Unduh PDF progres '+esc(target)+'">↓ PDF</button>'+saveOptions+'</div>';
 }
 function biPplDetailPanel(survey){
   const rows=DATA.filter(row=>row.survei===survey);
@@ -856,72 +866,57 @@ function biCanvasPage(survey,pml,pairs,pageIndex,pages,totalCounts){
   ctx.textAlign='left';
   return canvas;
 }
-function biDownloadFile(blob,filename,label){
+function biDownloadLink(blob,filename,label){
   const url=URL.createObjectURL(blob);
   const link=document.createElement('a');
   link.href=url;
   link.download=filename;
   link.textContent=label;
-  const controls=[link];
-  if(window.self===window.top&&typeof window.showSaveFilePicker==='function'){
-    const save=document.createElement('button');
-    save.type='button';
-    save.className='bi-export-btn';
-    save.textContent='Simpan ke Folder Lain';
-    save.setAttribute('aria-label',label+' ke folder lain');
-    const status=document.createElement('span');
-    status.setAttribute('role','status');
-    save.addEventListener('click',async()=>{
-      status.textContent='';
-      save.disabled=true;
-      let stream;
-      try{
-        const ext=filename.endsWith('.pdf')?'.pdf':'.png';
-        const handle=await window.showSaveFilePicker({
-          suggestedName:filename,
-          startIn:'documents',
-          types:[{
-            description:ext==='.pdf'?'Dokumen PDF':'Gambar PNG',
-            accept:{[blob.type]:[ext]}
-          }]
-        });
-        stream=await handle.createWritable();
-        await stream.write(blob);
-        await stream.close();
-        status.textContent=' File tersimpan.';
-      }catch(error){
-        if(stream)await stream.abort().catch(()=>{});
-        if(error.name!=='AbortError'){
-          status.textContent=error.name==='NotAllowedError'||error.name==='NoModificationAllowedError'
-            ?' Chrome tidak bisa menulis ke lokasi ini. Coba folder Dokumen atau Desktop.'
-            :' Gagal menyimpan. Coba folder lain atau gunakan tautan unduh.';
-        }
-      }finally{
-        if(link.hasAttribute('href'))save.disabled=false;
-      }
-    });
-    controls.push(' ',save,status);
-    setTimeout(()=>{save.disabled=true;},10*60*1000);
-  }
   setTimeout(()=>{
     URL.revokeObjectURL(url);
     link.removeAttribute('href');
   },10*60*1000);
-  return {link,controls};
+  return link;
+}
+function biPickReportFile(filename){
+  const pdf=filename.endsWith('.pdf');
+  return window.showSaveFilePicker({
+    suggestedName:filename,
+    startIn:'documents',
+    types:[pdf
+      ?{description:'Dokumen PDF',accept:{'application/pdf':['.pdf']}}
+      :{description:'Gambar PNG',accept:{'image/png':['.png']}}]
+  });
+}
+async function biWriteReportFile(handle,blob){
+  const stream=await handle.createWritable();
+  try{
+    await stream.write(blob);
+    await stream.close();
+  }catch(error){
+    await stream.abort().catch(()=>{});
+    throw error;
+  }
+}
+function biReportExportError(feedback,error){
+  if(!feedback)return;
+  if(error.name==='AbortError'){
+    feedback.textContent='';
+    return;
+  }
+  const message=error.name==='NotAllowedError'||error.name==='NoModificationAllowedError'
+    ?'Chrome tidak bisa menulis ke lokasi ini. Pilih folder Dokumen atau Desktop.'
+    :'Gagal ekspor: '+(error.message||String(error));
+  feedback.textContent=message;
 }
 function biCanvasBlob(canvas,type,quality){
   return new Promise((resolve,reject)=>canvas.toBlob(blob=>
     blob?resolve(blob):reject(new Error('Ekspor gambar tidak berhasil.')),type,quality));
 }
-function biDirectReportLink(survey){
+function biDirectReportUrl(survey){
   const url=new URL('https://bpsblora.github.io/bolo-inpek/');
   url.searchParams.set('survei',survey);
-  const link=document.createElement('a');
-  link.href=url.href;
-  link.target='_blank';
-  link.rel='noopener noreferrer';
-  link.textContent='Buka Dashboard di tab baru';
-  return link;
+  return url.href;
 }
 async function biExportProgress(button){
   if(button.disabled)return;
@@ -936,11 +931,16 @@ async function biExportProgress(button){
   const c=biCounts(rows),summary={...c,total:rows.length,
     manual:rows.filter(r=>r.boloStatusManual).length};
   const pages=Math.ceil(pairs.length/17),namePart=biReportName(survey)+'_'+biReportName(pml||'Seluruh_PPL');
+  const isPdf=button.dataset.biExport==='pdf';
+  const multiPart=!isPdf&&pages>5;
+  const saveAs=button.hasAttribute('data-bi-save-as');
+  const filename='BOLO_INPEK_Progres_PPL_'+namePart+(isPdf?'.pdf':'.png');
   siblings.forEach(x=>x.disabled=true);
-  if(feedback)feedback.textContent='Menyiapkan laporan '+(button.dataset.biExport==='pdf'?'PDF':'gambar')+' untuk '+pairs.length+' pasangan PPL–PML…';
+  if(feedback)feedback.textContent='Menyiapkan '+(isPdf?'PDF':'gambar')+'…';
   try{
+    const handle=saveAs&&!multiPart?await biPickReportFile(filename):null;
     const downloads=[];
-    if(button.dataset.biExport==='pdf'){
+    if(isPdf){
       const JsPDF=await biLoadPdfLib();
       const doc=new JsPDF({orientation:'landscape',unit:'mm',format:'a4',compress:true});
       for(let i=0;i<pages;i++){
@@ -948,7 +948,7 @@ async function biExportProgress(button){
         if(i>0)doc.addPage('a4','landscape');
         doc.addImage(canvas.toDataURL('image/jpeg',0.88),'JPEG',0,0,297,210);
       }
-      downloads.push(biDownloadFile(doc.output('blob'),'BOLO_INPEK_Progres_PPL_'+namePart+'.pdf','Unduh PDF'));
+      downloads.push({blob:doc.output('blob'),filename});
     }else{
       // Satu gambar tinggi jika memungkinkan; untuk laporan sangat panjang,
       // beberapa berkas PNG per 5 halaman menghindari batas ukuran canvas Windows.
@@ -964,31 +964,48 @@ async function biExportProgress(button){
           context.drawImage(pg,0,j*1191);
         }
         const blob=await biCanvasBlob(combined,'image/png');
-        downloads.push(biDownloadFile(blob,
-          'BOLO_INPEK_Progres_PPL_'+namePart+(pages>5?'_Bagian_'+part:'')+'.png',
-          pages>5?'Unduh Gambar Bagian '+part:'Unduh Gambar'));
+        downloads.push({blob,filename:multiPart?filename.replace(/\.png$/,'_Bagian_'+part+'.png'):filename});
         startPage+=portion;part++;
       }
     }
-    if(feedback){
-      feedback.textContent='Laporan siap. ';
-      downloads.forEach(({controls},i)=>{
-        if(i)feedback.append(document.createElement('br'));
-        feedback.append(...controls);
+    if(feedback)feedback.textContent='';
+    if(multiPart&&feedback){
+      downloads.forEach(({blob,filename},i)=>{
+        if(i)feedback.append(' · ');
+        const part='Gambar Bagian '+(i+1);
+        if(!saveAs){
+          feedback.append(biDownloadLink(blob,filename,'Unduh '+part));
+          return;
+        }
+        const save=document.createElement('button');
+        save.type='button';
+        save.className='bi-export-btn';
+        save.textContent='Simpan '+part;
+        const status=document.createElement('span');
+        status.setAttribute('role','status');
+        save.addEventListener('click',async()=>{
+          status.textContent='';
+          save.disabled=true;
+          try{
+            const chosen=await biPickReportFile(filename);
+            await biWriteReportFile(chosen,blob);
+          }catch(error){
+            biReportExportError(status,error);
+          }finally{save.disabled=false;}
+        });
+        feedback.append(save,status);
       });
-    }
-    if(feedback&&window.self!==window.top)
-      feedback.append(' · Jika unduhan diblokir, ',biDirectReportLink(survey),'.');
-    if(downloads.length===1){
-      const {link}=downloads[0];
-      if(!feedback)document.body.appendChild(link);
+    }else if(handle){
+      await biWriteReportFile(handle,downloads[0].blob);
+    }else{
+      const link=biDownloadLink(downloads[0].blob,downloads[0].filename,'');
+      document.body.appendChild(link);
       link.click();
-      if(!feedback)link.remove();
+      link.remove();
     }
   }catch(error){
-    if(feedback){
-      feedback.textContent='Gagal ekspor: '+(error.message||String(error));
-      if(window.self!==window.top)feedback.append(' · ',biDirectReportLink(survey),'.');
-    }
-  }finally{siblings.forEach(x=>x.disabled=false);}
+    biReportExportError(feedback,error);
+  }finally{
+    siblings.forEach(x=>x.disabled=false);
+  }
 }
