@@ -633,7 +633,7 @@ body.bolo-loading-active{overflow:hidden}
 }
 </style>
 
-<link rel="stylesheet" href="./dashboard-interaktif.css?v=42">
+<link rel="stylesheet" href="./dashboard-interaktif.css?v=43">
 </head>
 <body>
 <div id="boloLoading" class="bolo-loading" role="status" aria-live="polite" aria-label="BOLO INPEK sedang memuat data" hidden>
@@ -800,7 +800,7 @@ body.bolo-loading-active{overflow:hidden}
   </main>
   <footer>BOLO INPEK · Sumber: FASIH-SM melalui Google Sheets · <a href="./kebijakan-privasi.html">Kebijakan Privasi</a></footer>
   <noscript>Aktifkan JavaScript untuk menggunakan dashboard ini.</noscript>
-  <script src="./dashboard-interaktif.js?v=45"></script>
+  <script src="./dashboard-interaktif.js?v=46"></script>
   <script>
     // ========================================================
     // STATUS DASHBOARD: setiap assignment dihitung satu kali.
@@ -1195,16 +1195,16 @@ body.bolo-loading-active{overflow:hidden}
       };
       if(isTop){
         target.innerHTML=statuses.map(s=>
-          '<div><dt><span style="background:'+s.color+'"></span>'+esc(s.label)+
+          '<div><dt><button type="button" class="bi-status-definition" data-bi-status-scope="county" data-bi-display-status="'+esc(s.code)+'" aria-haspopup="dialog"><span aria-hidden="true" style="background:'+s.color+'"></span>'+esc(s.label)+' ›</button>'+
           '</dt><dd>'+esc(meaningFor(s.code))+'</dd></div>'
         ).join('');
       }else{
         target.innerHTML='<strong class="bi-inline-status-heading">STATUS</strong>'+
           statuses.map(s=>
-            '<span class="bi-inline-status-chip" role="listitem" title="'+
+            '<span role="listitem"><button type="button" class="bi-inline-status-chip" data-bi-status-scope="survey" data-bi-display-status="'+esc(s.code)+'" aria-haspopup="dialog" title="'+
               esc(s.label+' — '+meaningFor(s.code))+'">'+
               '<i aria-hidden="true" style="background:'+s.color+'"></i>'+
-              '<span>'+esc(s.label)+'</span></span>'
+              '<span>'+esc(s.label)+' ›</span></button></span>'
           ).join('');
       }
     }
@@ -1540,9 +1540,9 @@ body.bolo-loading-active{overflow:hidden}
       const header=statuses.map(s=>'<th><span class="statuslabel"><span class="dot" style="background:'+s.color+'"></span>'+esc(s.label)+'</span></th>').join('');
       const body=people.map(person=>{
         const group=rows.filter(r=>name(r,key)===person),c=counts(group,statuses);
-        return '<tr><td><button class="person" data-level="'+key+'" data-value="'+esc(person)+'">'+esc(person)+' →</button></td><td>'+group.length+'</td>'+statuses.map((s,i)=>{
+        return '<tr><td><button class="person" data-level="'+key+'" data-value="'+esc(person)+'">'+esc(person)+' →</button></td><td>'+biStatusCell(key,person,'data-bi-metric="total"',group.length,String(group.length))+'</td>'+statuses.map((s,i)=>{
           const metric='<span class="metric"><strong>'+percent(c[i],group.length)+'</strong><small>'+c[i]+' assignment</small></span>';
-          return '<td>'+(key==='ppl'?'<button class="statusbtn" '+(c[i]?'':'disabled')+' data-level="status" data-person="'+esc(person)+'" data-value="'+esc(s.code)+'" aria-label="'+esc(person)+' '+esc(s.label)+' '+c[i]+' assignment">'+metric+'</button>':metric)+'</td>';
+          return '<td>'+biStatusCell(key,person,'data-bi-display-status="'+esc(s.code)+'"',c[i],metric)+'</td>';
         }).join('')+'</tr>';
       }).join('');
       return '<div class="tablebox"><table><thead><tr><th>'+key.toUpperCase()+'</th><th>Total</th>'+header+'</tr></thead><tbody>'+body+'</tbody></table></div>';
@@ -1891,6 +1891,8 @@ body.bolo-loading-active{overflow:hidden}
       if(kpi){biPopupOpenKpi(kpi.dataset.biKpi,kpi);return;}
       const originalStatus=event.target.closest('button[data-bi-original-status]');
       if(originalStatus){biPopupOpenAssignments(originalStatus.dataset.biOriginalStatus,originalStatus);return;}
+      const scopedStatus=event.target.closest('button[data-bi-status-scope]');
+      if(scopedStatus){biPopupOpenScopedStatus(scopedStatus);return;}
       const navPopup=event.target.closest('button[data-bi-popup-nav]');
       if(navPopup){
         biPopupOpen(navPopup.dataset.biPopupNav,navPopup.dataset.biPopupSurvey,navPopup);
@@ -1965,7 +1967,7 @@ body.bolo-loading-active{overflow:hidden}
     });
     document.addEventListener('keydown',event=>{
       const row=event.target.closest('tr[data-bi-detail-pair]');
-      if(!row||!['Enter',' '].includes(event.key))return;
+      if(!row||event.target!==row||!['Enter',' '].includes(event.key))return;
       event.preventDefault();
       biPopupOpenDetail('main-pair',Number(row.dataset.biDetailPair),row);
     });

@@ -373,10 +373,11 @@
   font-size:12px;color:#476c91;font-weight:750}
 .bi-popup-detail-subtitle{font-size:12px;color:#6b819a;margin:0 0 14px}
 .bi-popup-stats-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:18px}
-.bi-popup-stats-grid>div{display:flex;flex-direction:column;gap:6px;padding:13px 14px;
+.bi-popup-stats-grid>button{display:flex;flex-direction:column;gap:6px;padding:13px 14px;text-align:left;
   background:#eff6ff;border:1px solid #d4e5f9;border-radius:11px}
-.bi-popup-stats-grid>div:nth-child(2){background:#eaf8f0;border-color:#c9e8d7}
-.bi-popup-stats-grid>div:nth-child(3){background:#f1edff;border-color:#dcd3f8}
+.bi-popup-stats-grid>button:nth-child(2){background:#eaf8f0;border-color:#c9e8d7}
+.bi-popup-stats-grid>button:nth-child(3){background:#f1edff;border-color:#dcd3f8}
+.bi-popup-stats-grid>button:hover{border-color:#6799ca}
 .bi-popup-stats-grid span{font-size:11px;color:#617b94;font-weight:750}
 .bi-popup-stats-grid strong{font-size:20px;color:#164c7f;font-variant-numeric:tabular-nums}
 .bi-popup-status-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;
@@ -397,6 +398,7 @@
 .bi-original-status .bi-popup-status-label::after{content:' ›';color:#286fae}
 .bi-assignment-detail-table{min-width:0;table-layout:fixed;overflow-wrap:anywhere}
 .bi-assignment-detail-table th:first-child{width:46%}
+.bi-assignment-detail-table.bi-multi-survey th:first-child{width:36%}
 .bi-assignment-detail-table th,.bi-assignment-detail-table td{padding:10px 12px;font-size:13px;vertical-align:top}
 .bi-assignment-detail-table small{display:block;margin-top:4px;color:#55708d}
 .bi-popup-info{margin:16px 0 0;color:#6c829b;font-size:11px;line-height:1.6}
@@ -456,6 +458,19 @@
   padding:5px 7px;border-radius:8px;
 }
 .bi-inline-status-chip i{display:inline-block;width:10px;height:10px;border-radius:3px;flex:0 0 auto}
+.bi-legend-raw .bi-legend-item{padding:0;border:0;background:none}
+.bi-legend-item button{display:flex;align-items:center;gap:5px;padding:5px 7px;color:inherit;
+  background:#f4f8ff;border:1px solid #d5e4f5;border-radius:8px;white-space:nowrap}
+.bi-inline-status-chip:hover,.bi-legend-item button:hover{background:#e6f1ff;border-color:#86b4df}
+.bi-status-definition,.bi-metric-link{display:inline-flex;align-items:center;gap:6px;text-align:left;
+  background:none;border:0;padding:0;color:inherit;font-weight:inherit}
+.bi-status-definition:hover,.bi-metric-link:hover{text-decoration:underline}
+.bi-metric-link{font-size:10px}
+.bi-stack button.bi-seg{border:0;padding:0;border-radius:0}
+.bi-stack button.bi-seg:hover,.bi-stack button.bi-seg:focus-visible{outline:2px solid #214f7b;outline-offset:-2px}
+button.bi-donut{border:0;padding:0}
+button.bi-county-total{text-align:left}
+.bi-county-total:hover,.bi-survey-assignment-chip:hover{box-shadow:0 2px 7px #214f7b25}
 @media(max-width:600px){
   .bi-inline-status-legend{gap:5px;margin-bottom:9px}
   .bi-inline-status-chip{font-size:10px;padding:5px 6px}

@@ -288,22 +288,23 @@ function biMarkListContent(survey){
 
 
 function biSurveyList(){return surveiUrutDeadline().filter(surveiMasihAktif);}
-function biBar(rows,label){
+function biBar(rows,label,scope=''){
   const states=biRawStatusStats(rows);
   const segments=states.map(status=>{
     if(!status.count||!rows.length)return '';
     const width=(status.count/rows.length*100).toFixed(3);
+    if(scope)return '<button type="button" class="bi-seg" data-bi-status-scope="'+scope+'" data-bi-display-status="'+esc(status.label)+'" aria-haspopup="dialog" aria-label="'+esc(status.label+' · '+status.count+' assignment')+'" style="width:'+width+'%;background:'+status.color+'" title="'+esc(status.label+': '+status.count)+'"></button>';
     return '<span class="bi-seg" style="width:'+width+'%;background:'+status.color+
       '" title="'+esc(status.label+': '+status.count)+'"></span>';
   }).join('');
-  return '<span class="bi-stack" role="img" aria-label="'+esc(label+' — '+
+  return '<span class="bi-stack" role="'+(scope?'group':'img')+'" aria-label="'+esc(label+' — '+
     states.map(s=>s.label+': '+s.count).join('; '))+'">'+segments+'</span>';
 }
-function biLegend(rows){
+function biLegend(rows,scope){
   const states=biRawStatusStats(rows||DATA);
   return '<div class="bi-legend bi-legend-raw" role="list" aria-label="Legenda status FASIH">'+
-    states.map(s=>'<span role="listitem" title="'+esc(s.label)+'"><i style="background:'+s.color+
-      '"></i>'+esc(s.label)+'</span>').join('')+'</div>';
+    states.map(s=>'<span role="listitem" class="bi-legend-item"><button type="button" data-bi-status-scope="'+scope+'" data-bi-display-status="'+esc(s.label)+'" aria-haspopup="dialog"><i aria-hidden="true" style="background:'+s.color+
+      '"></i>'+esc(s.label)+'</button></span>').join('')+'</div>';
 }
 function biSummarySurveyList(){
   // Ranking utama: belum 100% di kiri, sudah 100% di kanan.
@@ -331,9 +332,9 @@ function biSummary(){
   const denominator=activeRows.length;
   return '<section class="bi-summary" aria-labelledby="bi-summary-h">'+
     '<div class="bi-head"><div><div class="bi-eyebrow">RINGKASAN MONITORING</div><h2 id="bi-summary-h">Capaian Sudah Submit per Survei</h2></div>'+
-    '<div class="bi-summary-actions"><span class="bi-county-total '+(denominator?(submitted===denominator?'is-success':submitted/denominator>=0.8?'is-warning':'is-danger'):'is-empty')+'"><strong>'+
+    '<div class="bi-summary-actions"><button type="button" data-bi-status-scope="county" data-bi-metric="submitted" aria-haspopup="dialog" class="bi-county-total '+(denominator?(submitted===denominator?'is-success':submitted/denominator>=0.8?'is-warning':'is-danger'):'is-empty')+'"><strong>'+
     (denominator?percent(submitted,denominator):'—')+'</strong>'+
-    '<span>'+format.format(submitted)+' dari '+format.format(denominator)+' assignment sudah submit · Kabupaten</span></span>'+
+    '<span>'+format.format(submitted)+' dari '+format.format(denominator)+' assignment sudah submit · Kabupaten ›</span></button>'+
     (state.survey===null?'':'<button class="bi-back-all" type="button" data-level="home" data-value="">← Semua Survei</button>')+
     '</div></div>'+
     '<div class="bi-summary-tip" role="note"><span class="bi-summary-tip-icon" aria-hidden="true">✦</span>'+
@@ -393,8 +394,9 @@ function biRoleContent(rows,key){
     const body=names.map(person=>{
       const group=rows.filter(r=>name(r,key)===person),c=biCounts(group);
       return '<tr><td><button class="bi-link" data-level="'+key+'" data-value="'+esc(person)+'">'+esc(person)+' →</button></td>'+
-        '<td>'+group.length+'</td><td><strong>'+biUnitText(c[metric],group.length,key)+'</strong></td>'+
-        biBuckets.map(b=>'<td>'+c[b.id]+'</td>').join('')+'</tr>';
+        '<td>'+biStatusCell(key,person,'data-bi-metric="total"',group.length,String(group.length))+'</td>'+
+        '<td>'+biStatusCell(key,person,'data-bi-metric="submitted"',c[metric],biUnitText(c[metric],group.length,key))+'</td>'+
+        biBuckets.map(b=>'<td>'+biStatusCell(key,person,'data-bi-status-bucket="'+b.id+'"',c[b.id],String(c[b.id]))+'</td>').join('')+'</tr>';
     }).join('');
     return '<div class="tablebox"><table class="bi-table"><thead><tr><th>'+key.toUpperCase()+'</th><th>Total</th>'+
       '<th>'+metricName+' ↓</th>'+
@@ -408,6 +410,10 @@ function biRoleContent(rows,key){
       '<span>Sudah Submit · APPROVED: '+counts.approvedStage+'</span></span></button>';
   }).join('')+'</div>';
 }
+function biStatusCell(role,person,metricAttrs,count,content){
+  if(!count)return content;
+  return '<button type="button" class="statusbtn" data-bi-status-scope="view" data-bi-status-role="'+role+'" data-bi-status-person="'+esc(person)+'" '+metricAttrs+' aria-haspopup="dialog">'+content+'</button>';
+}
 function biPanel(rows,key){
   const label=key==='pml'?'Pengawas / PML':'Pencacah / PPL';
   const rank='Sudah Submit';
@@ -418,13 +424,14 @@ function biPanel(rows,key){
     '<small>Urutan: '+orderLabel+'</small></div>'+
     '<div class="bi-panel-tools"><small>'+biRoleNames(rows,key).length+' petugas</small>'+
     biUnitControl(key)+'</div></div>'+
-    biRoleContent(rows,key)+biLegend(rows)+'</section>';
+    biRoleContent(rows,key)+biLegend(rows,'view')+'</section>';
 }
-const BI_KPI_LABELS={total:'Total Assignment',pending:'Belum Submit',submitted:'Sudah Submit',rejected:'REJECTED'};
+const BI_KPI_LABELS={total:'Total Assignment',pending:'Belum Submit',submitted:'Sudah Submit',rejected:'REJECTED',approved:'APPROVED'};
 function biKpiRows(rows,kind){
   if(kind==='total')return rows;
   if(kind==='pending')return rows.filter(row=>['open','draft'].includes(biStatusBucket(row.status))||biRejectedByPengawas(row.status));
   if(kind==='submitted')return rows.filter(row=>biIsSubmittedStatus(row.status));
+  if(kind==='approved')return rows.filter(row=>biStatusBucket(row.status)==='approvedStage');
   return rows.filter(row=>['rejected','rejectedProvinsi'].includes(biStatusBucket(row.status)));
 }
 function biKpis(rows){
@@ -477,26 +484,26 @@ function biSurveyDashboard(survey){
             '<h1 tabindex="-1">Progres '+esc(survey)+'</h1>'+
             '<div class="bi-survey-period-row">'+periodeHtml(survey)+'</div>'+
           '</div>'+
-          '<div class="bi-survey-assignment-chip" aria-label="'+format.format(all.length)+' assignment">'+
-            '<strong>'+format.format(all.length)+'</strong><span>Assignment</span></div>'+
+          '<button type="button" class="bi-survey-assignment-chip" data-bi-kpi="total" aria-haspopup="dialog" aria-label="'+format.format(all.length)+' assignment">'+
+            '<strong>'+format.format(all.length)+'</strong><span>Assignment ›</span></button>'+
         '</div>'+
         '<div class="bi-survey-progress-group">'+
           '<div class="bi-survey-progress-heading"><strong>Komposisi Status FASIH</strong>'+
-            '<span><strong>'+format.format(count.submitted)+' / '+format.format(all.length)+'</strong> Sudah Submit · '+(all.length?percent(count.submitted,all.length):'—')+'</span></div>'+
-          '<div class="bi-survey-fullbar">'+biBar(all,'Komposisi status FASIH '+survey)+'</div>'+
+            '<button type="button" class="bi-metric-link" data-bi-kpi="submitted" aria-haspopup="dialog"><strong>'+format.format(count.submitted)+' / '+format.format(all.length)+'</strong> Sudah Submit · '+(all.length?percent(count.submitted,all.length):'—')+' ›</button></div>'+
+          '<div class="bi-survey-fullbar">'+biBar(all,'Komposisi status FASIH '+survey,'survey')+'</div>'+
         '</div>'+
         '<div class="bi-head-actions">'+exportButtons(survey)+tombolTindakLanjut(survey)+
           '<p class="export-feedback" role="status" aria-live="polite"></p></div>'+
       '</div>'+
       '<div class="bi-survey-donut-panel">'+
-        '<div class="bi-donut" style="background:'+donutColor+'"><div class="bi-donut-center">'+
+        '<button type="button" class="bi-donut" data-bi-kpi="submitted" aria-haspopup="dialog" style="background:'+donutColor+'"><span class="bi-donut-center">'+
           '<strong>'+(all.length?percent(count.submitted,all.length):'—')+'</strong>'+
           '<small>Sudah Submit</small>'+
           '<span>'+format.format(count.submitted)+' / '+format.format(all.length)+'</span>'+
-        '</div></div>'+
+        '</span></button>'+
       '</div>'+
     '</div>'+
-    '<div class="bi-survey-hero-legend">'+biLegend(all)+'</div>'+
+    '<div class="bi-survey-hero-legend">'+biLegend(all,'survey')+'</div>'+
   '</section>';
   return head+biKpis(all)+biProgressNavigation(survey,all)+biPplDetailPanel(survey);
 }
@@ -531,7 +538,7 @@ function biOverview(){
         '<span class="bi-name">'+esc(survey)+'</span>'+biBar(rows,survey)+
         '<span class="bi-row-stat"><strong>'+biUnitText(submitted,rows.length,'overview')+'</strong>'+
           '<span>Sudah Submit</span></span></button>';
-    }).join('')+'</div>'+biLegend(DATA.filter(r=>surveys.includes(r.survei)))+'</div>';
+    }).join('')+'</div>'+biLegend(DATA.filter(r=>surveys.includes(r.survei)),'county')+'</div>';
 }
 
 
@@ -587,10 +594,10 @@ function biPplDetailPanel(survey){
         return '<tr class="bi-ppl-clickable" tabindex="0" data-bi-detail-pair="'+i+
           '" aria-label="Lihat rincian status PPL '+esc(entry.ppl)+' dengan PML '+esc(entry.pml)+'">'+
           '<td><strong>'+esc(entry.ppl)+'</strong></td>'+
-          '<td>'+format.format(entry.rows.length)+'</td>'+
-          '<td><strong>'+biUnitText(c.submitted,entry.rows.length,'report')+'</strong></td>'+
-          '<td>'+format.format(c.approvedStage)+'</td>'+
-          '<td class="bi-mini-stack">'+biBar(entry.rows,entry.ppl)+
+          '<td><button type="button" class="bi-metric-link" data-bi-status-scope="main-pair" data-bi-metric="total" aria-haspopup="dialog">'+format.format(entry.rows.length)+'</button></td>'+
+          '<td><button type="button" class="bi-metric-link" data-bi-status-scope="main-pair" data-bi-metric="submitted" aria-haspopup="dialog">'+biUnitText(c.submitted,entry.rows.length,'report')+'</button></td>'+
+          '<td><button type="button" class="bi-metric-link" data-bi-status-scope="main-pair" data-bi-metric="approved" aria-haspopup="dialog">'+format.format(c.approvedStage)+'</button></td>'+
+          '<td class="bi-mini-stack">'+biBar(entry.rows,entry.ppl,'main-pair')+
             '<small class="bi-progress-label">'+biUnitText(c.submitted,entry.rows.length,'report')+'</small></td>'+
           '<td>'+esc(entry.pml)+'</td></tr>';
       }).join('')+'</tbody></table></div>':
@@ -663,7 +670,7 @@ function biPopupPaint(){
         return biPopupGroupButton(person,group,scope,attrs,meta);
       }).join('')+'</div>';
   }
-  content+=biLegend(rows);
+  content+=biLegend(rows,'progress');
   document.getElementById('biProgressBody').innerHTML=content;
 }
 function biPopupOpen(view,survey,trigger){
@@ -686,7 +693,7 @@ function biPopupPaintPmlPeople(){
     '<div class="bi-popup-group-list">'+pairs.map((entry,i)=>
       biPopupGroupButton(entry.ppl,entry.rows,'cards',
         'data-bi-popup-pml-pair="'+i+'"','')
-    ).join('')+'</div>'+biLegend(rows)+
+    ).join('')+'</div>'+biLegend(rows,'pml-progress')+
     '<div class="bi-pml-card bi-popup-report-export"><div class="bi-popup-export-line">'+
       '<span>Laporan PPL</span>'+biExportButtons(survey,pml)+'</div>'+
       '<p class="bi-feedback" role="status" aria-live="polite"></p></div>';
@@ -726,15 +733,46 @@ function biOriginalStatusButtons(rows){
 }
 function biPopupOpenKpi(kind,trigger){
   if(!state.survey||!Object.hasOwn(BI_KPI_LABELS,kind))return;
-  const rows=biKpiRows(DATA.filter(row=>row.survei===state.survey),kind);
-  biPopupState.kpi={rows,context:state.survey+' · '+BI_KPI_LABELS[kind]};
+  biPopupOpenStatusList(biKpiRows(DATA.filter(row=>row.survei===state.survey),kind),BI_KPI_LABELS[kind],state.survey,trigger);
+}
+function biPopupOpenStatusList(rows,label,context,trigger){
+  biPopupState.kpi={rows,context:context+' · '+label};
   biPopupState.focus.biKpiModal=trigger;
-  document.getElementById('biKpiTitle').textContent=BI_KPI_LABELS[kind]+' · '+state.survey;
+  document.getElementById('biKpiTitle').textContent=label+' · '+context;
   const body=document.getElementById('biKpiBody');
   body.innerHTML='<p class="bi-popup-detail-subtitle">'+format.format(rows.length)+' assignment</p>'+
     '<div class="bi-popup-status-heading"><strong>Status Asli FASIH</strong></div>'+biOriginalStatusButtons(rows);
   document.getElementById('biKpiModal').showModal();
   body.scrollTop=0;
+}
+function biPopupOpenScopedStatus(trigger){
+  const {biStatusScope:scope,biDisplayStatus:status,biMetric:metric,biStatusRole:role,biStatusPerson:person,biStatusBucket:bucket}=trigger.dataset;
+  let rows,context;
+  switch(scope){
+    case 'county': rows=DATA.filter(row=>SURVEYS.includes(row.survei));context='Kabupaten Blora';break;
+    case 'survey': rows=DATA.filter(row=>row.survei===state.survey);context=state.survey;break;
+    case 'view': rows=selected();context=[state.survey,state.pml,state.ppl].filter(Boolean).join(' · ');break;
+    case 'progress': rows=biPopupRows();context=biPopupState.survey;break;
+    case 'pml-progress': rows=biPopupRows().filter(row=>name(row,'pml')===biPopupState.pml);context=biPopupState.survey+' · PML '+biPopupState.pml;break;
+    case 'person': ({rows,context}=biPopupState.personDetail);break;
+    case 'main-pair': {
+      const row=trigger.closest('tr[data-bi-detail-pair]');
+      const pair=biPplPmlPairs(DATA.filter(item=>item.survei===state.survey),'report')[Number(row?.dataset.biDetailPair)];
+      if(!pair)return;
+      rows=pair.rows;context=state.survey+' · PPL '+pair.ppl+' · PML '+pair.pml;
+      break;
+    }
+    default: return;
+  }
+  if(role){
+    rows=rows.filter(row=>name(row,role)===person);
+    context+=' · '+role.toUpperCase()+' '+person;
+  }
+  if(status)rows=rows.filter(row=>biDashboardStatus(row.status)===status);
+  if(bucket)rows=rows.filter(row=>biStatusBucket(row.status)===bucket);
+  if(metric)rows=biKpiRows(rows,metric);
+  const label=status||(bucket?biBuckets.find(item=>item.id===bucket)?.label:BI_KPI_LABELS[metric]);
+  biPopupOpenStatusList(rows,label,context,trigger);
 }
 function biPopupOpenAssignments(status,trigger){
   const source=trigger.closest('#biKpiModal')?biPopupState.kpi:biPopupState.personDetail;
@@ -743,26 +781,26 @@ function biPopupOpenAssignments(status,trigger){
   biPopupState.focus.biAssignmentDetailModal=trigger;
   document.getElementById('biAssignmentDetailTitle').textContent='Assignment · '+status;
   const body=document.getElementById('biAssignmentDetailBody');
+  const showSurvey=new Set(rows.map(row=>row.survei)).size>1;
   body.innerHTML='<p class="bi-popup-detail-subtitle">'+esc(source.context)+' · '+format.format(rows.length)+' assignment</p>'+
-    '<div class="tablebox"><table class="bi-assignment-detail-table"><thead><tr>'+
-    '<th scope="col">Nama Assignment</th><th scope="col">PPL</th><th scope="col">PML</th></tr></thead><tbody>'+
+    '<div class="tablebox"><table class="bi-assignment-detail-table'+(showSurvey?' bi-multi-survey':'')+'"><thead><tr>'+
+    '<th scope="col">Nama Assignment</th>'+(showSurvey?'<th scope="col">Survei</th>':'')+'<th scope="col">PPL</th><th scope="col">PML</th></tr></thead><tbody>'+
     rows.map(row=>'<tr><td>'+esc(row.nama_assignment)+(row.boloStatusManual?
       '<small>Status perhitungan manual · '+esc(row.status)+'</small>':'')+
-      '</td><td>'+esc(name(row,'ppl'))+'</td><td>'+esc(name(row,'pml'))+'</td></tr>').join('')+
+      '</td>'+(showSurvey?'<td>'+esc(row.survei)+'</td>':'')+'<td>'+esc(name(row,'ppl'))+'</td><td>'+esc(name(row,'pml'))+'</td></tr>').join('')+
     '</tbody></table></div>';
   document.getElementById('biAssignmentDetailModal').showModal();
   body.scrollTop=0;
 }
 function biPopupDetailHtml(rows,title,context){
   const n=rows.length,c=biCounts(rows);
+  const metrics=[['total',format.format(n)],['submitted',biUnitText(c.submitted,n,'report')],['approved',format.format(c.approvedStage)]];
   return '<div class="bi-popup-detail-subtitle">'+esc(context)+'</div>'+
-    '<div class="bi-popup-stats-grid">'+
-      '<div><span>Total Assignment</span><strong>'+n+'</strong></div>'+
-      '<div><span>Sudah Submit</span><strong>'+biUnitText(c.submitted,n,'report')+'</strong></div>'+
-      '<div><span>APPROVED</span><strong>'+c.approvedStage+'</strong></div>'+
-    '</div>'+
+    '<div class="bi-popup-stats-grid">'+metrics.map(([kind,value])=>
+      '<button type="button" data-bi-status-scope="person" data-bi-metric="'+kind+'" aria-haspopup="dialog"><span>'+BI_KPI_LABELS[kind]+' ›</span><strong>'+value+'</strong></button>'
+    ).join('')+'</div>'+
     '<div class="bi-popup-status-heading"><strong>Komposisi Status FASIH</strong></div>'+
-    '<div class="bi-popup-mainbar">'+biBar(rows,title)+'</div>'+
+    '<div class="bi-popup-mainbar">'+biBar(rows,title,'person')+'</div>'+
     '<div class="bi-popup-status-heading"><strong>Status Asli FASIH</strong></div>'+biOriginalStatusButtons(rows);
 }
 function biPopupOpenDetail(kind,value,trigger){
