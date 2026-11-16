@@ -14,7 +14,8 @@ const controller=page.slice(begin+'<script>\n'.length,end);
 
 function sandbox(){
   const allIds=['tlPopup','tlFrame','adminEnter','adminTools','adminExit','adminTlMenu',
-    'adminInfo','tlPopupTitle','tlClose','boloUpdaterOpen','adminStaffMenu','adminStaffPending'];
+    'adminInfo','tlPopupTitle','tlClose','boloUpdaterOpen','adminStaffMenu','adminStaffPending',
+    'surveyAdminFrame','surveyAdminSetup','surveyAdminModal','openSurveyAdmin','closeSurveyAdmin'];
   const el=id=>({
     id,hidden:false,open:false,src:'',textContent:'',
     listeners:{},addEventListener(type,cb){this.listeners[type]=cb;},
@@ -29,7 +30,10 @@ function sandbox(){
     documentElement:{style:{}},
     listeners:{},
     getElementById:id=>elements[id],
-    addEventListener(type,fn){this.listeners[type]=fn;}
+    addEventListener(type,fn){
+      const previous=this.listeners[type];
+      this.listeners[type]=previous?event=>{previous(event);fn(event)}:fn;
+    }
   };
   const window={
     crypto:{getRandomValues:bytes=>bytes.fill(7)},
@@ -129,3 +133,4 @@ test('Apps Script verifies ADMIN role through apiLogin and exposes no token to p
   const js=tl.split('<script>')[1].split('</script>')[0];
   new Script(js);
 });
+

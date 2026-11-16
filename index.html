@@ -432,22 +432,7 @@ body:has(#adminTools:not([hidden])) #refreshBoloData{display:inline-flex}
 .survey-admin-bar strong{font-size:15px}.survey-admin-close{background:#ffffff22;border:0;border-radius:8px;color:white;padding:6px 12px;cursor:pointer}
 #surveyAdminModal[open]{display:flex;flex-direction:column}
 #surveyAdminFrame{width:100%;height:auto;flex:1 1 auto;min-height:0;border:0;background:#f4f8fd}
-.survey-admin-switcher{display:flex;align-items:center;gap:8px;padding:9px 14px;flex-wrap:wrap;flex:0 0 auto;background:#eff6fe;border-bottom:1px solid #d0e1f0}
-.survey-admin-tab{border:1px solid #ccdef0;border-radius:9px;background:#fff;padding:9px 12px;color:#245b8b;font-size:12px;font-weight:800;cursor:pointer}
-.survey-admin-tab[aria-pressed="true"]{background:#185081;color:#fff;border-color:#185081}
-.survey-admin-tab:hover:not([aria-pressed="true"]){background:#e2effc}
-.survey-admin-sync{margin-left:auto;border:1px solid #a8d9be;border-radius:9px;padding:9px 12px;background:#e9f8ef;color:#216b43;font-size:11px;font-weight:800;cursor:pointer}
-.survey-admin-help{flex:1;overflow:auto}
-#surveyAdminArchiveGuide{flex:1;overflow:auto;padding:clamp(18px,4vw,32px);background:#f5f9fe;color:#1b4269}
-#surveyAdminArchiveGuide[hidden]{display:none!important}
-#surveyAdminArchiveGuide .admin-archive-card{max-width:740px;margin:16px auto;background:#fff;border:1px solid #d5e5f2;border-radius:17px;padding:26px;box-shadow:0 10px 32px #194b7510}
-#surveyAdminArchiveGuide h3{font-size:20px;color:#174478;margin:0 0 11px}
-#surveyAdminArchiveGuide p{font-size:13px;line-height:1.75;color:#476783;margin:0 0 16px}
-#surveyAdminArchiveGuide .admin-archive-note{padding:12px 15px;border:1px solid #cee6d9;background:#eff9f3;border-radius:10px;font-size:12px;color:#226945;margin-bottom:17px}
-#surveyAdminArchiveGuide button{border:0;background:#185a97;color:white;font-size:13px;font-weight:800;padding:12px 19px;border-radius:10px;cursor:pointer}
-#surveyAdminArchiveGuide button:hover{background:#124878}
-@media(max-width:525px){.survey-admin-switcher{padding:8px;gap:6px}.survey-admin-tab{flex:1 1 128px}.survey-admin-sync{width:100%;margin:0}}
-.survey-admin-help{padding:28px;line-height:1.7;color:#3b516b}
+.survey-admin-help{flex:1;overflow:auto;padding:28px;line-height:1.7;color:#3b516b}
 @media(max-width:920px){
   .header-inner{flex-wrap:wrap}
   .survey-admin-top:has(#adminTools:not([hidden])){flex-basis:100%}
@@ -709,20 +694,7 @@ body.bolo-loading-active{overflow:hidden}
   </div>
 </header>
 <dialog id="surveyAdminModal" aria-labelledby="surveyAdminTitle">
-  <div class="survey-admin-bar"><strong id="surveyAdminTitle">Kelola Survei — BOLO INPEK</strong><span><a id="surveyAdminExternal" href="#" target="_blank" rel="noopener noreferrer" style="display:none;color:#fff;font-size:12px;margin-right:12px">Buka di Tab Baru</a><button type="button" class="survey-admin-close" id="closeSurveyAdmin">Tutup ×</button></span></div>
-  <div class="survey-admin-switcher" role="group" aria-label="Kelola survei dan arsip">
-    <button type="button" class="survey-admin-tab" id="surveyAdminTabKelola" aria-pressed="true">⚙ Daftar &amp; Pengaturan</button>
-    <button type="button" class="survey-admin-tab" id="surveyAdminTabArsip" aria-pressed="false">▣ Survei Selesai &amp; Pulihkan</button>
-    <button type="button" class="survey-admin-sync" id="surveyAdminSync" hidden>↻ Perbarui Dashboard</button>
-  </div>
-  <div id="surveyAdminArchiveGuide" hidden>
-    <div class="admin-archive-card">
-      <h3>Survei Selesai &amp; Arsip</h3>
-      <p>Daftar survei yang ditutup dan arsipnya dapat dibuka menggunakan sesi Admin INPEK yang sudah masuk. Tidak perlu memasukkan email kembali.</p>
-      <div class="admin-archive-note">Arsip tetap tersimpan saat survei dipulihkan. Gunakan tombol <strong>Survei Selesai &amp; Pulihkan</strong> pada halaman Tindak Lanjut.</div>
-      <button type="button" id="adminOpenArchiveSession">Buka Arsip melalui Sesi Admin</button>
-    </div>
-  </div>
+  <div class="survey-admin-bar"><strong id="surveyAdminTitle">Kelola Survei — BOLO INPEK</strong><button type="button" class="survey-admin-close" id="closeSurveyAdmin">Tutup ×</button></div>
   <div id="surveyAdminSetup" class="survey-admin-help" hidden><strong>Panel Admin Belum Disambungkan</strong><p>Pasang backend Apps Script Kelola Survei satu kali, kemudian isikan URL deployment di berkas <code>kelola-survei-link.json</code>. Setelah itu survei dapat ditambah, diedit, atau dinonaktifkan dari sini.</p></div>
   <iframe id="surveyAdminFrame" title="Form Kelola Survei BOLO INPEK" referrerpolicy="strict-origin-when-cross-origin"></iframe>
 </dialog>
@@ -1309,7 +1281,8 @@ body.bolo-loading-active{overflow:hidden}
         }
 
         await ambilStatusPenutupan(controller.signal);
-        ALL_ASSIGNMENTS=DATA.filter(r=>SURVEYS.includes(r.survei)&&surveiMasihAktif(r.survei));
+        SURVEYS=SURVEYS.filter(surveiMasihAktif);
+        ALL_ASSIGNMENTS=DATA.filter(r=>SURVEYS.includes(r.survei));
         // Penanda hanya mengubah perhitungan, tidak menghapus data FASIH.
         ALL_ASSIGNMENTS=await biApplyMarkers(ALL_ASSIGNMENTS,MARKER_RULES);
         DATA=ALL_ASSIGNMENTS.filter(r=>!r.boloExcluded).map(r=>({
@@ -1687,73 +1660,6 @@ body.bolo-loading-active{overflow:hidden}
       if(focus){const heading=view.querySelector('h1');if(heading)heading.focus({preventScroll:true});}
     }
 
-    // Satu menu untuk konfigurasi dan pengembalian survei DITUTUP.
-    let modeAdminSurvei='kelola',urlPanelAdmin='';
-    function tampilPanelAdmin(mode){
-      modeAdminSurvei=mode==='arsip'?'arsip':'kelola';
-      const arsip=modeAdminSurvei==='arsip';
-      const frame=document.getElementById('surveyAdminFrame');
-      const setup=document.getElementById('surveyAdminSetup');
-      const external=document.getElementById('surveyAdminExternal');
-      const guide=document.getElementById('surveyAdminArchiveGuide');
-      guide.hidden=!arsip;
-      document.getElementById('surveyAdminTabKelola').setAttribute('aria-pressed',String(!arsip));
-      document.getElementById('surveyAdminTabArsip').setAttribute('aria-pressed',String(arsip));
-      document.getElementById('surveyAdminSync').hidden=!arsip;
-      if(arsip){
-        // Arsip menggunakan iframe Tindak Lanjut yang sudah login,
-        // sehingga tidak perlu login ulang pada iframe terpisah.
-        frame.hidden=true;frame.src='about:blank';
-        setup.hidden=true;
-        external.href=TINDAK_LANJUT_URL+'?mode=selesai';
-        external.style.display='inline';
-        return;
-      }
-      const tujuan=urlPanelAdmin;
-      if(tujuan){
-        frame.hidden=false;setup.hidden=true;
-        frame.title=arsip?'Survei Selesai dan Pemulihan':'Kelola Survei';
-        if(frame.src!==tujuan)frame.src=tujuan;
-        external.href=tujuan;external.style.display='inline';
-      }else{
-        frame.hidden=true;frame.src='about:blank';setup.hidden=false;
-        external.style.display='none';
-      }
-    }
-    document.getElementById('surveyAdminTabKelola').addEventListener('click',()=>tampilPanelAdmin('kelola'));
-    document.getElementById('surveyAdminTabArsip').addEventListener('click',()=>tampilPanelAdmin('arsip'));
-    document.getElementById('adminOpenArchiveSession').addEventListener('click',()=>{
-      if(!boloAdminActive()){document.getElementById('surveyAdminModal').close();document.getElementById('adminEnter').click();return;}
-      document.getElementById('surveyAdminModal').close();
-      document.getElementById('adminTlMenu').click();
-    });
-    document.getElementById('openSurveyAdmin').addEventListener('click',async()=>{
-      if(!boloAdminActive()){document.getElementById('adminEnter').click();return;}
-      const modal=document.getElementById('surveyAdminModal');
-      urlPanelAdmin='';
-      modal.showModal();
-      tampilPanelAdmin('kelola');
-      try{
-        const r=await fetch('./kelola-survei-link.json?t='+Date.now(),{cache:'no-store'});
-        if(!r.ok)throw new Error('URL admin belum tersedia');
-        const cfg=await r.json();
-        const url=String(cfg.admin_webapp_url||'').trim();
-        const ok=url.startsWith('https://script.google.com/macros/s/') && /\/exec([?].*)?$/.test(url);
-        if(!ok)return;
-        urlPanelAdmin=url;
-        if(modal.open&&modeAdminSurvei==='kelola')tampilPanelAdmin('kelola');
-      }catch(e){console.warn('Panel admin belum terhubung:',e.message)}
-    });
-    document.getElementById('surveyAdminSync').addEventListener('click',()=>{
-      document.getElementById('surveyAdminModal').close();
-      loadData({preserveView:true});
-    });
-    document.getElementById('closeSurveyAdmin').addEventListener('click',()=>document.getElementById('surveyAdminModal').close());
-    document.getElementById('surveyAdminModal').addEventListener('close',()=>{
-      document.getElementById('surveyAdminFrame').src='about:blank';
-      // Filter halaman utama tetap ada; reload eksplisit tersedia di tab arsip.
-    });
-
     // Semua isi daftar memakai data yang sudah tersedia pada ALL_ASSIGNMENTS.
     // Membuka/menutup kedua pop-up TIDAK menjalankan loadData() atau render().
     let markListSurvey=null;
@@ -2098,6 +2004,11 @@ body.bolo-loading-active{overflow:hidden}
   const staffBadge=document.getElementById('adminStaffPending');
   const name=document.getElementById('adminInfo');
   const modalTitle=document.getElementById('tlPopupTitle');
+  const surveyModal=document.getElementById('surveyAdminModal');
+  const surveyFrame=document.getElementById('surveyAdminFrame');
+  const surveySetup=document.getElementById('surveyAdminSetup');
+  const surveyRequests=new Map();
+  let surveyChannel='',surveyGeneration=0;
   let returnFocus=null, verifiedTLWindow=null, verifiedTLOrigin='';
 
   const okOrigin=origin=>{
@@ -2123,6 +2034,7 @@ body.bolo-loading-active{overflow:hidden}
     if(typeof render==='function' && !loading)render(false);
   }
   function expireAdmin(){
+    if(surveyModal.open)surveyModal.close();
     BOLO_ADMIN.verified=false;
     BOLO_ADMIN.nonce='';
     BOLO_ADMIN.since=0;
@@ -2164,6 +2076,77 @@ body.bolo-loading-active{overflow:hidden}
       return true;
     }catch(_){return false;}
   }
+  document.getElementById('openSurveyAdmin').addEventListener('click',async()=>{
+    if(!boloAdminActive()){beginLogin();return;}
+    const generation=++surveyGeneration;
+    surveySetup.hidden=true;
+    surveyFrame.hidden=true;
+    surveyModal.showModal();
+    try{
+      const url=new URL(await markAdminUrl());
+      if(generation!==surveyGeneration||!surveyModal.open)return;
+      url.searchParams.set('embed','survey-admin');
+      url.searchParams.set('survey_channel',nonce());
+      url.searchParams.set('t',Date.now());
+      surveyChannel=url.searchParams.get('survey_channel');
+      surveyFrame.src=url.href;
+      surveyFrame.hidden=false;
+    }catch(e){
+      if(generation!==surveyGeneration||!surveyModal.open)return;
+      surveySetup.hidden=false;
+      console.warn('Panel admin belum terhubung:',e.message);
+    }
+  });
+  document.getElementById('closeSurveyAdmin').addEventListener('click',()=>surveyModal.close());
+  surveyModal.addEventListener('close',()=>{
+    ++surveyGeneration;
+    surveyChannel='';
+    surveyFrame.src='about:blank';
+  });
+  function sendSurveyResult(request,result){
+    request.source.postMessage({...result,type:'BOLO_INPEK_SURVEY_RESULT',requestId:request.requestId,
+      channel:request.channel},request.origin);
+  }
+  window.addEventListener('message',event=>{
+    const msg=event.data;
+    if(!event.isTrusted||!okOrigin(event.origin)||!msg||typeof msg!=='object'||!boloAdminActive())return;
+    if(msg.type==='BOLO_INPEK_SURVEY_REQUEST'){
+      if(!surveyModal.open||!surveyChannel||msg.channel!==surveyChannel||!verifiedTLWindow||!event.source||
+        typeof msg.requestId!=='string'||msg.requestId.length>80||
+        !['list','close','restore','settings'].includes(msg.method))return;
+      const request={source:event.source,origin:event.origin,requestId:msg.requestId,channel:msg.channel};
+      if(msg.method==='settings'){
+        loadData({preserveView:true});
+        return;
+      }
+      if(surveyRequests.has(msg.requestId))return;
+      const timeout=setTimeout(()=>{
+        surveyRequests.delete(msg.requestId);
+        sendSurveyResult(request,{error:'Layanan arsip belum merespons. Klik Muat Ulang untuk memeriksa status sebelum mencoba lagi.'});
+        if(msg.method!=='list')loadData({preserveView:true});
+      },msg.method==='list'?18000:120000);
+      surveyRequests.set(msg.requestId,{...request,method:msg.method,timeout});
+      try{
+        verifiedTLWindow.postMessage({type:msg.type,nonce:BOLO_ADMIN.nonce,requestId:msg.requestId,
+          method:msg.method,surveyId:msg.surveyId,periodId:msg.periodId,note:msg.note},verifiedTLOrigin);
+      }catch(_){
+        clearTimeout(timeout);
+        surveyRequests.delete(msg.requestId);
+        sendSurveyResult(request,{error:'Sesi Tindak Lanjut terputus. Masuk ulang sebagai Admin INPEK.'});
+      }
+    }else if(event.source===verifiedTLWindow&&event.origin===verifiedTLOrigin&&msg.nonce===BOLO_ADMIN.nonce){
+      if(msg.type==='BOLO_INPEK_SURVEY_CHANGED'){
+        loadData({preserveView:true});
+      }else if(msg.type==='BOLO_INPEK_SURVEY_RESULT'){
+        const request=surveyRequests.get(msg.requestId);
+        if(!request||request.method!==msg.method)return;
+        clearTimeout(request.timeout);
+        surveyRequests.delete(msg.requestId);
+        if(request.channel===surveyChannel)sendSurveyResult(request,{result:msg.result,error:msg.error});
+        if(request.method!=='list')loadData({preserveView:true});
+      }
+    }
+  });
   enter.addEventListener('click',beginLogin);
   exit.addEventListener('click',()=>{
     if(modal.open)modal.close();
@@ -2256,3 +2239,4 @@ body.bolo-loading-active{overflow:hidden}
 
 </body>
 </html>
+
