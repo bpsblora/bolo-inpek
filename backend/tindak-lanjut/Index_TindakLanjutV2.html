@@ -1,5 +1,5 @@
 <!doctype html><html lang="id"><head><base target="_top"><meta name="viewport" content="width=device-width, initial-scale=1"><style>
-*{box-sizing:border-box}body{margin:0;background:#f3f7fc;color:#173858;font:14px/1.5 Arial,sans-serif}header{background:#173858;color:white;padding:18px 22px}h1{font-size:21px;margin:0}h2{font-size:18px;margin:0 0 12px}main{max-width:1100px;padding:20px;margin:auto}.panel{padding:18px;background:white;border:1px solid #cddced;border-radius:12px;margin-bottom:16px}label{display:block;font-weight:600;margin:10px 0 6px}input,select,textarea,button{font:inherit}input:not([type=checkbox]),select,textarea{width:100%;padding:10px;border:1px solid #aabed5;border-radius:7px;background:white;color:#173858}textarea{min-height:100px;resize:vertical}button,.btn{display:inline-block;padding:10px 14px;border:1px solid #173858;border-radius:8px;background:#173858;color:white;text-decoration:none;cursor:pointer;margin:5px 5px 5px 0}button.secondary,.btn.secondary{background:white;color:#173858}button:disabled{opacity:.5;cursor:not-allowed}button.danger{background:#9c2636;border-color:#9c2636}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.grid button{text-align:left;min-height:85px;margin:0}.muted{color:#61758a;font-size:12px}.error{color:#a01c30}#notice{white-space:pre-wrap}#notice:empty{display:none}#message{min-height:260px}.choice{display:flex;align-items:flex-start;gap:8px;padding:10px;background:#edf4ff;border-radius:7px;font-weight:400}.choice input{margin-top:5px}.record{border-bottom:1px solid #d6e1ed;padding:12px 0}.record p{margin:4px 0;white-space:pre-wrap;overflow-wrap:anywhere}pre{white-space:pre-wrap;font:inherit}#greeting{margin:5px 0 0}#context{font-weight:bold}[hidden]{display:none!important}:focus-visible{outline:3px solid #397cf5;outline-offset:2px}@media(max-width:600px){main{padding:10px}.panel{padding:12px}.grid{grid-template-columns:1fr}.grid button{min-height:50px}}
+*{box-sizing:border-box}body{margin:0;background:#f3f7fc;color:#173858;font:14px/1.5 Arial,sans-serif}header{background:#173858;color:white;padding:18px 22px}h1{font-size:21px;margin:0}h2{font-size:18px;margin:0 0 12px}main{max-width:1100px;padding:20px;margin:auto}.panel{padding:18px;background:white;border:1px solid #cddced;border-radius:12px;margin-bottom:16px}label{display:block;font-weight:600;margin:10px 0 6px}input,select,textarea,button{font:inherit}input:not([type=checkbox]),select,textarea{width:100%;padding:10px;border:1px solid #aabed5;border-radius:7px;background:white;color:#173858}textarea{min-height:100px;resize:vertical}button,.btn{display:inline-block;padding:10px 14px;border:1px solid #173858;border-radius:8px;background:#173858;color:white;text-decoration:none;cursor:pointer;margin:5px 5px 5px 0}button.secondary,.btn.secondary{background:white;color:#173858}button:disabled{opacity:.5;cursor:not-allowed}button.danger{background:#9c2636;border-color:#9c2636}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.grid button{text-align:left;min-height:85px;margin:0}.muted{color:#61758a;font-size:12px}.error{color:#a01c30}#notice{white-space:pre-wrap}#notice:empty{display:none}#message{min-height:260px}.choice{display:flex;align-items:flex-start;gap:8px;padding:10px;background:#edf4ff;border-radius:7px;font-weight:400}.choice input{margin-top:5px}.record{border-bottom:1px solid #d6e1ed;padding:12px 0}.record p{margin:4px 0;white-space:pre-wrap;overflow-wrap:anywhere}pre{white-space:pre-wrap;font:inherit}#greeting{margin:5px 0 0}#context{font-weight:bold}[hidden]{display:none!important}:focus-visible{outline:3px solid #397cf5;outline-offset:2px}@media(max-width:600px){main{padding:10px}.panel{padding:12px}.grid{grid-template-columns:1fr}.grid button{min-height:50px}}
 
 .survey-heading {
   display: flex;
@@ -12,55 +12,123 @@
   margin: 0;
 }
 
-#logout.logout-button {
-  margin: 0;
-  flex-shrink: 0;
-  background: #b42332;
-  border-color: #b42332;
-  color: #ffffff;
+.reminder-trigger {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 16px 0;
+  background: #fff;
+  color: #173858;
+  text-align: left;
+  font-size: 18px;
+  font-weight: 700;
 }
 
-#logout.logout-button:hover {
-  background: #8f1c28;
-  border-color: #8f1c28;
+.reminder-trigger:hover {
+  background: #f5f9ff;
+  border-color: #83a8cc;
 }
 
-.pengingat-dropdown > summary {
+.reminder-count.has-reminders {
+  color: #b42332;
+}
+
+.reminder-dialog {
+  width: min(800px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  padding: 0;
+  overflow: hidden;
+  background: #f0f5fb;
+  border: 1px solid #aec2da;
+  border-radius: 16px;
+  color: #173858;
+  box-shadow: 0 20px 55px rgba(12, 43, 83, .28);
+}
+
+.reminder-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.reminder-dialog::backdrop {
+  background: rgba(12, 38, 69, .55);
+}
+
+.reminder-dialog-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  cursor: pointer;
-  list-style: none;
-  font-size: 18px;
-  font-weight: bold;
-  color: #173858;
+  gap: 12px;
+  padding: 16px 20px;
+  background: #fff;
+  border-bottom: 1px solid #c7d7e8;
 }
 
-.pengingat-dropdown > summary::-webkit-details-marker {
-  display: none;
+.reminder-dialog-heading h2 {
+  margin: 0;
 }
 
-.pengingat-dropdown > summary:focus-visible {
-  outline: 2px solid #2563eb;
-  outline-offset: 5px;
-  border-radius: 4px;
+.reminder-dialog-heading .reminder-count {
+  font-size: 13px;
+  font-weight: 700;
 }
 
-.panah-pengingat {
-  flex-shrink: 0;
-  font-size: 14px;
-  transition: transform 0.2s ease;
+#reminders {
+  display: grid;
+  gap: 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px;
 }
 
-.pengingat-dropdown[open] .panah-pengingat {
-  transform: rotate(180deg);
+#reminders > .record {
+  padding: 12px 16px;
+  background: #fff;
+  border: 1px solid #a9bdd4;
+  border-left: 4px solid #4f7daa;
+  border-radius: 10px;
 }
 
-.pengingat-dropdown > #reminders {
-  margin-top: 20px;
+#reminders > .record p:first-child {
+  color: #143c69;
+  font-weight: 700;
 }
 
+@media (max-width: 480px) {
+  .reminder-trigger { font-size: 15px; }
+  .reminder-dialog-heading { padding: 12px 14px; }
+  #reminders { padding: 12px; }
+}
+
+.reminder-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+.reminder-choices .choice { margin: 0; border: 1px solid #c7d7e8; }
+.reminder-choices small { display: block; }
+.reminder-staff-alert {
+  background: #fff6ea;
+  border: 1px solid #ebcc9f;
+  border-radius: 9px;
+  padding: 10px 12px;
+}
+.reminder-staff-alert p { margin: 0 0 4px; }
+.reminder-queue {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 14px;
+  margin-top: 12px;
+  border: 1px solid #c7d7e8;
+  border-radius: 9px;
+  background: #f1f6fc;
+}
 
 /* BOLO INPEK: dialog konfirmasi terpadu, bukan alert bawaan browser. */
 .tl-confirm-dialog{
@@ -194,11 +262,10 @@
     <h2>SURVEI INPEK SELESAI</h2>
     <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
       <button type="button" id="backToTL" class="secondary" hidden>Kembali ke Tindak Lanjut</button>
-      <button type="button" id="keluarSelesai" class="logout-button">Keluar</button>
     </div>
   </div>
 
-  <p class="muted">Survei yang sudah ditutup dapat diaktifkan kembali tanpa menghapus arsip lama. Setelah dipulihkan, perbarui dashboard monitoring untuk menampilkan perubahan.</p>
+  <p class="muted">Survei yang dipulihkan kembali aktif. Rekap lama dipindahkan ke Sampah setelah riwayatnya disalin.</p>
   <div id="daftarSurveiSelesai"></div>
 </section>
   
@@ -209,9 +276,6 @@
   <div class="survey-heading">
     <h2 id="context"></h2>
 
-    <button type="button" id="logout" class="logout-button">
-      Keluar
-    </button>
   </div>
 
   <select id="survey" hidden aria-hidden="true"></select>
@@ -221,23 +285,47 @@
   <button type="button" id="tlForceSync" class="secondary" hidden>↻ Sinkronkan dari Monitoring</button>
   <button type="button" id="tlAutoEnable" class="secondary" hidden>⚡ Aktifkan Deteksi Petugas Otomatis</button>
 </div>
-<nav class="grid" aria-label="Menu tindak lanjut"><button id="closeMenu">Arsipkan &amp; Tutup Survei</button><button id="remindMenu">Ingatkan Petugas</button><button id="noteMenu">Tambahkan Catatan Survei</button></nav>
-<div id="adminArchiveShortcut" style="margin-top:10px;display:flex;gap:9px;flex-wrap:wrap" hidden>
-  <button type="button" class="secondary" id="openCompletedTL">▣ Survei Selesai &amp; Pulihkan</button>
-  <button type="button" class="secondary" id="openStaffTL">♙ Kelola Biodata Petugas</button>
-</div>
-<details class="panel pengingat-dropdown" style="margin-top:16px">
-  <summary>
-    <span id="reminderTitle">
-      PENGINGAT OPERATOR · 0 PERLU DITINDAKLANJUTI
-    </span>
-    <span class="panah-pengingat" aria-hidden="true">▼</span>
-  </summary>
-
+<nav class="grid" aria-label="Menu tindak lanjut">
+  <button id="remindMenu" type="button">Ingatkan Petugas</button>
+  <button id="noteMenu" type="button">Tambahkan Catatan Survei</button>
+</nav>
+<button type="button" id="openReminders" class="panel reminder-trigger" aria-haspopup="dialog" aria-controls="reminderDialog">
+  <span>Pengingat Operator · <span id="reminderCount" class="reminder-count">0 perlu ditindaklanjuti</span></span>
+  <span aria-hidden="true">›</span>
+</button>
+<dialog id="reminderDialog" class="reminder-dialog" aria-labelledby="reminderHeading" aria-describedby="reminderDialogCount">
+  <div class="reminder-dialog-heading">
+    <div>
+      <h2 id="reminderHeading">Pengingat Operator</h2>
+      <span id="reminderDialogCount" class="reminder-count"></span>
+    </div>
+    <form method="dialog">
+      <button type="submit" class="tl-confirm-dismiss" aria-label="Tutup Pengingat Operator" autofocus>×</button>
+    </form>
+  </div>
   <div id="reminders"></div>
-</details>
-<section id="remindPanel" class="panel" hidden><h2>Ingatkan Petugas</h2><label for="person">Petugas</label><select id="person"></select><p id="phone"></p><div id="choices"></div><button id="draftBtn">Susun pesan pengingat</button>
-<div id="draftPanel" hidden><label for="message">
+</dialog>
+<section id="remindPanel" class="panel" hidden>
+  <h2>Ingatkan Petugas</h2>
+  <div id="reminderStaffAlert" class="reminder-staff-alert" hidden>
+    <p id="reminderStaffText"></p>
+    <button id="reminderStaffLink" type="button" class="secondary">Kelola Petugas Survei Ini</button>
+  </div>
+  <p id="phone" class="muted"></p>
+  <div id="reminderSelection" hidden>
+    <label class="choice"><input type="checkbox" id="selectReminders"> Pilih semua petugas yang siap diingatkan</label>
+    <div id="choices" class="reminder-choices"></div>
+    <button type="button" id="draftBtn">Susun pesan WhatsApp</button>
+  </div>
+<div id="draftPanel" hidden>
+  <div class="reminder-queue">
+    <div><strong id="draftRecipient"></strong><div id="queuePosition" class="muted"></div></div>
+    <div>
+      <button type="button" id="draftPrevious" class="secondary">Sebelumnya</button>
+      <button type="button" id="draftNext" class="secondary">Berikutnya</button>
+    </div>
+  </div>
+  <label for="message">
   Pesan WhatsApp
   <span style="font-weight: normal; font-style: italic;">
     — Dapat Disesuaikan
@@ -279,9 +367,30 @@
   </div>
 </div>
 
-<label class="choice"><input type="checkbox" id="sent">Saya sudah mengirim pesan ini melalui WhatsApp.</label><label for="followDate">Ingatkan saya untuk mengecek balasan</label><input type="datetime-local" id="followDate"><button id="saveSent">Konfirmasi chat sudah terkirim</button></div></section>
-<section id="notePanel" class="panel" hidden><h2>Catatan dan Hasil Konfirmasi</h2><p id="chainInfo" class="muted"></p><label for="assignment">Cakupan catatan</label><select id="assignment"></select><label for="note">Catatan / hasil konfirmasi</label><textarea id="note"></textarea><label for="plan">Rencana perbaikan</label><textarea id="plan"></textarea><label for="followStatus">Status tindak lanjut</label><select id="followStatus"><option value="MENUNGGU_BALASAN">Menunggu balasan</option><option value="DALAM_PERBAIKAN">Dalam perbaikan</option><option value="SELESAI">Selesai</option></select><label for="target">Target selesai (opsional)</label><input id="target" type="datetime-local"><label for="nextDate">Pengingat berikutnya</label><input id="nextDate" type="datetime-local"><button id="saveNote">Simpan catatan</button><button id="newNote" class="secondary">Catatan baru</button></section>
-<section id="closePanel" class="panel" hidden><h2>Arsipkan dan Tutup Periode Survei</h2><pre id="closeSummary"></pre><label for="closeNote">Catatan penutupan</label><textarea id="closeNote"></textarea><label class="choice"><input type="checkbox" id="closeConfirm">Saya sudah memeriksa ringkasan dan ingin menutup periode survei ini. Catatan aktif dibersihkan setelah arsip berhasil diverifikasi.</label><button id="closeBtn" class="danger">Arsipkan dan tutup survei</button><div id="archiveResult"></div></section>
+  <div id="deliveryForm">
+    <label class="choice"><input type="checkbox" id="sent">Saya sudah mengirim pesan ini melalui WhatsApp.</label>
+    <label for="followDate">Ingatkan saya untuk mengecek balasan</label>
+    <input type="datetime-local" id="followDate">
+    <button type="button" id="saveSent">Konfirmasi chat sudah terkirim</button>
+  </div>
+  <button type="button" id="openSentNote" class="secondary" hidden>Catat hasil konfirmasi</button>
+</div>
+</section>
+<section id="notePanel" class="panel" hidden><h2>Catatan dan Hasil Konfirmasi</h2><p id="chainInfo" class="muted"></p><div id="noteModePicker">
+  <label for="noteMode">Cakupan catatan</label>
+  <select id="noteMode">
+    <option value="umum">Catatan umum survei</option>
+    <option value="assignment">Catatan per assignment</option>
+  </select>
+</div>
+<div id="statusPicker" hidden>
+  <label for="assignmentStatus">Status assignment</label>
+  <select id="assignmentStatus"></select>
+</div>
+<div id="assignmentPicker" hidden>
+  <label for="assignment">Assignment</label>
+  <select id="assignment"></select>
+</div><label for="note">Catatan / hasil konfirmasi</label><textarea id="note"></textarea><label for="plan">Rencana perbaikan</label><textarea id="plan"></textarea><label for="followStatus">Status tindak lanjut</label><select id="followStatus"><option value="MENUNGGU_BALASAN">Menunggu balasan</option><option value="DALAM_PERBAIKAN">Dalam perbaikan</option><option value="SELESAI">Selesai</option></select><label for="target">Target selesai (opsional)</label><input id="target" type="datetime-local"><label for="nextDate">Pengingat berikutnya</label><input id="nextDate" type="datetime-local"><button id="saveNote">Simpan catatan</button><button id="newNote" class="secondary">Catatan baru</button></section>
 <section class="panel"><h2>Riwayat catatan survei terpilih</h2><div id="history"></div></section>
 </div>
 
@@ -291,6 +400,7 @@
       <div>
         <h2 id="staffTitle">Kelola Biodata Petugas</h2>
         <p class="muted" style="margin:5px 0 0">Database petugas Tindak Lanjut BOLO INPEK · Nama, email, nomor WhatsApp, dan status aktif</p>
+        <p id="staffSurveyContext" class="muted" hidden></p>
       </div>
       <button type="button" class="secondary" id="staffBack">← Kembali ke Tindak Lanjut</button>
     </div>
@@ -387,7 +497,7 @@
 </dialog>
 <script>
   
-const $=id=>document.getElementById(id);let konteksCatatanKirim = null;let token='',data=null,draft=null,sendId='',noteId='',chain=null,busy=false,initialUsed=false;
+const $=id=>document.getElementById(id);let konteksCatatanKirim = null;let token='',data=null,draft=null,noteId='',chain=null,busy=false,initialUsed=false;
 let staffData=null, staffEditing=null;
 let tlSyncState={last:0,running:null,report:null,error:''};
 const initial=$('initial').dataset;const key=x=>JSON.stringify([x.survey_id,x.survey_period_id]);
@@ -423,7 +533,6 @@ if(BOLO_ADMIN_GATE_NONCE){
   $('survey').before(surveyLabel);
   $('survey').hidden=false;
   $('survey').removeAttribute('aria-hidden');
-  $('adminArchiveShortcut').hidden=false;
   $('backToTL').hidden=false;
 }
 const reqId=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
@@ -468,7 +577,6 @@ function rpc(fn,...args){return new Promise((resolve,reject)=>google.script.run.
 async function action(fn){if(busy)return;busy=true;document.querySelectorAll('button').forEach(b=>b.disabled=true);try{await fn();}catch(e){notice(e.message||String(e),true);}finally{busy=false;document.querySelectorAll('button').forEach(b=>b.disabled=false);
  if(data){
    const allowed=!!selected();
-   $('closeMenu').disabled=!allowed||data.operator.peran!=='ADMIN';
    $('remindMenu').disabled=!allowed;
    $('noteMenu').disabled=!allowed;
  }
@@ -486,8 +594,7 @@ function switchPanel(id) {
 
   for (const nama of [
     'remindPanel',
-    'notePanel',
-    'closePanel'
+    'notePanel'
   ]) {
     const panel = $(nama);
 
@@ -505,7 +612,11 @@ function switchPanel(id) {
     });
   });
 }
-function clearDraft(){draft=null;sendId='';$('draftPanel').hidden=true;$('sent').checked=false;}
+function clearDraft(){
+  reminderQueue=[];
+  reminderIndex=0;
+  renderDraft();
+}
 function tlSyncBanner(report,error){
   const el=$('tlMonitoringSync');el.hidden=false;el.classList.toggle('error',!!error);
   if(error){
@@ -571,193 +682,232 @@ $('survey').replaceChildren();
 if(BOLO_ADMIN_GATE_NONCE)option($('survey'),'','— Pilih Survei dan Periode —');
 data.survei.forEach(s=>option($('survey'),key(s),s.nama_survei+' — '+s.nama_periode+(s.status_operasional==='PENGARSIPAN'?' (arsip perlu dilanjutkan)':'')));let match=data.survei.find(s=>key(s)===prev);
 if(!initialUsed){match=data.survei.find(s=>s.survey_period_id===initial.periode&&(!initial.survei||s.nama_survei===initial.survei));initialUsed=true;if(initial.periode&&!match)notice('Survei dari dashboard sudah ditutup atau tidak ditemukan. Pilih survei aktif lainnya.');}
-if(match)$('survey').value=key(match);$('greeting').textContent='Halo '+(data.operator.peran==='ADMIN'?'Admin':'Operator')+' Bolo INPEK, '+data.operator.nama+'!';$('closeMenu').disabled=data.operator.peran!=='ADMIN';$('person').replaceChildren();option($('person'),'','— Pilih petugas —');[...data.petugas].sort((a,b)=>a.nama.localeCompare(b.nama,'id')).forEach(p=>option($('person'),p.petugas_id,p.nama));renderSurvey();renderReminders();}
-function renderSurvey(){clearDraft();chain=null;noteId='';for(const p of ['remindPanel','notePanel','closePanel'])$(p).hidden=true;const s=selected();
-$('closeMenu').disabled=!s||data?.operator?.peran!=='ADMIN';
+if(match)$('survey').value=key(match);$('greeting').textContent='Halo '+(data.operator.peran==='ADMIN'?'Admin':'Operator')+' Bolo INPEK, '+data.operator.nama+'!';renderSurvey();renderReminders();}
+function renderSurvey(){chain=null;konteksCatatanKirim=null;noteId='';for(const p of ['remindPanel','notePanel'])$(p).hidden=true;const s=selected();
 $('remindMenu').disabled=!s;
 $('noteMenu').disabled=!s;
 $('context').textContent=s?s.nama_survei+' — '+s.nama_periode:'Tidak ada survei aktif.';$('sourceTime').textContent=s?'Data sumber: '+[...new Set(data.assignment.filter(a=>key(a)===key(s)).map(a=>a.waktu_data_monitoring))].map(fmt).join(' | '):'';renderHistory();renderPerson();}
-function renderPerson() {
-  clearDraft();
-  $("choices").replaceChildren();
-  $("phone").textContent = "";
+const REPAIR_STATUSES=['OPEN','DRAFT','REJECT'];
+const REMINDER_STATUS_ORDER=['OPEN','DRAFT','REJECT','SUBMIT'];
 
-  const survei = selected();
-  const pilihanSebelumnya = $("person").value;
+function assignmentStatus(a){
+  const raw=String(a.status_asli||a.status||'').trim().replace(/\s+/g,' ').toUpperCase();
+  return raw.replace(/^(?:APPROVED|COMPLETE(?:D)?) BY ADMIN (?:KABUPATEN|PROVINSI)$/,'APPROVED BY ADMIN')
+    ||'STATUS TIDAK TERSEDIA';
+}
 
-  $("person").replaceChildren();
-  option($("person"), "", "— Pilih petugas —");
+function reminderStatus(a){
+  const status=assignmentStatus(a);
+  if(status==='OPEN'||status==='DRAFT')return status;
+  if(/^REJECT(?:ED)?(?: BY .+)?$/.test(status))return 'REJECT';
+  if(status==='SUBMIT'||status==='SUBMITTED'||status==='SUBMITTED BY PENCACAH')return 'SUBMIT';
+  return '';
+}
 
-  if (!survei || survei.status_operasional !== "AKTIF") {
-    return;
-  }
+function reminderCounts(rows){
+  return REMINDER_STATUS_ORDER.map(status=>[status,rows.filter(a=>reminderStatus(a)===status).length])
+    .filter(([,count])=>count)
+    .map(([status,count])=>status+' '+count).join(' · ');
+}
 
-  // Hanya pekerjaan pada survei dan periode yang dipilih.
-  const pekerjaanSurvei = data.assignment.filter(
-    a => key(a) === key(survei)
-  );
+function whatsappNumber(value){
+  let number=String(value||'').replace(/\D/g,'');
+  if(number.startsWith('0'))number='62'+number.slice(1);
+  else if(number.startsWith('8'))number='62'+number;
+  return /^62\d{8,13}$/.test(number)?number:'';
+}
 
-  // Tentukan peran masing-masing petugas pada survei ini.
-  const peranMenurutId = new Map();
-
-  for (const pekerjaan of pekerjaanSurvei) {
-    for (const peran of ["PPL", "PML"]) {
-      const id = pekerjaan[peran.toLowerCase() + "_id"];
-      if (!id) continue;
-
-      if (!peranMenurutId.has(id)) {
-        peranMenurutId.set(id, new Set());
+function reminderRecipients(source,survey){
+  if(survey?.status_operasional!=='AKTIF')return [];
+  const staff=new Map(source.petugas.map(p=>[p.petugas_id,p]));
+  const recipients=new Map();
+  for(const a of source.assignment){
+    if(key(a)!==key(survey))continue;
+    const status=reminderStatus(a);
+    if(!status)continue;
+    for(const role of REPAIR_STATUSES.includes(status)?['PPL','PML']:['PML']){
+      const field=role.toLowerCase();
+      const id=a[field+'_id'];
+      const name=a[field];
+      if(!id&&(!name||['belum dialokasikan','belum ditetapkan','-','tidak ada','- -'].includes(name.trim().toLowerCase())))continue;
+      const recipientKey=id||JSON.stringify([role,name]);
+      if(!recipients.has(recipientKey)){
+        const person=staff.get(id);
+        recipients.set(recipientKey,{
+          id,name:person?.nama||name||'Nama belum tersedia',
+          number:person?.nama?.trim()?whatsappNumber(person.nomor_whatsapp):'',
+          namesById:new Map(),
+          jobs:{PPL:[],PML:[]}
+        });
       }
-
-      peranMenurutId.get(id).add(peran);
+      const entry=recipients.get(recipientKey);
+      entry.jobs[role].push(a);
+      if(role==='PML'&&a.ppl_id&&staff.has(a.ppl_id))entry.namesById.set(a.ppl_id,staff.get(a.ppl_id).nama);
     }
   }
-
-  const daftarPetugas = data.petugas
-  .filter(p => peranMenurutId.has(p.petugas_id))
-  .sort((a, b) => {
-    const prioritasA =
-      peranMenurutId.get(a.petugas_id).has("PML") ? 0 : 1;
-
-    const prioritasB =
-      peranMenurutId.get(b.petugas_id).has("PML") ? 0 : 1;
-
-    return (
-      prioritasA - prioritasB ||
-      a.nama.localeCompare(b.nama, "id")
-    );
-  });
-
-  for (const petugas of daftarPetugas) {
-    const peran = [...peranMenurutId.get(petugas.petugas_id)];
-
-    option(
-      $("person"),
-      petugas.petugas_id,
-      petugas.nama + " — " + peran.join(" / ")
-    );
-  }
-
-  const petugas = daftarPetugas.find(
-    p => p.petugas_id === pilihanSebelumnya
-  );
-
-  if (!petugas) {
-    if (!daftarPetugas.length) {
-      $("phone").textContent =
-        "Belum ada petugas aktif yang terhubung ke assignment survei ini.";
-    }
-    return;
-  }
-
-  $("person").value = petugas.petugas_id;
-
-  $("phone").textContent =
-    "Nomor WhatsApp: " +
-    (petugas.nomor_whatsapp || "Belum diisi");
-
-  for (const peran of ["PPL", "PML"]) {
-    const pekerjaan = pekerjaanSurvei.filter(
-      a => a[peran.toLowerCase() + "_id"] === petugas.petugas_id
-    );
-
-    if (!pekerjaan.length) continue;
-
-    const hitungan = {};
-    for (const a of pekerjaan) {
-      hitungan[a.status] = (hitungan[a.status] || 0) + 1;
-    }
-
-    const label = document.createElement("label");
-    label.className = "choice";
-
-    const cek = document.createElement("input");
-    cek.type = "checkbox";
-    cek.checked = true;
-    cek.value = JSON.stringify({
-      survey_id: survei.survey_id,
-      survey_period_id: survei.survey_period_id,
-      peran
-    });
-
-    cek.onchange = susunPesanOtomatis;
-
-    const tulisan = document.createElement("span");
-    tulisan.textContent =
-      survei.nama_survei + " — " + peran +
-      " · " + pekerjaan.length + " assignment · " +
-      Object.entries(hitungan)
-        .map(([status, jumlah]) => status + ": " + jumlah)
-        .join(", ");
-
-    label.append(cek, tulisan);
-    $("choices").append(label);
-  }
-
-  susunPesanOtomatis();
+  return [...recipients.values()].sort((a,b)=>a.name.localeCompare(b.name,'id'));
 }
 
-let urutanPermintaanPesan = 0;
+function reminderMessage(recipient,survey,operator){
+  const lines=[
+    'Halo '+recipient.name+',',
+    'Salam dari '+operator.nama+', Penanggung Jawab Statistik INPEK BPS Blora.',
+    '', survey.nama_survei+' — '+survey.nama_periode
+  ];
+  const dates=[...new Set(Object.values(recipient.jobs).flat().map(a=>a.waktu_data_monitoring).filter(Boolean))].sort();
+  if(dates.length)lines.push('Data monitoring: '+dates.map(fmt).join(', '));
 
-async function susunPesanOtomatis() {
-  const urutan = ++urutanPermintaanPesan;
+  const pencacahan=recipient.jobs.PPL;
+  if(pencacahan.length){
+    lines.push('','PPL — '+pencacahan.length+' pekerjaan belum disubmit ('+reminderCounts(pencacahan)+').',
+      'Mohon selesaikan OPEN/DRAFT dan kirim ulang pekerjaan REJECT setelah diperbaiki.');
+  }
 
+  const pengawasan=recipient.jobs.PML;
+  if(pengawasan.length){
+    const diperiksa=pengawasan.filter(a=>reminderStatus(a)==='SUBMIT');
+    const koordinasi=pengawasan.filter(a=>REPAIR_STATUSES.includes(reminderStatus(a)));
+    lines.push('','PML — '+diperiksa.length+' pekerjaan SUBMITTED BY PENCACAH perlu segera diperiksa.',
+      koordinasi.length+' pekerjaan perlu ditindaklanjuti dengan PPL untuk penyelesaian atau perbaikan.');
+    const perPpl=new Map();
+    for(const a of koordinasi){
+      const name=a.ppl||recipient.namesById.get(a.ppl_id)||'PPL belum ditetapkan';
+      const id=a.ppl_id||name;
+      if(!perPpl.has(id))perPpl.set(id,{name,rows:[]});
+      perPpl.get(id).rows.push(a);
+    }
+    for(const {name,rows} of [...perPpl.values()].sort((a,b)=>a.name.localeCompare(b.name,'id'))){
+      lines.push('• '+name+' — '+rows.length+' pekerjaan ('+reminderCounts(rows)+')');
+    }
+  }
+  return lines.concat('','Terima kasih atas kerja samanya.').join('\n');
+}
+
+let reminderQueue=[];
+let reminderIndex=0;
+let staffSurveyContext=null;
+
+function updateReminderSelection(){
+  const checks=[...$('choices').querySelectorAll('input:not(:disabled)')];
+  const count=checks.filter(input=>input.checked).length;
+  $('draftBtn').disabled=busy||!count;
+  $('selectReminders').disabled=busy||!checks.length;
+  $('selectReminders').checked=!!checks.length&&count===checks.length;
+  $('selectReminders').indeterminate=count>0&&count<checks.length;
+  $('draftBtn').textContent=count?'Susun '+count+' pesan WhatsApp':'Susun pesan WhatsApp';
+}
+
+function renderPerson(){
   clearDraft();
+  const survey=selected();
+  const recipients=reminderRecipients(data,survey);
+  const incomplete=recipients.filter(p=>!p.number);
+  const choices=$('choices');
+  choices.replaceChildren();
+  $('reminderSelection').hidden=!recipients.length;
+  $('reminderStaffAlert').hidden=!incomplete.length;
+  $('reminderStaffLink').hidden=data?.operator?.peran!=='ADMIN';
+  $('reminderStaffText').textContent=incomplete.length+' petugas pada '+(survey?.nama_survei||'survei ini')+
+    ' belum memiliki biodata aktif atau nomor WhatsApp yang valid. Lengkapi di Kelola Petugas.';
+  $('phone').textContent=recipients.length?'':'Tidak ada pekerjaan yang perlu diingatkan pada periode ini.';
 
-  const survei = selected();
-  const petugasId = $("person").value;
-  const pilihan = picked();
-
-  if (!survei || !petugasId || !pilihan.length) {
-    return;
+  for(const p of recipients){
+    const label=document.createElement('label');
+    label.className='choice';
+    const check=document.createElement('input');
+    check.type='checkbox';
+    check.value=p.id||'';
+    check.disabled=!p.number;
+    const details=document.createElement('span');
+    const name=document.createElement('strong');
+    name.textContent=p.name;
+    const counts=document.createElement('small');
+    counts.textContent=['PPL','PML'].filter(role=>p.jobs[role].length)
+      .map(role=>role+' · '+reminderCounts(p.jobs[role])).join(' | ');
+    details.append(name,counts);
+    if(!p.number){
+      const warning=document.createElement('small');
+      warning.className='error';
+      warning.textContent='Lengkapi biodata di Kelola Petugas';
+      details.append(warning);
+    }
+    label.append(check,details);
+    choices.append(label);
   }
-
-  const kunciSurvei = key(survei);
-  const pilihanAwal = JSON.stringify(pilihan);
-
-  // Mencegah hasil permintaan lama tampil setelah pilihan berubah.
-  function masihSesuai() {
-    return (
-      urutan === urutanPermintaanPesan &&
-      token &&
-      selected() &&
-      key(selected()) === kunciSurvei &&
-      $("person").value === petugasId &&
-      JSON.stringify(picked()) === pilihanAwal
-    );
-  }
-
-  notice("Menyusun pesan sesuai status pekerjaan…");
-
-  try {
-    const hasil = await rpc(
-      "apiDraft",
-      token,
-      petugasId,
-      pilihan
-    );
-
-    if (!masihSesuai()) return;
-
-    draft = hasil;
-    sendId = reqId();
-
-    $("message").value = hasil.pesan;
-    $("draftPanel").hidden = false;
-    $("sent").checked = false;
-    $("followDate").value = dateInput();
-
-    waLinks();
-    notice("Pesan otomatis siap. Periksa isinya sebelum membuka WhatsApp.");
-  } catch (error) {
-    if (!masihSesuai()) return;
-    notice(error.message || String(error), true);
-  }
+  updateReminderSelection();
 }
 
+function draftRequest(source,survey,recipient){
+  const roles=['PPL','PML'].filter(role=>recipient.jobs[role].length);
+  const surveyRows=source.assignment.filter(a=>key(a)===key(survey));
+  const scopeFor=(a,role)=>({
+    survey_id:survey.survey_id,survey_period_id:survey.survey_period_id,
+    nama_survei:survey.nama_survei,petugas_id:recipient.id,peran_petugas:role,
+    assignment_id:a.assignment_id,nama_assignment:a.nama_assignment,status_assignment:a.status,
+    waktu_data_monitoring:a.waktu_data_monitoring
+  });
+  const message=reminderMessage(recipient,survey,source.operator);
+  return {
+    id:reqId(),petugasId:recipient.id,nama:recipient.name,nomor:recipient.number,
+    pilihan:roles.map(peran=>({survey_id:survey.survey_id,survey_period_id:survey.survey_period_id,peran})),
+    // Konfirmasi server memvalidasi snapshot seluruh peran yang dipilih.
+    scope:roles.flatMap(role=>surveyRows.filter(a=>a[role.toLowerCase()+'_id']===recipient.id).map(a=>scopeFor(a,role))),
+    priority:roles.flatMap(role=>recipient.jobs[role].map(a=>scopeFor(a,role))),
+    pesan:message,pesanAwal:message,tanggal:dateInput()
+  };
+}
 
+async function prepareReminderQueue(){
+  const survey=selected();
+  const ids=[...$('choices').querySelectorAll('input:checked:not(:disabled)')].map(input=>input.value);
+  if(!survey||!ids.length)return;
+  const source=await rpc('apiData',token);
+  if(key(selected()||{})!==key(survey))return;
+  const freshSurvey=source.survei.find(s=>key(s)===key(survey));
+  const recipients=reminderRecipients(source,freshSurvey).filter(p=>p.number&&ids.includes(p.id));
+  if(recipients.length!==ids.length){
+    await load();
+    switchPanel('remindPanel');
+    throw Error('Status pekerjaan atau biodata petugas berubah. Pilih kembali dari daftar terbaru.');
+  }
+  reminderQueue=recipients.map(p=>draftRequest(source,freshSurvey,p));
+  reminderIndex=0;
+  renderDraft();
+  $('draftPanel').scrollIntoView({behavior:'smooth',block:'start'});
+}
 
-function picked(){return [...$('choices').querySelectorAll('input:checked')].map(c=>JSON.parse(c.value));}
+function persistDraft(){
+  if(!draft||draft.hasil)return;
+  draft.pesan=$('message').value;
+  draft.tanggal=$('followDate').value;
+  draft.dikirim=$('sent').checked;
+}
+
+function renderDraft(){
+  draft=reminderQueue[reminderIndex]||null;
+  $('draftPanel').hidden=!draft;
+  if(!draft)return;
+  $('queuePosition').textContent='Pesan '+(reminderIndex+1)+' dari '+reminderQueue.length+
+    ' · '+reminderQueue.filter(p=>p.hasil).length+' dikonfirmasi';
+  $('draftRecipient').textContent=draft.nama;
+  $('message').value=draft.pesan;
+  $('message').readOnly=!!draft.hasil;
+  $('followDate').value=draft.tanggal;
+  $('sent').checked=!!draft.dikirim;
+  $('sent').disabled=!!draft.hasil;
+  $('deliveryForm').hidden=!!draft.hasil;
+  $('openSentNote').hidden=!draft.hasil;
+  $('bantuanKirim').hidden=true;
+  $('copyManualBox').hidden=true;
+  waLinks();
+}
+
+function moveDraft(offset){
+  persistDraft();
+  reminderIndex+=offset;
+  renderDraft();
+}
+
 
 function waLinks() {
   aturKonfirmasiKirim();
@@ -766,13 +916,9 @@ function waLinks() {
   tombol.removeAttribute("href");
   tombol.hidden = true;
 
-  if (!draft) return;
+  if (!draft||draft.hasil) return;
 
-  let nomor = String(draft.nomor || "").replace(/\D/g, "");
-
-  if (nomor.startsWith("0")) {
-    nomor = "62" + nomor.slice(1);
-  }
+  const nomor=whatsappNumber(draft.nomor);
 
   $("nomorTujuanManual").textContent =
     "Nomor tujuan: " + (nomor || "Belum tersedia");
@@ -825,32 +971,103 @@ async function copy(text){
     notice('Browser membatasi penyalinan otomatis. Teks sudah dipilih; tekan Ctrl+C untuk menyalinnya.');
   }
 }
-function initNote(r=null){
-  const pilihanKirim = $('pilihanHasilKirim');
-  if (pilihanKirim) {
-    pilihanKirim.hidden = true;
-  }
-  // Untuk hasil pengiriman, gunakan survei dari riwayatnya.
-const s = r
-  ? data.survei.find(s => key(s) === key(r))
-  : selected();
-
-if (!s) {
-  throw Error(
-    'Survei untuk catatan tidak ditemukan. Tutup dan buka kembali halaman tindak lanjut.'
-  );
+function renderNoteAssignments(){
+  const status=$('assignmentStatus').value;
+  const survey=selected();
+  const field=$('assignment');
+  const rows=data.assignment.filter(a=>survey&&key(a)===key(survey)&&assignmentStatus(a)===status)
+    .sort((a,b)=>String(a.nama_assignment||'').localeCompare(String(b.nama_assignment||''),'id'));
+  field.replaceChildren();
+  option(field,'','— Pilih assignment —');
+  for(const a of rows)option(field,a.assignment_id,a.nama_assignment||a.assignment_id);
 }
 
-// Pastikan penyimpanan catatan memakai survei yang sama.
-$('survey').value = key(s);
-  chain=r;noteId=reqId();$('assignment').replaceChildren();option($('assignment'),'','Catatan umum survei');data.assignment.filter(a=>key(a)===key(s)).forEach(a=>option($('assignment'),a.assignment_id,a.nama_assignment+' — '+a.status));if(r?.assignment_id && ![...$('assignment').options].some(o=>o.value===r.assignment_id))option($('assignment'),r.assignment_id,r.nama_assignment+' (riwayat)');$('assignment').value=r?.assignment_id||'';$('assignment').disabled=!!r;$('chainInfo').textContent=r?'Menambahkan hasil konfirmasi pada riwayat: '+(r.nama_assignment||r.nama_survei)+' · '+(r.peran_petugas||'umum'):'Catatan baru; pilih assignment jika kendala khusus satu pekerjaan.';$('note').value='';$('plan').value='';$('followStatus').value='MENUNGGU_BALASAN';$('target').value='';$('nextDate').value=dateInput();switchPanel('notePanel');}
-function record(r,parent,button){const div=document.createElement('div');div.className='record';for(const t of [r.nama_survei+' · '+(r.nama_assignment||'Catatan umum')+(r.peran_petugas?' · '+r.peran_petugas:''),r.status_tindak_lanjut+' · '+fmt(r.waktu_catat),r.catatan_konfirmasi,r.rencana_perbaikan?'Rencana: '+r.rencana_perbaikan:'',r.pengingat_pada?'Pengingat: '+fmt(r.pengingat_pada):''])if(t){const p=document.createElement('p');p.textContent=t;div.append(p);}if(button){const b=document.createElement('button');b.className='secondary';b.textContent='Catat hasil konfirmasi';b.onclick=()=>{$('survey').value=key(r);renderSurvey();initNote(r);};div.append(b);}parent.append(div);}
+function setNoteScope(){
+  const specific=$('noteMode').value==='assignment';
+  $('statusPicker').hidden=!specific;
+  $('assignmentPicker').hidden=!specific||!$('assignmentStatus').value;
+  if(!specific)$('assignment').value='';
+}
+
+function initNote(r=null){
+  const existing=$('pilihanHasilKirim');
+  if(existing)existing.hidden=true;
+  konteksCatatanKirim=null;
+  const survey=r?data.survei.find(s=>key(s)===key(r)):selected();
+  if(!survey)throw Error('Pilih survei untuk catatan.');
+  $('survey').value=key(survey);
+  chain=r;
+  noteId=reqId();
+  $('noteModePicker').hidden=!!r;
+  $('noteMode').value='umum';
+  const rows=data.assignment.filter(a=>key(a)===key(survey));
+  const statuses=new Map();
+  for(const a of rows){
+    const status=assignmentStatus(a);
+    statuses.set(status,(statuses.get(status)||0)+1);
+  }
+  const filter=$('assignmentStatus');
+  filter.replaceChildren();
+  option(filter,'','— Pilih status —');
+  for(const [status,count] of [...statuses].sort(([a],[b])=>a.localeCompare(b,'id'))){
+    option(filter,status,status+' ('+count+')');
+  }
+  $('assignment').replaceChildren();
+  $('assignment').disabled=false;
+  setNoteScope();
+  if(r?.assignment_id){
+    $('assignmentPicker').hidden=false;
+    option($('assignment'),r.assignment_id,r.nama_assignment||r.assignment_id);
+    $('assignment').disabled=true;
+  }
+  $('chainInfo').textContent=r?'Menambahkan hasil konfirmasi pada riwayat: '+(r.nama_assignment||r.nama_survei)+' · '+(r.peran_petugas||'umum'):'';
+  $('note').value='';
+  $('plan').value='';
+  $('followStatus').value='MENUNGGU_BALASAN';
+  $('target').value='';
+  $('nextDate').value=dateInput();
+  switchPanel('notePanel');
+}
+
+function record(r,parent,button){
+  const card=document.createElement('div');
+  card.className='record';
+  const lines=[
+    r.nama_survei+' · '+(r.nama_assignment||'Catatan umum')+(r.peran_petugas?' · '+r.peran_petugas:''),
+    r.status_tindak_lanjut+' · '+fmt(r.waktu_catat),
+    r.catatan_konfirmasi,
+    r.rencana_perbaikan?'Rencana: '+r.rencana_perbaikan:'',
+    r.pengingat_pada?'Pengingat: '+fmt(r.pengingat_pada):''
+  ];
+  for(const line of lines.filter(Boolean)){
+    const p=document.createElement('p');
+    p.textContent=line;
+    card.append(p);
+  }
+  if(button){
+    const b=document.createElement('button');
+    b.type='button';
+    b.className='secondary';
+    b.textContent='Catat hasil konfirmasi';
+    b.onclick=()=>{
+      const dialog=$('reminderDialog');
+      if(dialog.open)dialog.close();
+      $('survey').value=key(r);
+      renderSurvey();
+      initNote(r);
+    };
+    card.append(b);
+  }
+  parent.append(card);
+}
 
 function aturKonfirmasiKirim() {
-  const terkirim = $('sent').checked;
-
-  $('followDate').disabled = !terkirim || busy;
-  $('saveSent').disabled = !terkirim || busy;
+  const terkirim=$('sent').checked;
+  $('followDate').disabled=!terkirim||busy;
+  $('saveSent').disabled=!terkirim||busy||!draft||!!draft.hasil;
+  $('draftPrevious').disabled=busy||reminderIndex===0;
+  $('draftNext').disabled=busy||reminderIndex>=reminderQueue.length-1;
+  updateReminderSelection();
 }
 
 $('sent').addEventListener('change', aturKonfirmasiKirim);
@@ -899,19 +1116,11 @@ function renderReminders() {
     waktuPengingat(a) - waktuPengingat(b)
   );
 
- const judul = $('reminderTitle');
-judul.textContent = 'PENGINGAT OPERATOR · ';
-
-const jumlah = document.createElement('span');
-jumlah.textContent =
-  rows.length + ' PERLU DITINDAKLANJUTI';
-
-jumlah.style.color = rows.length > 0
-  ? '#b42332'
-  : '#173858';
-
-jumlah.style.fontWeight = 'bold';
-judul.append(jumlah);
+  for(const id of ['reminderCount','reminderDialogCount']){
+    const count=$(id);
+    count.textContent=rows.length+' perlu ditindaklanjuti';
+    count.classList.toggle('has-reminders',rows.length>0);
+  }
   rows.forEach(r => record(r, $('reminders'), true));
 
   if (!rows.length) {
@@ -944,6 +1153,7 @@ function staffRowsPaint(){
   const filter=$('staffFilter').value;
   const rows=staffData.petugas.filter(p=>
     (filter==='semua'||p.aktif===(filter==='aktif')) &&
+    staffMatchesSurvey(p) &&
     (!q||[p.nama,p.email,p.nomor_whatsapp,p.petugas_id].some(x=>String(x||'').toLocaleLowerCase('id').includes(q))));
   if(!rows.length){
     const tr=document.createElement('tr'),td=document.createElement('td');
@@ -1018,10 +1228,14 @@ async function staffLinkExisting(p,matching){
     }
   });
 }
+function staffMatchesSurvey(person){
+  return !staffSurveyContext||data.assignment.some(a=>key(a)===key(staffSurveyContext)&&
+    [a.ppl_id,a.pml_id].includes(person.petugas_id));
+}
 function staffCandidatesPaint(){
   const select=$('staffSource');select.replaceChildren();
   option(select,'','— Tidak dipilih / input manual —');
-  const candidates=staffData?.kandidat_fasih||[];
+  const candidates=(staffData?.kandidat_fasih||[]).filter(staffMatchesSurvey);
   for(const p of candidates){
     option(select,p.petugas_id,staffCandidateLabel(p)+(p.asal==='assignment'?' · muncul pada survei':' · sumber petugas'));
   }
@@ -1097,7 +1311,10 @@ function staffCandidatesPaint(){
       actions.append(link,button);item.append(text,actions,picker);list.append(item);
     }
   }
-  const issues=Array.isArray(staffData?.id_petugas_kosong)?staffData.id_petugas_kosong:[];
+  const issues=(staffData?.id_petugas_kosong||[]).filter(item=>!staffSurveyContext||
+    data.assignment.some(a=>key(a)===key(staffSurveyContext)&&
+      !a[String(item.peran||'').toLowerCase()+'_id']&&
+      a[String(item.peran||'').toLowerCase()]===item.nama));
   $('staffMissingIdAlert').hidden=!issues.length;
   if(issues.length){
     const n=issues.reduce((sum,x)=>sum+(x.jumlah_assignment||0),0);
@@ -1159,8 +1376,13 @@ async function staffLoad(){
     });
   }
 }
-async function staffOpen(){
-  if(!token || data?.operator?.peran!=='ADMIN')throw Error('Kelola Petugas hanya tersedia untuk ADMIN INPEK.');
+async function staffOpen(survey=null){
+  if(!token||data?.operator?.peran!=='ADMIN')throw Error('Kelola Petugas hanya tersedia untuk ADMIN INPEK.');
+  staffSurveyContext=survey;
+  $('staffSearch').value='';
+  $('staffFilter').value='semua';
+  $('staffSurveyContext').hidden=!survey;
+  $('staffSurveyContext').textContent=survey?survey.nama_survei+' — '+survey.nama_periode:'';
   $('staffPanel').hidden=false;
   $('app').hidden=true;
   $('halamanSelesai').hidden=true;
@@ -1259,12 +1481,14 @@ $('staffForm').addEventListener('submit',event=>{
     notice('Biodata petugas berhasil disimpan.');
   });
 });
-$('openStaffTL').addEventListener('click',()=>action(staffOpen));
 $('staffBack').addEventListener('click',()=>action(async()=>{
+  const survey=staffSurveyContext;
+  staffSurveyContext=null;
   await load();
   $('staffPanel').hidden=true;$('halamanSelesai').hidden=true;$('app').hidden=false;
   $('staffForm').hidden=true;staffEditing=null;
-  notice('Kembali ke Tindak Lanjut. Daftar petugas telah mengikuti database terbaru.');
+  if(survey&&key(selected()||{})===key(survey))switchPanel('remindPanel');
+  notice('Daftar petugas telah mengikuti database terbaru.');
 }));
 // Jika dashboard Admin tetap terbuka, segarkan badge petugas secara berkala
 // tanpa memindahkan token atau nomor WhatsApp ke halaman GitHub Pages.
@@ -1352,7 +1576,6 @@ $('loginForm').onsubmit = e => {
       throw Error('Email ini tidak memiliki peran ADMIN INPEK. Gunakan email Admin INPEK yang terdaftar pada database operator.');
     }
     token = x.token;
-    $('openStaffTL').hidden=x.operator.peran!=='ADMIN';
     $('tlForceSync').hidden=x.operator.peran!=='ADMIN';
     $('tlAutoEnable').hidden=true;
     if(x.operator.peran==='ADMIN')await tlEnsureMonitoring();
@@ -1389,24 +1612,27 @@ $('loginForm').onsubmit = e => {
     }
   });
 };
-$('logout').onclick=()=>action(async()=>{
-  await rpc('apiLogout',token);
-  token='';data=null;draft=null;chain=null;initialUsed=false;
-  $('app').hidden=true;$('staffPanel').hidden=true;$('login').hidden=false;
-  tlSyncState={last:0,running:null,report:null,error:''};
-  $('tlMonitoringSync').hidden=true;
-  ['history','reminders','choices','survey','person'].forEach(id=>$(id).replaceChildren());
-  ['message','note','plan','closeNote'].forEach(id=>$(id).value='');
-  $('greeting').textContent='Masuk sebagai operator';
-  notice('Anda sudah keluar.');
-  notifyDashboardAdmin('BOLO_INPEK_ADMIN_LOGOUT');
-});
-$('survey').onchange=renderSurvey;$('person').onchange=renderPerson;
-$('openCompletedTL').onclick=()=>action(async()=>{
-  if(!token||data?.operator?.peran!=='ADMIN')throw Error('Hanya Admin INPEK yang dapat melihat daftar arsip.');
-  await tampilkanSurveiSelesai();
-  notice('Daftar periode yang telah selesai dan arsipnya ditampilkan.');
-});
+$('openReminders').onclick=()=>$('reminderDialog').showModal();
+$('survey').onchange=renderSurvey;
+$('noteMode').onchange=()=>{
+  $('assignmentStatus').value='';
+  renderNoteAssignments();
+  setNoteScope();
+};
+$('assignmentStatus').onchange=()=>{
+  renderNoteAssignments();
+  setNoteScope();
+};
+$('choices').onchange=updateReminderSelection;
+$('selectReminders').onchange=()=>{
+  for(const input of $('choices').querySelectorAll('input:not(:disabled)')){
+    input.checked=$('selectReminders').checked;
+  }
+  updateReminderSelection();
+};
+$('reminderStaffLink').onclick=()=>action(()=>staffOpen(selected()));
+$('draftPrevious').onclick=()=>moveDraft(-1);
+$('draftNext').onclick=()=>moveDraft(1);
 $('backToTL').onclick=()=>action(async()=>{
   if(!token)throw Error('Sesi Admin INPEK telah berakhir. Masuk kembali.');
   await load();
@@ -1415,38 +1641,43 @@ $('backToTL').onclick=()=>action(async()=>{
   notice('Kembali ke pengelolaan tindak lanjut. Pilih survei pada menu Survei dan Periode.');
 });
 $('remindMenu').onclick=()=>{if(!selected())return;switchPanel('remindPanel');};$('noteMenu').onclick=()=>initNote();$('newNote').onclick=()=>initNote();
-$("draftBtn").onclick = susunPesanOtomatis;
-$("draftBtn").textContent = "Susun ulang pesan";
+$('draftBtn').onclick=()=>action(prepareReminderQueue);
 
 $('message').oninput=()=>{if($('sent').checked)$('sent').checked=false;waLinks();};
 $('copyMsg').onclick=()=>copy($('message').value);$('copyPhone').onclick=()=>copy(draft?.nomor||'');
-$('saveSent').onclick = () => action(async () => {
-  if (!draft) throw Error('Susun pesan dahulu.');
-
-  if (!$('sent').checked) {
-    throw Error('Centang pernyataan bahwa pesan sudah dikirim.');
-  }
-
-  const surveiKirim = selected();
-  if (!surveiKirim) throw Error('Pilih survei.');
-
-  const hasil = await rpc('apiKonfirmasiKirim', token, {
-    id: sendId,
-    snapshot: draft.scope,
-    petugas_id: $('person').value,
-    pilihan: picked(),
-    pesan: $('message').value,
-    dikonfirmasi: true,
-    pengingat: iso('followDate')
+$('saveSent').onclick=()=>action(async()=>{
+  if(!draft||draft.hasil||!$('sent').checked)return;
+  persistDraft();
+  const reminder=iso('followDate');
+  if(!reminder)throw Error('Isi waktu pengingat untuk mengecek balasan.');
+  const survey=selected();
+  const source=await rpc('apiData',token);
+  const freshSurvey=source.survei.find(s=>key(s)===key(survey));
+  const current=reminderRecipients(source,freshSurvey).find(p=>p.id===draft.petugasId);
+  if(!current||current.number!==draft.nomor)
+    throw Error('Biodata atau penugasan petugas berubah. Susun kembali pesan dari daftar terbaru.');
+  const fresh=draftRequest(source,freshSurvey,current);
+  if(fresh.pesan!==draft.pesanAwal||JSON.stringify(fresh.priority)!==JSON.stringify(draft.priority))
+    throw Error('Data pekerjaan berubah. Susun kembali pesan dari daftar terbaru.');
+  const hasil=await rpc('apiKonfirmasiKirim',token,{
+    id:draft.id,
+    snapshot:draft.scope,
+    petugas_id:draft.petugasId,
+    pilihan:draft.pilihan,
+    pesan:draft.pesan,
+    dikonfirmasi:true,
+    pengingat:reminder
   });
+  const priorities=new Set(draft.priority.map(r=>JSON.stringify([r.peran_petugas,r.assignment_id])));
+  draft.hasil={...hasil,scope:hasil.scope.filter(r=>priorities.has(JSON.stringify([r.peran_petugas,r.assignment_id])))};
+  renderDraft();
+  notice('Pengiriman ke '+draft.nama+' tersimpan.');
+});
 
-  await load();
-  $('survey').value = key(surveiKirim);
-
-  const scope = hasil.scope.filter(
-    r => key(r) === key(surveiKirim)
-  );
-
+$('openSentNote').onclick=()=>{
+  if(!draft?.hasil)return;
+  const hasil=draft.hasil;
+  const scope=hasil.scope;
   if (!scope.length) {
     throw Error(
       'Pengiriman tersimpan, tetapi pilihan pekerjaan tidak ditemukan.'
@@ -1523,6 +1754,8 @@ $('saveSent').onclick = () => action(async () => {
       assignment_id: item.assignment_id
     };
 
+    $('noteModePicker').hidden=true;
+    $('assignmentPicker').hidden=true;
     $('assignment').replaceChildren();
     option($('assignment'), item.assignment_id, item.label);
     $('assignment').value = item.assignment_id;
@@ -1540,11 +1773,14 @@ $('saveSent').onclick = () => action(async () => {
     'Pengiriman tersimpan. Pilih pekerjaan atau Secara Keseluruhan, ' +
     'lalu isi dan simpan catatan.'
   );
-});
+};
 $('saveNote').onclick = () => action(async () => {
   const s = selected();
   if (!s) throw Error('Pilih survei.');
 
+  if(!chain&&!konteksCatatanKirim&&$('noteMode').value==='assignment'&&!$('assignment').value){
+    throw Error('Pilih status dan assignment untuk catatan.');
+  }
   if (!noteId) noteId = reqId();
 
   await rpc('apiCatatan', token, {
@@ -1568,41 +1804,18 @@ $('saveNote').onclick = () => action(async () => {
     pengingat: iso('nextDate')
   });
 
-  konteksCatatanKirim = null;
-  await load();
-
-  notice('Catatan tersimpan hanya untuk pilihan yang dipilih.');
+  konteksCatatanKirim=null;
+  if(reminderQueue.length){
+    const fresh=await rpc('apiData',token);
+    data.riwayat=fresh.riwayat.filter(r=>data.survei.some(s=>key(s)===key(r)));
+    renderHistory();
+    renderReminders();
+    switchPanel('remindPanel');
+  }else{
+    await load();
+  }
+  notice('Catatan tersimpan.');
 });
-$('closeMenu').onclick=()=>action(async()=>{const s=selected();if(!s)throw Error('Pilih survei.');const x=await rpc('apiRingkasanTutup',token,key(s));$('closeSummary').textContent=x.survei.nama_survei+' — '+x.survei.nama_periode+'\n'+x.jumlah+' assignment; '+x.riwayat+' catatan\n'+Object.entries(x.status).map(([k,v])=>k+': '+v).join(', ')+'\nTindak lanjut belum selesai: '+x.belumSelesai+'\nData sumber: '+x.waktu.map(fmt).join(', ');$('closeConfirm').checked=false;$('closeNote').value='';$('archiveResult').replaceChildren();switchPanel('closePanel');});
-$('closeBtn').onclick=async()=>{
-  const s=selected();
-  if(!s){notice('Pilih survei yang akan diarsipkan.',true);return;}
-  const catatan=$('closeNote').value.trim();
-  if(!catatan){notice('Isi catatan penutupan agar alasan penyelesaian terdokumentasi.',true);$('closeNote').focus();return;}
-  if(!$('closeConfirm').checked){notice('Periksa ringkasan lalu centang persetujuan penutupan terlebih dahulu.',true);$('closeConfirm').focus();return;}
-  const ok=await tlConfirm({
-    judul:'Arsipkan dan tutup periode survei?',
-    target:s.nama_survei+' — '+s.nama_periode,
-     pesan:'Sistem akan menyimpan dan memverifikasi rekap Google Sheets untuk periode ini. Survei selesai disembunyikan dari Dashboard dan dilewati Updater.',
-    catatan:'Setelah arsip berhasil diverifikasi, catatan tindak lanjut yang aktif pada periode ini dibersihkan dari database operasional. Riwayat tetap tersimpan di file arsip dan tidak hilang.',
-    tombol:'Arsipkan & Tutup',
-    tone:'warning'
-  });
-  if(!ok)return;
-  action(async()=>{
-    notice('Menyimpan arsip dan memeriksa kelengkapannya…');
-    try{
-      const x=await rpc('apiTutup',token,key(s),catatan,true);
-      await load();
-       notice('Survei selesai. Rekap dan catatan telah disimpan.');
-       notifyDashboardAdmin('BOLO_INPEK_SURVEY_CHANGED');
-      const a=document.createElement('a');a.href=x.url;a.target='_blank';a.rel='noopener noreferrer';a.textContent='Buka arsip survei';
-      $('notice').append(document.createElement('br'),a);
-    }catch(e){
-      notice((e.message||String(e))+' Jika status PENGARSIPAN, lanjutkan proses penutupan dari periode yang sama.',true);
-    }
-  });
-};
 async function tampilkanSurveiSelesai() {
   const hasil = await rpc('apiDaftarSurveiSelesai', token);
   const wadah = $('daftarSurveiSelesai');
@@ -1685,20 +1898,6 @@ async function tampilkanSurveiSelesai() {
     wadah.append(kartu);
   }
 }
-
-$('keluarSelesai').onclick = () => action(async () => {
-  await rpc('apiLogout', token);
-  token = '';
-
-  $('halamanSelesai').hidden = true;
-  $('app').hidden = true;
-  $('staffPanel').hidden = true;
-  $('login').hidden = false;
-  $('email').value = '';
-  $('greeting').textContent = 'Masuk Sebagai Admin INPEK';
-
-  notice('Anda sudah keluar.');
-});
 
 </script></body></html>
 
