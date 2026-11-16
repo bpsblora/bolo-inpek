@@ -74,8 +74,6 @@
 .bi-export-banner h3{margin:0;color:#163e72;font-size:16px}
 .bi-export-banner p{font-size:12px;color:#607994;margin:5px 0 0;max-width:610px}
 .bi-export-buttons{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
-.bi-export-save summary{cursor:pointer;color:#174978;font-size:12px;font-weight:800;padding:8px 4px}
-.bi-export-save[open] summary{margin-bottom:5px}
 .bi-export-buttons a{text-decoration:none}
 .bi-export-btn{font-size:12px;font-weight:800;padding:9px 12px;border:1px solid #bdd4ee;border-radius:9px;background:white;color:#174978;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
 .bi-export-btn:hover{background:#e5f1ff;border-color:#488bcb}

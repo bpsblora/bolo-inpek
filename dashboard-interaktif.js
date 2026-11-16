@@ -28,7 +28,7 @@ const biBuckets=[
   {id:'approvedStage',label:'APPROVED',color:'#9ad9a5'},
   {id:'rejected',label:'REJECTED',color:'#f6dc85'},
   {id:'revoked',label:'REVOKED',color:'#f7bd90'},
-  {id:'completed',label:'COMPLETED',color:'#72cdbb'},
+  {id:'rejectedProvinsi',label:'REJECTED BY ADMIN PROVINSI',color:'#d3a3b6'},
   {id:'other',label:'LAINNYA',color:'#c7d3df'}
 ];
 const BI_STATUS_COLORS={
@@ -39,13 +39,10 @@ const BI_STATUS_COLORS={
   'APPROVED BY PENGAWAS':'#8fd3a3',
   'REJECTED BY PENGAWAS':'#f2d06e',
   'REVOKED BY ADMIN KABUPATEN':'#dc907e',
-  'APPROVED BY ADMIN KABUPATEN':'#66c3a3',
+  'APPROVED BY ADMIN':'#66c3a3',
   'REJECTED BY ADMIN KABUPATEN':'#d5af69',
-  'COMPLETED BY ADMIN KABUPATEN':'#55b9b6',
   'REVOKED BY ADMIN PROVINSI':'#b5a1dc',
-  'APPROVED BY ADMIN PROVINSI':'#80b3bd',
   'REJECTED BY ADMIN PROVINSI':'#d3a3b6',
-  'COMPLETED BY ADMIN PROVINSI':'#789fca',
   'STATUS TIDAK TERSEDIA':'#b7c6d7',
   'STATUS BELUM DIRINCI':'#a4b5c9'
 };
@@ -53,8 +50,11 @@ const BI_STATUS_PRIORITY=Object.keys(BI_STATUS_COLORS);
 function biRawCode(value){
   return String(value||'').trim().replace(/\s+/g,' ').toUpperCase()||'STATUS TIDAK TERSEDIA';
 }
+function biDashboardStatus(value){
+  return biRawCode(value).replace(/^(?:APPROVED|COMPLETE(?:D)?) BY ADMIN (?:KABUPATEN|PROVINSI)$/, 'APPROVED BY ADMIN');
+}
 function biStatusColor(status){
-  const code=biRawCode(status);
+  const code=biDashboardStatus(status);
   if(Object.prototype.hasOwnProperty.call(BI_STATUS_COLORS,code))return BI_STATUS_COLORS[code];
   // New FASIH stages are visually distinct yet remain muted; stable across refreshes.
   let hash=2166136261;
@@ -67,7 +67,7 @@ function biStatusColor(status){
 function biRawStatusStats(rows){
   const raw=new Map();
   rows.forEach(row=>{
-    const code=biRawCode(row.status);
+    const code=biDashboardStatus(row.status);
     raw.set(code,(raw.get(code)||0)+1);
   });
   return [...raw].sort(([a],[b])=>{
@@ -77,18 +77,18 @@ function biRawStatusStats(rows){
   }).map(([label,count])=>({label,count,color:biStatusColor(label)}));
 }
 function biStatusBucket(value){
-  const s=String(value||'').trim().toUpperCase();
+  const s=biDashboardStatus(value);
   if(s==='OPEN')return 'open';
   if(s==='DRAFT')return 'draft';
   if(s.startsWith('SUBMITTED'))return 'sent';
-  if(s.startsWith('APPROVED'))return 'approvedStage';
+  if(s.startsWith('APPROVED')||s.startsWith('COMPLETED'))return 'approvedStage';
+  if(s==='REJECTED BY ADMIN PROVINSI')return 'rejectedProvinsi';
   if(s.startsWith('REJECTED'))return 'rejected';
   if(s.startsWith('REVOKED'))return 'revoked';
-  if(s.startsWith('COMPLETED'))return 'completed';
   return 'other';
 }
 function biIsSubmittedBucket(bucket){
-  return ['sent','approvedStage','rejected','revoked','completed'].includes(bucket);
+  return ['sent','approvedStage','rejected','revoked','rejectedProvinsi'].includes(bucket);
 }
 function biRejectedByPengawas(status){
   // REJECTED BY PENGAWAS masih harus diperbaiki dan dikirim ulang PPL.
@@ -99,7 +99,7 @@ function biIsSubmittedStatus(status){
   return biIsSubmittedBucket(biStatusBucket(status))&&!biRejectedByPengawas(status);
 }
 function biCounts(rows){
-  // Kategori warna tetap mengikuti status asli; indikator Belum/Sudah Submit
+  // Kategori mengikuti status Dashboard; indikator Belum/Sudah Submit
   // mengikuti tindak lanjut yang diperlukan (REJECTED BY PENGAWAS belum submit).
   const result=Object.fromEntries(biBuckets.map(b=>[b.id,0]));
   let rejectedByPengawas=0;
@@ -109,9 +109,8 @@ function biCounts(rows){
   }
   result.rejectedByPengawas=rejectedByPengawas;
   result.pending=result.open+result.draft+rejectedByPengawas;
-  result.approved=result.approvedStage+result.completed;
-  result.revision=result.rejected+result.revoked;
-  result.submitted=result.sent+result.approved+result.revision-rejectedByPengawas;
+  result.revision=result.rejected+result.rejectedProvinsi+result.revoked;
+  result.submitted=result.sent+result.approvedStage+result.revision-rejectedByPengawas;
   return result;
 }
 
@@ -353,11 +352,11 @@ function biSummary(){
     ((ALL_ASSIGNMENTS.length-DATA.length)>0?'<p class="bi-footnote bi-exclusion-note">'+format.format(ALL_ASSIGNMENTS.length-DATA.length)+' assignment Tidak Dihitung.</p>':'')+
     '<p class="bi-method-note" role="note"><strong>Dasar perhitungan:</strong> '+
     '<strong>Belum Submit</strong> = OPEN, DRAFT, dan REJECTED BY PENGAWAS (perlu dikirim ulang). '+
-    '<strong>Sudah Submit</strong> = SUBMITTED, APPROVED, COMPLETED, REVOKED, serta REJECTED selain oleh pengawas. '+
+    '<strong>Sudah Submit</strong> = SUBMITTED, APPROVED (termasuk COMPLETED), REVOKED, serta REJECTED selain oleh pengawas. '+
     'Status LAINNYA tidak otomatis dihitung; assignment bertanda Tidak Dihitung dikecualikan dari total.</p></section>';
 }
 function biCompareProgress(a,b,mode){
-  // Prioritas utama: Sudah Submit; jika sama: status APPROVED saja (COMPLETED terpisah).
+  // Prioritas utama: Sudah Submit; jika sama: jumlah APPROVED.
   // Tombol Angka membandingkan jumlah, tombol Persentase membandingkan rasio.
   const submittedRatio=b.submitted*a.total-a.submitted*b.total;
   const approvedRatio=b.approved*a.total-a.approved*b.total;
@@ -428,7 +427,7 @@ function biKpis(rows){
     ['Total Assignment',rows.length,'','total'],
     ['Belum Submit',c.pending,'OPEN / DRAFT / REJECTED PENGAWAS','pending'],
     ['Sudah Submit',c.submitted,'','submitted'],
-    ['REJECTED',c.rejected,'','rejected']
+    ['REJECTED',c.rejected+c.rejectedProvinsi,c.rejectedProvinsi?'Admin Provinsi: '+c.rejectedProvinsi:'','rejected']
   ];
   return '<div class="bi-kpis">'+items.map(([label,n,note,kind])=>
     '<div class="bi-kpi bi-kpi-'+kind+'">'+
@@ -549,21 +548,15 @@ function biExportButtons(survey,pml){
   const attrs=' data-survey="'+esc(survey)+'" data-scope="'+(pml===null?'all':'pml')+'"'+
     (pml===null?'':' data-pml="'+esc(pml)+'"');
   const target=pml===null?'semua PPL':'PPL pada PML '+pml;
-  const saveOptions=window.self!==window.top
+  const dashboardLink=window.self!==window.top
     ?'<a class="bi-export-btn" href="'+esc(biDirectReportUrl(survey))+
       '" target="_blank" rel="noopener noreferrer">Buka Dashboard di tab baru</a>'
-    :typeof window.showSaveFilePicker==='function'
-      ?'<details class="bi-export-save"><summary>Simpan ke Folder Lain</summary>'+
-        '<button type="button" class="bi-export-btn" data-bi-export="png" data-bi-save-as'+attrs+
-        ' aria-label="Simpan gambar progres '+esc(target)+' ke folder lain">Gambar</button> '+
-        '<button type="button" class="bi-export-btn" data-bi-export="pdf" data-bi-save-as'+attrs+
-        ' aria-label="Simpan PDF progres '+esc(target)+' ke folder lain">PDF</button></details>'
-      :'';
+    :'';
   return '<div class="bi-export-buttons">'+
     '<button type="button" class="bi-export-btn" data-bi-export="png"'+attrs+
     ' aria-label="Unduh gambar progres '+esc(target)+'">▧ Gambar</button>'+
     '<button type="button" class="bi-export-btn pdf" data-bi-export="pdf"'+attrs+
-    ' aria-label="Unduh PDF progres '+esc(target)+'">↓ PDF</button>'+saveOptions+'</div>';
+    ' aria-label="Unduh PDF progres '+esc(target)+'">↓ PDF</button>'+dashboardLink+'</div>';
 }
 function biPplDetailPanel(survey){
   const rows=DATA.filter(row=>row.survei===survey);
@@ -611,7 +604,8 @@ function biPmlCards(survey){
         '<small>'+pairs.length+' PPL · '+group.length+' assignment</small></div>'+
         '<span class="bi-pml-count">'+biUnitText(stats.submitted,group.length,'cards')+' Sudah Submit</span></div>'+
         biBar(group,pml)+'<p class="bi-card-progress">APPROVED: <strong>'+format.format(stats.approvedStage)+
-          '</strong> · COMPLETED: <strong>'+format.format(stats.completed)+'</strong></p>'+
+          '</strong>'+(stats.rejectedProvinsi?' · REJECTED BY ADMIN PROVINSI: <strong>'+
+          format.format(stats.rejectedProvinsi)+'</strong>':'')+'</p>'+
         biExportButtons(survey,pml)+
         '<p class="bi-feedback" role="status" aria-live="polite"></p>'+
         '<details><summary>Lihat progres '+pairs.length+' PPL</summary>'+
@@ -809,7 +803,7 @@ function biCanvasPage(survey,pml,pairs,pageIndex,pages,totalCounts){
     ['APPROVED',totalCounts.approvedStage,'#2f805b'],
     ['REJECTED',totalCounts.rejected,'#98751b'],
     ['REVOKED',totalCounts.revoked,'#995e31'],
-    ['COMPLETED',totalCounts.completed,'#237e76'],
+    ['REJECT ADMIN PROV.',totalCounts.rejectedProvinsi,'#9d5876'],
     ['LAINNYA',totalCounts.other,'#617388']
   ];
   stats.forEach(([label,n,tone],i)=>{
@@ -821,7 +815,7 @@ function biCanvasPage(survey,pml,pairs,pageIndex,pages,totalCounts){
   const headings=[
     ['PPL',68],['TOTAL',330],['OPEN',400],['DRAFT',466],
     ['SUDAH',532],['SUBMIT',610],['APPROVE',709],
-    ['REJECT',801],['REVOKE',887],['COMPLETE',969],['LAIN',1055],
+    ['REJECT',801],['REVOKE',887],['REJECT PROV.',969],['LAIN',1055],
     ['GRAFIK',1130],['PML',1303]
   ];
   ctx.fillStyle='#d9e9fa';ctx.fillRect(58,311,1568,51);
@@ -836,9 +830,9 @@ function biCanvasPage(survey,pml,pairs,pageIndex,pages,totalCounts){
     ctx.font='18px Arial';ctx.fillStyle='#163e68';
     biCanvasText(ctx,entry.ppl,68,y+28,246);
     const values=[entry.rows.length,c.open,c.draft,c.submitted,c.sent,
-      c.approvedStage,c.rejected,c.revoked,c.completed,c.other];
+      c.approvedStage,c.rejected,c.revoked,c.rejectedProvinsi,c.other];
     const rowTones=['#183e63','#9e4758','#a76379','#174679','#316b9e',
-      '#2f805b','#98751b','#995e31','#237e76','#617388'];
+      '#2f805b','#98751b','#995e31','#9d5876','#617388'];
     ctx.font='15px Arial';
     [330,400,466,532,610,709,801,887,969,1055].forEach((x,k)=>{
       ctx.fillStyle=rowTones[k];ctx.fillText(String(values[k]),x,y+28);
@@ -878,37 +872,6 @@ function biDownloadLink(blob,filename,label){
   },10*60*1000);
   return link;
 }
-function biPickReportFile(filename){
-  const pdf=filename.endsWith('.pdf');
-  return window.showSaveFilePicker({
-    suggestedName:filename,
-    startIn:'documents',
-    types:[pdf
-      ?{description:'Dokumen PDF',accept:{'application/pdf':['.pdf']}}
-      :{description:'Gambar PNG',accept:{'image/png':['.png']}}]
-  });
-}
-async function biWriteReportFile(handle,blob){
-  const stream=await handle.createWritable();
-  try{
-    await stream.write(blob);
-    await stream.close();
-  }catch(error){
-    await stream.abort().catch(()=>{});
-    throw error;
-  }
-}
-function biReportExportError(feedback,error){
-  if(!feedback)return;
-  if(error.name==='AbortError'){
-    feedback.textContent='';
-    return;
-  }
-  const message=error.name==='NotAllowedError'||error.name==='NoModificationAllowedError'
-    ?'Chrome tidak bisa menulis ke lokasi ini. Pilih folder Dokumen atau Desktop.'
-    :'Gagal ekspor: '+(error.message||String(error));
-  feedback.textContent=message;
-}
 function biCanvasBlob(canvas,type,quality){
   return new Promise((resolve,reject)=>canvas.toBlob(blob=>
     blob?resolve(blob):reject(new Error('Ekspor gambar tidak berhasil.')),type,quality));
@@ -933,12 +896,10 @@ async function biExportProgress(button){
   const pages=Math.ceil(pairs.length/17),namePart=biReportName(survey)+'_'+biReportName(pml||'Seluruh_PPL');
   const isPdf=button.dataset.biExport==='pdf';
   const multiPart=!isPdf&&pages>5;
-  const saveAs=button.hasAttribute('data-bi-save-as');
   const filename='BOLO_INPEK_Progres_PPL_'+namePart+(isPdf?'.pdf':'.png');
   siblings.forEach(x=>x.disabled=true);
   if(feedback)feedback.textContent='Menyiapkan '+(isPdf?'PDF':'gambar')+'…';
   try{
-    const handle=saveAs&&!multiPart?await biPickReportFile(filename):null;
     const downloads=[];
     if(isPdf){
       const JsPDF=await biLoadPdfLib();
@@ -972,31 +933,8 @@ async function biExportProgress(button){
     if(multiPart&&feedback){
       downloads.forEach(({blob,filename},i)=>{
         if(i)feedback.append(' · ');
-        const part='Gambar Bagian '+(i+1);
-        if(!saveAs){
-          feedback.append(biDownloadLink(blob,filename,'Unduh '+part));
-          return;
-        }
-        const save=document.createElement('button');
-        save.type='button';
-        save.className='bi-export-btn';
-        save.textContent='Simpan '+part;
-        const status=document.createElement('span');
-        status.setAttribute('role','status');
-        save.addEventListener('click',async()=>{
-          status.textContent='';
-          save.disabled=true;
-          try{
-            const chosen=await biPickReportFile(filename);
-            await biWriteReportFile(chosen,blob);
-          }catch(error){
-            biReportExportError(status,error);
-          }finally{save.disabled=false;}
-        });
-        feedback.append(save,status);
+        feedback.append(biDownloadLink(blob,filename,'Unduh Gambar Bagian '+(i+1)));
       });
-    }else if(handle){
-      await biWriteReportFile(handle,downloads[0].blob);
     }else{
       const link=biDownloadLink(downloads[0].blob,downloads[0].filename,'');
       document.body.appendChild(link);
@@ -1004,7 +942,7 @@ async function biExportProgress(button){
       link.remove();
     }
   }catch(error){
-    biReportExportError(feedback,error);
+    if(feedback)feedback.textContent='Gagal ekspor: '+(error.message||String(error));
   }finally{
     siblings.forEach(x=>x.disabled=false);
   }

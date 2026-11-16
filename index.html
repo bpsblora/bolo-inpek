@@ -633,7 +633,7 @@ body.bolo-loading-active{overflow:hidden}
 }
 </style>
 
-<link rel="stylesheet" href="./dashboard-interaktif.css?v=40">
+<link rel="stylesheet" href="./dashboard-interaktif.css?v=41">
 </head>
 <body>
 <div id="boloLoading" class="bolo-loading" role="status" aria-live="polite" aria-label="BOLO INPEK sedang memuat data" hidden>
@@ -786,35 +786,22 @@ body.bolo-loading-active{overflow:hidden}
   </main>
   <footer>BOLO INPEK · Sumber: FASIH-SM melalui Google Sheets · <a href="./kebijakan-privasi.html">Kebijakan Privasi</a></footer>
   <noscript>Aktifkan JavaScript untuk menggunakan dashboard ini.</noscript>
-  <script src="./dashboard-interaktif.js?v=43"></script>
+  <script src="./dashboard-interaktif.js?v=44"></script>
   <script>
     // ========================================================
     // STATUS DASHBOARD: setiap assignment dihitung satu kali.
     // ========================================================
-    // Tidak lagi memakai enam kategori generik. Status mengikuti nama tahap FASIH
-    // dan ditampilkan HURUF KAPITAL. Tampilkan hanya status yang benar-benar ada.
-    const STATUS_PRIORITAS = [
-      'OPEN', 'DRAFT', 'SUBMITTED BY PENCACAH', 'REVOKED BY PENGAWAS',
-      'APPROVED BY PENGAWAS', 'REJECTED BY PENGAWAS',
-      'REVOKED BY ADMIN KABUPATEN', 'APPROVED BY ADMIN KABUPATEN',
-      'REJECTED BY ADMIN KABUPATEN', 'COMPLETED BY ADMIN KABUPATEN',
-      'APPROVED BY ADMIN PROVINSI', 'REJECTED BY ADMIN PROVINSI',
-      'COMPLETED BY ADMIN PROVINSI', 'STATUS TIDAK TERSEDIA',
-      'STATUS BELUM DIRINCI'
-    ];
-    const statusKapital = value => String(value || '').trim().replace(/\s+/g,' ').toUpperCase() || 'STATUS TIDAK TERSEDIA';
+    const statusKapital = biRawCode;
     function statusColor(code){
-      // Satu sumber warna untuk status mentah FASIH di kartu, tabel, grafik, dan PDF.
       return biStatusColor(code);
     }
     function daftarStatus(rows){
-      const active=[...new Set(rows.map(r=>statusKapital(r.status)))];
-      active.sort((a,b)=>{
-        const x=STATUS_PRIORITAS.indexOf(a),y=STATUS_PRIORITAS.indexOf(b);
-        const px=x<0?STATUS_PRIORITAS.length:x,py=y<0?STATUS_PRIORITAS.length:y;
-        return px-py || a.localeCompare(b,'id');
-      });
-      return active.map(code=>({code,label:code,color:statusColor(code)}));
+      return biRawStatusStats(rows).map(({label,color})=>({code:label,label,color}));
+    }
+    function assignmentUntukDashboard(rows){
+      return rows.filter(row=>!row.boloExcluded).map(row=>({
+        ...row,status:biDashboardStatus(row.boloStatusManual||row.status)
+      }));
     }
 
     const TINDAK_LANJUT_URL = "https://script.google.com/macros/s/AKfycbzdnMjJHjxmQXhnpZdMCPi1zyKvChmVJH6U15p_RMLR649wHFSmL2FrgcUzs0MxV4JX/exec";
@@ -1285,12 +1272,7 @@ body.bolo-loading-active{overflow:hidden}
         ALL_ASSIGNMENTS=DATA.filter(r=>SURVEYS.includes(r.survei));
         // Penanda hanya mengubah perhitungan, tidak menghapus data FASIH.
         ALL_ASSIGNMENTS=await biApplyMarkers(ALL_ASSIGNMENTS,MARKER_RULES);
-        DATA=ALL_ASSIGNMENTS.filter(r=>!r.boloExcluded).map(r=>({
-          ...r,
-          // Status hanya diubah pada data untuk perhitungan visualisasi.
-          // ALL_ASSIGNMENTS dan hasil ekspor monitoring tetap memakai status asli FASIH.
-          status:r.boloStatusManual||r.status
-        }));
+        DATA=assignmentUntukDashboard(ALL_ASSIGNMENTS);
         tampilkanWaktuPengambilan(payload.data_terakhir_diambil);
         if(!snapshot){
           const requestedSurvey=new URLSearchParams(window.location.search).get('survei');
@@ -1342,7 +1324,7 @@ body.bolo-loading-active{overflow:hidden}
       }
     }
     const name = (row,key) => row[key] || UNASSIGNED;
-    function counts(rows,statuses=daftarStatus(rows)){return statuses.map(s=>rows.filter(r=>r.status===s.code).length)}
+    function counts(rows,statuses=daftarStatus(rows)){return statuses.map(s=>rows.filter(r=>biDashboardStatus(r.status)===s.code).length)}
     function selected(){return DATA.filter(r=>(state.survey===null||r.survei===state.survey)&&(state.pml===null||name(r,'pml')===state.pml)&&(state.ppl===null||name(r,'ppl')===state.ppl)&&(state.status===null||r.status===state.status))}
     function go(level,value){
       if(level==='home'||level==='survey'){biView.pml='';biView.ppl='';}
@@ -1749,9 +1731,7 @@ body.bolo-loading-active{overflow:hidden}
     function refreshLocalMarkView(){
       // Hanya hitung ulang data di MEMORI browser. Tidak memanggil API
       // monitoring, tidak menjalankan Updater dan tidak mengubah filter.
-      DATA=ALL_ASSIGNMENTS.filter(r=>!r.boloExcluded).map(r=>({
-        ...r,status:r.boloStatusManual||r.status
-      }));
+      DATA=assignmentUntukDashboard(ALL_ASSIGNMENTS);
       renderKeteranganStatus(DATA,'top');
       render(false);
       if(markListModal.open)paintMarkList(false);
