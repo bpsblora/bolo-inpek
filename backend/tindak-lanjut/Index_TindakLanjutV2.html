@@ -75,6 +75,53 @@
   font-weight: 700;
 }
 
+.survey-picker-trigger {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin: 8px 0 0;
+  text-align: left;
+  border-color: #aabed5;
+}
+
+.survey-picker-trigger:hover,
+.survey-picker-list button:hover {
+  background: #edf5ff;
+}
+
+.survey-picker-dialog {
+  width: min(620px, calc(100vw - 24px));
+  max-height: min(70vh, 540px);
+  max-height: min(70dvh, 540px);
+}
+
+.survey-picker-list {
+  display: grid;
+  gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px;
+}
+
+.survey-picker-list button {
+  width: 100%;
+  margin: 0;
+  border-color: #b6c9df;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.survey-picker-list button[aria-current="true"] {
+  border-color: #3b75ad;
+  background: #dcecff;
+  font-weight: 700;
+}
+
+.survey-picker-list p { margin: 0; }
+
 #reminders {
   display: grid;
   gap: 12px;
@@ -279,6 +326,19 @@
   </div>
 
   <select id="survey" hidden aria-hidden="true"></select>
+  <button id="openSurveyPicker" type="button" class="secondary survey-picker-trigger" aria-haspopup="dialog" aria-controls="surveyPickerDialog" hidden>
+    <span id="surveyPickerValue">Pilih Survei dan Periode</span>
+    <span aria-hidden="true">▾</span>
+  </button>
+  <dialog id="surveyPickerDialog" class="reminder-dialog survey-picker-dialog" aria-labelledby="surveyPickerHeading">
+    <div class="reminder-dialog-heading">
+      <h2 id="surveyPickerHeading">Pilih Survei dan Periode</h2>
+      <form method="dialog">
+        <button type="submit" class="tl-confirm-dismiss" aria-label="Tutup pemilih survei" autofocus>×</button>
+      </form>
+    </div>
+    <div id="surveyPickerList" class="survey-picker-list"></div>
+  </dialog>
 
   <p id="sourceTime" class="muted"></p>
   <div id="tlMonitoringSync" class="tl-sync-status" hidden role="status" aria-live="polite"></div>
@@ -527,12 +587,7 @@ if(BOLO_ADMIN_GATE_NONCE){
   info.className='muted';
   info.textContent='Masukkan email yang memiliki peran ADMIN pada daftar operator INPEK. Setelah berhasil, tombol pengelolaan pada dashboard akan tersedia.';
   $('loginForm').before(info);
-  const surveyLabel=document.createElement('label');
-  surveyLabel.htmlFor='survey';
-  surveyLabel.textContent='Pilih Survei dan Periode';
-  $('survey').before(surveyLabel);
-  $('survey').hidden=false;
-  $('survey').removeAttribute('aria-hidden');
+  $('openSurveyPicker').hidden=false;
   $('backToTL').hidden=false;
 }
 const reqId=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
@@ -583,6 +638,44 @@ async function action(fn){if(busy)return;busy=true;document.querySelectorAll('bu
  aturKonfirmasiKirim();}}
 function option(select,value,label){const o=document.createElement('option');o.value=value;o.textContent=label;select.append(o);}
 function selected(){return data?.survei.find(s=>key(s)===$('survey').value);}
+function surveyPickerLabel(s){
+  return s.nama_survei+' — '+s.nama_periode+
+    (s.status_operasional==='PENGARSIPAN'?' (arsip perlu dilanjutkan)':'');
+}
+function openSurveyPicker(){
+  const dialog=$('surveyPickerDialog');
+  const list=$('surveyPickerList');
+  const current=$('survey').value;
+  let currentButton;
+  list.replaceChildren();
+  for(const survey of data?.survei||[]){
+    const value=key(survey);
+    const button=document.createElement('button');
+    button.type='button';
+    button.className='secondary';
+    button.textContent=surveyPickerLabel(survey);
+    if(value===current){
+      button.setAttribute('aria-current','true');
+      currentButton=button;
+    }
+    button.onclick=()=>{
+      dialog.close();
+      if(value!==current){
+        $('survey').value=value;
+        renderSurvey();
+      }
+    };
+    list.append(button);
+  }
+  if(!list.childElementCount){
+    const empty=document.createElement('p');
+    empty.textContent='Belum ada survei dan periode yang dapat dipilih.';
+    list.append(empty);
+  }
+  dialog.showModal();
+  list.scrollTop=0;
+  currentButton?.focus();
+}
 function switchPanel(id) {
   const tujuan = $(id);
 
@@ -680,13 +773,14 @@ if (initial.periode) {
 
 $('survey').replaceChildren();
 if(BOLO_ADMIN_GATE_NONCE)option($('survey'),'','— Pilih Survei dan Periode —');
-data.survei.forEach(s=>option($('survey'),key(s),s.nama_survei+' — '+s.nama_periode+(s.status_operasional==='PENGARSIPAN'?' (arsip perlu dilanjutkan)':'')));let match=data.survei.find(s=>key(s)===prev);
+data.survei.forEach(s=>option($('survey'),key(s),surveyPickerLabel(s)));let match=data.survei.find(s=>key(s)===prev);
 if(!initialUsed){match=data.survei.find(s=>s.survey_period_id===initial.periode&&(!initial.survei||s.nama_survei===initial.survei));initialUsed=true;if(initial.periode&&!match)notice('Survei dari dashboard sudah ditutup atau tidak ditemukan. Pilih survei aktif lainnya.');}
 if(match)$('survey').value=key(match);$('greeting').textContent='Halo '+(data.operator.peran==='ADMIN'?'Admin':'Operator')+' Bolo INPEK, '+data.operator.nama+'!';renderSurvey();renderReminders();}
 function renderSurvey(){chain=null;konteksCatatanKirim=null;noteId='';for(const p of ['remindPanel','notePanel'])$(p).hidden=true;const s=selected();
+$('surveyPickerValue').textContent=s?surveyPickerLabel(s):'Pilih Survei dan Periode';
 $('remindMenu').disabled=!s;
 $('noteMenu').disabled=!s;
-$('context').textContent=s?s.nama_survei+' — '+s.nama_periode:'Tidak ada survei aktif.';$('sourceTime').textContent=s?'Data sumber: '+[...new Set(data.assignment.filter(a=>key(a)===key(s)).map(a=>a.waktu_data_monitoring))].map(fmt).join(' | '):'';renderHistory();renderPerson();}
+$('context').textContent=s?s.nama_survei+' — '+s.nama_periode:data?.survei.length?'Survei dan periode':'Tidak ada survei aktif.';$('sourceTime').textContent=s?'Data sumber: '+[...new Set(data.assignment.filter(a=>key(a)===key(s)).map(a=>a.waktu_data_monitoring))].map(fmt).join(' | '):'';renderHistory();renderPerson();}
 const REPAIR_STATUSES=['OPEN','DRAFT','REJECT'];
 const REMINDER_STATUS_ORDER=['OPEN','DRAFT','REJECT','SUBMIT'];
 
@@ -1613,7 +1707,7 @@ $('loginForm').onsubmit = e => {
   });
 };
 $('openReminders').onclick=()=>$('reminderDialog').showModal();
-$('survey').onchange=renderSurvey;
+$('openSurveyPicker').onclick=openSurveyPicker;
 $('noteMode').onchange=()=>{
   $('assignmentStatus').value='';
   renderNoteAssignments();
