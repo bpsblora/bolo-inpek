@@ -420,19 +420,26 @@ function biPanel(rows,key){
     biUnitControl(key)+'</div></div>'+
     biRoleContent(rows,key)+biLegend(rows)+'</section>';
 }
+const BI_KPI_LABELS={total:'Total Assignment',pending:'Belum Submit',submitted:'Sudah Submit',rejected:'REJECTED'};
+function biKpiRows(rows,kind){
+  if(kind==='total')return rows;
+  if(kind==='pending')return rows.filter(row=>['open','draft'].includes(biStatusBucket(row.status))||biRejectedByPengawas(row.status));
+  if(kind==='submitted')return rows.filter(row=>biIsSubmittedStatus(row.status));
+  return rows.filter(row=>['rejected','rejectedProvinsi'].includes(biStatusBucket(row.status)));
+}
 function biKpis(rows){
   const c=biCounts(rows);
   // Setiap kartu memiliki kelas warna khusus, tanpa mengubah perhitungan FASIH.
   const items=[
-    ['Total Assignment',rows.length,'','total'],
-    ['Belum Submit',c.pending,'OPEN / DRAFT / REJECTED PENGAWAS','pending'],
-    ['Sudah Submit',c.submitted,'','submitted'],
-    ['REJECTED',c.rejected+c.rejectedProvinsi,c.rejectedProvinsi?'Admin Provinsi: '+c.rejectedProvinsi:'','rejected']
+    ['total',rows.length,''],
+    ['pending',c.pending,'OPEN / DRAFT / REJECTED PENGAWAS'],
+    ['submitted',c.submitted,''],
+    ['rejected',c.rejected+c.rejectedProvinsi,c.rejectedProvinsi?'Admin Provinsi: '+c.rejectedProvinsi:'']
   ];
-  return '<div class="bi-kpis">'+items.map(([label,n,note,kind])=>
-    '<div class="bi-kpi bi-kpi-'+kind+'">'+
-      '<span>'+label+'</span><strong>'+format.format(n)+'</strong>'+
-      (note?'<small>'+note+'</small>':'')+'</div>').join('')+'</div>';
+  return '<div class="bi-kpis">'+items.map(([kind,n,note])=>
+    '<button type="button" class="bi-kpi bi-kpi-'+kind+'" data-bi-kpi="'+kind+'" aria-haspopup="dialog" aria-controls="biKpiModal">'+
+      '<span>'+BI_KPI_LABELS[kind]+'</span><strong>'+format.format(n)+'</strong>'+
+      (note?'<small>'+note+'</small>':'')+'<span class="bi-kpi-arrow" aria-hidden="true">›</span></button>').join('')+'</div>';
 }
 function biControls(rows){
   const pmls=biRoleNames(rows,'pml');
@@ -694,8 +701,60 @@ function biPopupOpenPml(pml,trigger){
   const dialog=document.getElementById('biPmlPeopleModal');
   if(!dialog.open)dialog.showModal();
 }
+function biOriginalStatus(row){
+  return biRawCode(row.status_asli||row.boloStatusFasih||row.status);
+}
+function biOriginalStatusButtons(rows){
+  const statuses=new Map();
+  for(const row of rows){
+    const status=biOriginalStatus(row);
+    statuses.set(status,(statuses.get(status)||0)+1);
+  }
+  if(!statuses.size)return '<p class="bi-popup-detail-subtitle">Tidak ada assignment pada kategori ini.</p>';
+  return '<div class="bi-popup-status-list">'+[...statuses].sort(([a],[b])=>{
+    const pa=BI_STATUS_PRIORITY.indexOf(biDashboardStatus(a)),pb=BI_STATUS_PRIORITY.indexOf(biDashboardStatus(b));
+    return (pa<0?Infinity:pa)-(pb<0?Infinity:pb)||a.localeCompare(b,'id');
+  }).map(([label,count])=>{
+      const pct=percent(count,rows.length),color=biStatusColor(label);
+      return '<button type="button" class="bi-popup-status-item bi-original-status" data-bi-original-status="'+esc(label)+'" aria-haspopup="dialog" aria-controls="biAssignmentDetailModal">'+
+        '<span class="bi-popup-status-dot" aria-hidden="true" style="background:'+color+'"></span>'+
+        '<span class="bi-popup-status-label">'+esc(label)+'</span>'+
+        '<span class="bi-popup-status-track" aria-hidden="true"><span style="width:'+(count/rows.length*100).toFixed(3)+
+          '%;background:'+color+'"></span></span>'+
+        '<strong>'+pct+'</strong><small>'+format.format(count)+' / '+format.format(rows.length)+'</small></button>';
+    }).join('')+'</div>';
+}
+function biPopupOpenKpi(kind,trigger){
+  if(!state.survey||!Object.hasOwn(BI_KPI_LABELS,kind))return;
+  const rows=biKpiRows(DATA.filter(row=>row.survei===state.survey),kind);
+  biPopupState.kpi={rows,context:state.survey+' · '+BI_KPI_LABELS[kind]};
+  biPopupState.focus.biKpiModal=trigger;
+  document.getElementById('biKpiTitle').textContent=BI_KPI_LABELS[kind]+' · '+state.survey;
+  const body=document.getElementById('biKpiBody');
+  body.innerHTML='<p class="bi-popup-detail-subtitle">'+format.format(rows.length)+' assignment</p>'+
+    '<div class="bi-popup-status-heading"><strong>Status Asli FASIH</strong></div>'+biOriginalStatusButtons(rows);
+  document.getElementById('biKpiModal').showModal();
+  body.scrollTop=0;
+}
+function biPopupOpenAssignments(status,trigger){
+  const source=trigger.closest('#biKpiModal')?biPopupState.kpi:biPopupState.personDetail;
+  const rows=source?.rows.filter(row=>biOriginalStatus(row)===status);
+  if(!rows?.length)return;
+  biPopupState.focus.biAssignmentDetailModal=trigger;
+  document.getElementById('biAssignmentDetailTitle').textContent='Assignment · '+status;
+  const body=document.getElementById('biAssignmentDetailBody');
+  body.innerHTML='<p class="bi-popup-detail-subtitle">'+esc(source.context)+' · '+format.format(rows.length)+' assignment</p>'+
+    '<div class="tablebox"><table class="bi-assignment-detail-table"><thead><tr>'+
+    '<th scope="col">Nama Assignment</th><th scope="col">PPL</th><th scope="col">PML</th></tr></thead><tbody>'+
+    rows.map(row=>'<tr><td>'+esc(row.nama_assignment)+(row.boloStatusManual?
+      '<small>Status perhitungan manual · '+esc(row.status)+'</small>':'')+
+      '</td><td>'+esc(name(row,'ppl'))+'</td><td>'+esc(name(row,'pml'))+'</td></tr>').join('')+
+    '</tbody></table></div>';
+  document.getElementById('biAssignmentDetailModal').showModal();
+  body.scrollTop=0;
+}
 function biPopupDetailHtml(rows,title,context){
-  const n=rows.length,c=biCounts(rows),statuses=biRawStatusStats(rows);
+  const n=rows.length,c=biCounts(rows);
   return '<div class="bi-popup-detail-subtitle">'+esc(context)+'</div>'+
     '<div class="bi-popup-stats-grid">'+
       '<div><span>Total Assignment</span><strong>'+n+'</strong></div>'+
@@ -704,16 +763,7 @@ function biPopupDetailHtml(rows,title,context){
     '</div>'+
     '<div class="bi-popup-status-heading"><strong>Komposisi Status FASIH</strong></div>'+
     '<div class="bi-popup-mainbar">'+biBar(rows,title)+'</div>'+
-    '<div class="bi-popup-status-list">'+statuses.map(status=>{
-      const count=status.count,pct=n?percent(count,n):'—';
-      return '<div class="bi-popup-status-item">'+
-        '<span class="bi-popup-status-dot" style="background:'+status.color+'"></span>'+
-        '<span class="bi-popup-status-label">'+esc(status.label)+'</span>'+
-        '<span class="bi-popup-status-track"><span style="width:'+(n?count/n*100:0).toFixed(3)+
-          '%;background:'+status.color+'"></span></span>'+
-        '<strong>'+pct+'</strong><small>'+count+' / '+n+'</small></div>';
-    }).join('')+'</div>'+
-    '';
+    '<div class="bi-popup-status-heading"><strong>Status Asli FASIH</strong></div>'+biOriginalStatusButtons(rows);
 }
 function biPopupOpenDetail(kind,value,trigger){
   const survey=state.survey||biPopupState.survey;
@@ -736,19 +786,21 @@ function biPopupOpenDetail(kind,value,trigger){
     rows=entry.rows;label=entry.ppl;context='PML: '+entry.pml+' · Survei: '+survey;
   }else return;
   if(!rows.length)return;
+  biPopupState.personDetail={rows,context:label+' · '+context};
   document.getElementById('biStatusTitle').textContent='Rincian Status · '+label;
   document.getElementById('biStatusBody').innerHTML=biPopupDetailHtml(rows,label,context);
   biPopupState.focus.biStatusModal=trigger||document.activeElement;
   const dialog=document.getElementById('biStatusModal');
   if(!dialog.open)dialog.showModal();
 }
+const BI_POPUP_IDS=['biAssignmentDetailModal','biKpiModal','biStatusModal','biPmlPeopleModal','biProgressModal'];
 function biPopupClose(id){
-  if(!['biProgressModal','biPmlPeopleModal','biStatusModal'].includes(id))return;
+  if(!BI_POPUP_IDS.includes(id))return;
   const dialog=document.getElementById(id);
   if(dialog?.open)dialog.close();
 }
 function biPopupCloseAll(){
-  ['biStatusModal','biPmlPeopleModal','biProgressModal'].forEach(biPopupClose);
+  BI_POPUP_IDS.forEach(biPopupClose);
 }
 
 /* Semua gambar/PDF dibuat secara lokal di browser, tanpa mengirim data ke layanan lain. */

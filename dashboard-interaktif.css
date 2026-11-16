@@ -343,7 +343,8 @@
   box-shadow:0 25px 90px #09284877;color:#153d6c;background:#fff}
 .bi-popup-dialog::backdrop{background:rgba(11,33,61,.6);backdrop-filter:blur(3px)}
 #biPmlPeopleModal{width:min(960px,96vw)}
-#biStatusModal{width:min(790px,96vw)}
+#biStatusModal,#biKpiModal{width:min(790px,96vw)}
+#biAssignmentDetailModal{width:min(900px,96vw)}
 .bi-popup-shell{display:flex;flex-direction:column;max-height:88vh;min-height:0}
 .bi-popup-head{display:flex;gap:14px;justify-content:space-between;align-items:center;
   background:linear-gradient(105deg,#164876,#286fae);padding:16px 20px;color:white}
@@ -391,6 +392,13 @@
 .bi-popup-status-track{height:11px;border-radius:99px;background:#e9eff6;overflow:hidden}
 .bi-popup-status-track>span{display:block;height:100%;border-radius:99px}
 .bi-popup-status-item strong,.bi-popup-status-item small{white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
+.bi-original-status{width:100%;text-align:left;border-color:#cadef1}
+.bi-original-status:hover{background:#edf5ff;border-color:#8bb6de}
+.bi-original-status .bi-popup-status-label::after{content:' ›';color:#286fae}
+.bi-assignment-detail-table{min-width:0;table-layout:fixed;overflow-wrap:anywhere}
+.bi-assignment-detail-table th:first-child{width:46%}
+.bi-assignment-detail-table th,.bi-assignment-detail-table td{padding:10px 12px;font-size:13px;vertical-align:top}
+.bi-assignment-detail-table small{display:block;margin-top:4px;color:#55708d}
 .bi-popup-info{margin:16px 0 0;color:#6c829b;font-size:11px;line-height:1.6}
 @media(max-width:850px){.bi-progress-navigation{grid-template-columns:1fr}.bi-progress-nav-card{min-height:87px}}
 @media(max-width:600px){
@@ -569,7 +577,7 @@
 .bi-kpi{
   position:relative;isolation:isolate;overflow:hidden;
   display:flex;flex-direction:column;align-items:flex-start;
-  min-width:0;min-height:119px;
+  min-width:0;min-height:119px;text-align:left;
   border-radius:15px;padding:15px 17px 14px;
   border:1px solid var(--kpi-border,#d4e4f4);
   background:var(--kpi-bg,#f8fbff);
@@ -592,6 +600,8 @@
 .bi-kpi:hover{transform:translateY(-3px);box-shadow:0 11px 27px rgba(25,75,120,.15)}
 .bi-kpi span{position:relative;font-size:11px;line-height:1.35;
   font-weight:850;letter-spacing:.015em;margin:0 0 9px;color:var(--kpi-ink,#1c5288)}
+.bi-kpi .bi-kpi-arrow{position:absolute;top:12px;right:14px;margin:0;font-size:21px;line-height:1}
+.bi-kpi > span:first-child{padding-right:17px}
 .bi-kpi strong{position:relative;display:block;line-height:1.05;
   font-weight:900;font-size:32px;letter-spacing:-.025em;
   margin:0 0 5px;color:var(--kpi-ink,#1c5288);
