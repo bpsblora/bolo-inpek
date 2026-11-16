@@ -772,7 +772,7 @@ function biCanvasText(ctx,text,x,y,maxWidth){
   while(t.length>1&&ctx.measureText(t+'…').width>maxWidth)t=t.slice(0,-1);
   ctx.fillText(t+'…',x,y);
 }
-function biCanvasPage(survey,pml,pairs,pageIndex,pages,totalCounts){
+function biCanvasPage(survey,pml,pairs,pageIndex,pages,totalCounts,{pdf=false}={}){
   const width=1684,height=1191;
   const canvas=document.createElement('canvas');
   canvas.width=width;canvas.height=height;
@@ -784,7 +784,9 @@ function biCanvasPage(survey,pml,pairs,pageIndex,pages,totalCounts){
   ctx.fillText('BOLO INPEK  /  PROGRES PPL',58,64);
   ctx.font='20px Arial';ctx.fillStyle='#dcecff';
   biCanvasText(ctx,'Survei: '+survey,58,98,1250);
-  biCanvasText(ctx,'Cakupan: '+(pml===null?'Seluruh PPL':('PML '+pml)),58,122,1300);
+  const pairCount=pairs.length+' pasangan PPL–PML';
+  const coverage=pml===null?'Seluruh PPL':('PML '+pml);
+  biCanvasText(ctx,pdf?pairCount:'Cakupan: '+coverage,58,122,1300);
   ctx.font='bold 17px Arial';ctx.fillStyle='#ffffff';
   biCanvasText(ctx,'DATA TERAKHIR DIAMBIL: '+(typeof exportTime==='function'?exportTime():'Belum tercatat'),58,150,1525);
   ctx.textAlign='right';ctx.font='bold 24px Arial';ctx.fillStyle='#ffffff';
@@ -848,12 +850,15 @@ function biCanvasPage(survey,pml,pairs,pageIndex,pages,totalCounts){
   });
   const footY=1120;
   ctx.fillStyle='#607991';ctx.font='16px Arial';
-  biCanvasText(ctx,'Belum Submit = OPEN + DRAFT + REJECTED BY PENGAWAS  |  Status REJECTED lain dihitung Sudah Submit',65,footY,1540);
+  if(!pdf){
+    biCanvasText(ctx,'Belum Submit = OPEN + DRAFT + REJECTED BY PENGAWAS  |  Status REJECTED lain dihitung Sudah Submit',65,footY,1540);
+  }
   biCanvasText(ctx,'Data terakhir diambil: '+(typeof exportTime==='function'?exportTime():'Belum tercatat')+
     (totalCounts.manual?' | '+totalCounts.manual+' assignment memakai status manual':''),
     65,footY+31,1500);
   ctx.textAlign='right';ctx.fillStyle='#1c578f';
-  ctx.fillText('Halaman '+(pageIndex+1)+' / '+pages+' · '+pairs.length+' pasangan PPL–PML',1618,footY+31);
+  const pageLabel='Halaman '+(pageIndex+1)+' / '+pages;
+  ctx.fillText(pdf?pageLabel:pageLabel+' · '+pairCount,1618,footY+31);
   ctx.textAlign='left';
   return canvas;
 }
@@ -887,7 +892,7 @@ async function biExportProgress(button){
       const JsPDF=await biLoadPdfLib();
       const doc=new JsPDF({orientation:'landscape',unit:'mm',format:'a4',compress:true});
       for(let i=0;i<pages;i++){
-        const canvas=biCanvasPage(survey,pml,pairs,i,pages,summary);
+        const canvas=biCanvasPage(survey,pml,pairs,i,pages,summary,{pdf:true});
         if(i>0)doc.addPage('a4','landscape');
         doc.addImage(canvas.toDataURL('image/jpeg',0.88),'JPEG',0,0,297,210);
       }
