@@ -418,8 +418,19 @@
   color:inherit;border:1px solid #a9c1db;border-radius:8px;background:#fff}
 .bi-assignment-tools button:disabled{opacity:.55;cursor:default}
 .bi-assignment-filter{position:relative;max-width:100%;font-size:12px}
-.bi-assignment-filter summary{cursor:pointer;padding:6px 9px;border:1px solid #cbdcf5;
+.bi-assignment-filter summary{display:flex;align-items:center;gap:5px;list-style:none;
+  cursor:pointer;padding:6px 9px;border:1px solid #cbdcf5;
   border-radius:7px;background:#f5f9ff;color:#153c78;font-weight:700}
+.bi-assignment-filter summary::-webkit-details-marker{display:none}
+.bi-assignment-filter summary::after{content:"";width:5px;height:5px;margin:0 2px 2px 3px;
+  border:solid currentColor;border-width:0 1px 1px 0;transform:rotate(45deg)}
+.bi-assignment-filter[open] summary::after{transform:rotate(225deg);margin-bottom:-2px}
+.bi-assignment-filter summary:hover,.bi-assignment-filter summary.bi-filter-active{
+  background:#e2f0ff;border-color:#92b6db}
+.bi-assignment-filter summary:focus-visible{outline:2px solid #2563eb;outline-offset:2px}
+.bi-assignment-filter-icon{width:14px;height:14px;flex:none}
+.bi-filter-sr-only{position:absolute;clip-path:inset(50%);width:1px;height:1px;overflow:hidden}
+.bi-assignment-filter [data-filter-count]:empty{display:none}
 .bi-assignment-filter-options{position:absolute;top:calc(100% + 4px);left:0;z-index:3;
   width:min(260px,76vw);max-height:180px;overflow:auto;overscroll-behavior:contain;
   padding:5px;background:#fff;border:1px solid #b4cbe5;border-radius:8px;
@@ -434,6 +445,14 @@
 .bi-assignment-feedback a{display:inline-flex;margin:2px 4px 2px 0;text-decoration:none}
 .bi-assignment-scroll{max-height:52vh;max-height:52dvh;overscroll-behavior:contain}
 .bi-assignment-scroll thead th{position:sticky;top:0;z-index:1;background:#edf4ff}
+.bi-assignment-detail-table .bi-assignment-status-row{
+  background-color:#f7faff;
+  background-color:color-mix(in srgb,var(--bi-assignment-status) 22%,white)
+}
+.bi-assignment-detail-table .bi-assignment-status-row:hover{
+  background-color:color-mix(in srgb,var(--bi-assignment-status) 33%,white)
+}
+.bi-assignment-status-row td:first-child{box-shadow:inset 3px 0 var(--bi-assignment-status)}
 .bi-assignment-detail-table th button{padding:0;text-align:left;background:none;border:0;
   color:inherit;font-weight:inherit;overflow-wrap:anywhere}
 .bi-assignment-detail-table th button:hover{text-decoration:underline}

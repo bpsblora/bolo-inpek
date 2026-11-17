@@ -811,12 +811,18 @@ function biMountAssignmentList(root,rows,{title,context,showStatus=false,showOri
     (c.key!=='survey'||showSurvey)&&(c.key!=='status'||showStatus)&&(c.key!=='originalStatus'||showOriginalStatus));
   const items=rows.map((row,index)=>{
     const cells=Object.fromEntries(columns.map(c=>[c.key,String(c.value(row)??'')]));
-    return {row,index,cells,search:biAssignmentText([...Object.values(cells),biOriginalStatus(row),row.boloStatusManual||''].join(' '))};
+    const status=biOriginalStatus(row);
+    return {row,index,cells,statusColor:biStatusColor(status),
+      search:biAssignmentText([...Object.values(cells),status,row.boloStatusManual||''].join(' '))};
   });
   const filters=new Map(),sort=[];
+  const filterIcon='<svg class="bi-assignment-filter-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false">'+
+    '<path d="M2 3h12L9.5 8.5v4l-3 1v-5L2 3Z" stroke="currentColor" stroke-width="1.35" stroke-linejoin="round"/></svg>';
   const filterControls=columns.map(column=>{
     const values=[...new Set(items.map(item=>item.cells[column.key]))].sort(BI_ASSIGNMENT_COLLATOR.compare);
-    return '<details class="bi-assignment-filter"><summary>'+esc(column.label)+' <span data-filter-count="'+column.key+'"></span></summary>'+
+    return '<details class="bi-assignment-filter"><summary>'+filterIcon+
+      '<span class="bi-filter-sr-only">Filter </span><span>'+esc(column.label)+'</span>'+
+      '<span data-filter-count="'+column.key+'"></span></summary>'+
       '<div class="bi-assignment-filter-options" role="group" aria-label="Filter '+esc(column.label)+'">'+
       values.map(value=>'<label><input type="checkbox" data-assignment-filter="'+column.key+'" value="'+esc(value)+'"> <span>'+esc(value||'Kosong')+'</span></label>').join('')+
       '</div></details>';
@@ -867,9 +873,12 @@ function biMountAssignmentList(root,rows,{title,context,showStatus=false,showOri
       'Urutkan dengan klik judul kolom. Klik kolom lain untuk menambah urutan.';
     for(const c of columns){
       const size=filters.get(c.key)?.size||0;
-      root.querySelector('[data-filter-count="'+c.key+'"]').textContent=size?' ('+size+')':'';
+      const badge=root.querySelector('[data-filter-count="'+c.key+'"]');
+      badge.textContent=size?'('+size+')':'';
+      badge.closest('summary').classList.toggle('bi-filter-active',size>0);
     }
-    tableBody.innerHTML=visible.length?visible.map(({row,cells})=>'<tr>'+columns.map(({key})=>
+    tableBody.innerHTML=visible.length?visible.map(({row,cells,statusColor})=>
+      '<tr class="bi-assignment-status-row" style="--bi-assignment-status:'+esc(statusColor)+'">'+columns.map(({key})=>
       '<td>'+esc(cells[key])+(key==='assignment'&&row.boloStatusManual?
         '<small>Status perhitungan manual · '+esc(row.status)+'</small>':'')+'</td>').join('')+'</tr>').join(''):
       '<tr><td class="empty" colspan="'+columns.length+'">Tidak ada assignment yang cocok.</td></tr>';
