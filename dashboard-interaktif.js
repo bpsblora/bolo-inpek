@@ -1028,7 +1028,7 @@ function biCanvasText(ctx,text,x,y,maxWidth){
   while(t.length>1&&ctx.measureText(t+'…').width>maxWidth)t=t.slice(0,-1);
   ctx.fillText(t+'…',x,y);
 }
-function biProgressCanvas(survey,pairCount,scale=1){
+function biProgressCanvas(survey,detail,scale=1,title='PROGRES PPL'){
   const width=1684,height=1191;
   const canvas=document.createElement('canvas');
   canvas.width=width*scale;canvas.height=height*scale;
@@ -1038,10 +1038,10 @@ function biProgressCanvas(survey,pairCount,scale=1){
   ctx.fillStyle='#ffffff';ctx.fillRect(0,0,width,height);
   ctx.fillStyle='#174679';ctx.fillRect(0,0,width,160);
   ctx.fillStyle='#ffffff';ctx.font='bold 38px Arial';ctx.textAlign='left';
-  ctx.fillText('BOLO INPEK  /  PROGRES PPL',58,64);
+  ctx.fillText('BOLO INPEK  /  '+title,58,64);
   ctx.font='20px Arial';ctx.fillStyle='#dcecff';
   biCanvasText(ctx,'Survei: '+survey,58,98,1250);
-  biCanvasText(ctx,pairCount+' pasangan PPL–PML',58,122,1300);
+  biCanvasText(ctx,detail,58,122,1500);
   ctx.font='bold 17px Arial';ctx.fillStyle='#ffffff';
   biCanvasText(ctx,'DATA TERAKHIR DIAMBIL: '+(typeof exportTime==='function'?exportTime():'Belum tercatat'),58,150,1525);
   ctx.textAlign='right';ctx.font='bold 24px Arial';ctx.fillStyle='#ffffff';
@@ -1049,7 +1049,7 @@ function biProgressCanvas(survey,pairCount,scale=1){
   return {canvas,ctx};
 }
 function biCanvasPage(survey,pml,pairs,pageIndex,pages,totalCounts){
-  const {canvas,ctx}=biProgressCanvas(survey,pairs.length);
+  const {canvas,ctx}=biProgressCanvas(survey,pairs.length+' pasangan PPL–PML');
   ctx.fillStyle='#edf5ff';ctx.fillRect(58,186,1568,101);
   const stats=[
     ['ASSIGNMENT',totalCounts.total,'#174679'],
@@ -1120,83 +1120,133 @@ function biProgressCanvasFooter(ctx,pageIndex,pages,manual){
   ctx.fillText('Halaman '+(pageIndex+1)+' / '+pages,1618,footY+31);
   ctx.textAlign='left';
 }
-const BI_PROGRES_PDF_PER_PAGE=14;
-const BI_PROGRES_PDF_STATUS=[
-  {label:'OPEN',header:['OPEN'],x:428,legendX:72},
-  {label:'DRAFT',header:['DRAFT'],x:510,legendX:258},
-  {label:'REJECTED BY PENGAWAS',header:['REJECTED','PENGAWAS'],x:597,legendX:445},
-  {label:'SUBMITTED BY PENCACAH',header:['SUBMITTED','PENCACAH'],x:696,legendX:800},
-  {label:'APPROVED BY PENGAWAS',header:['APPROVED','PENGAWAS'],x:793,legendX:1158}
+const BI_ALL_PPL_PDF_COLUMNS=[
+  {header:'OPEN',status:'OPEN',x:403},
+  {header:'DRAFT',status:'DRAFT',x:477},
+  {header:'REJECT',status:'REJECTED BY PENGAWAS',x:550},
+  {header:'SUBMIT',status:'SUBMITTED BY PENCACAH',x:625},
+  {header:'APPROVE',status:'APPROVED BY PENGAWAS',x:704}
 ];
-function biProgresPdfPage(survey,pairs,pageIndex,pages,total,summary,manual){
-  const {canvas,ctx}=biProgressCanvas(survey,pairs.length,2);
-  const number=value=>format.format(value);
-  const shownTotal=BI_PROGRES_PDF_STATUS.reduce((sum,{label})=>sum+(summary.get(label)||0),0);
-  ctx.fillStyle='#edf5ff';ctx.fillRect(58,182,1568,126);
+const BI_PML_PDF_COLUMNS=[
+  {header:'SUDAH SUBMIT',metric:'submitted',x:572},
+  {header:'APPROVED',metric:'approvedStage',x:704}
+];
+function biPdfPeopleCount(pairs,role){
+  const names=pairs.map(pair=>String(pair[role]||'').trim().replace(/\s+/g,' ').toLocaleLowerCase('id-ID'));
+  const missing=[UNASSIGNED.toLocaleLowerCase('id-ID'),'belum ditetapkan',''];
+  return new Set(names.filter(person=>!missing.includes(person))).size;
+}
+function biPdfProgressLegend(ctx,statuses){
+  let x=72,y=225;
+  const entries=statuses.map(status=>{
+    ctx.font='bold 17px Arial';
+    const labelWidth=ctx.measureText(status.label).width;
+    ctx.font='17px Arial';
+    const countLabel=format.format(status.count)+' assignment';
+    const width=Math.min(1535,Math.max(155,labelWidth+60,ctx.measureText(countLabel).width+48));
+    if(x+width>1610){x=72;y+=59;}
+    const entry={...status,x,y,width,countLabel};
+    x+=width;
+    return entry;
+  });
+  return {entries,bottom:y+60};
+}
+function biDrawPdfProgressLegend(ctx,{entries,bottom}){
+  ctx.fillStyle='#edf5ff';ctx.fillRect(58,182,1568,bottom-182);
   ctx.fillStyle='#174679';ctx.font='bold 18px Arial';
   ctx.fillText('LEGENDA STATUS FASIH',72,209);
-  BI_PROGRES_PDF_STATUS.forEach(({label,legendX})=>{
-    ctx.fillStyle=biStatusColor(label);
-    ctx.fillRect(legendX,225,24,24);
+  for(const {label,color,countLabel,x,y,width} of entries){
+    ctx.fillStyle=color;ctx.fillRect(x,y,24,24);
     ctx.fillStyle='#183e63';ctx.font='bold 17px Arial';
-    ctx.fillText(label,legendX+34,243);
+    biCanvasText(ctx,label,x+34,y+18,width-40);
     ctx.font='17px Arial';
-    ctx.fillText(number(summary.get(label)||0)+' assignment',legendX+34,270);
-  });
-  ctx.fillStyle='#365d82';ctx.font='17px Arial';
-  ctx.fillText(number(total)+' assignment seluruh status · Grafik mencakup '+number(shownTotal)+' assignment pada lima status di atas.',72,297);
-  ctx.fillStyle='#d9e9fa';ctx.fillRect(58,326,1568,62);
-  ctx.fillStyle='#184574';ctx.font='bold 16px Arial';
-  ctx.fillText('PPL',68,363);
-  ctx.fillText('GRAFIK KOMPOSISI STATUS',858,363);
-  ctx.fillText('PML',1372,363);
-  ctx.textAlign='center';
-  ctx.fillText('TOTAL',348,354);
-  ctx.fillText('ASSIGNMENT',348,374);
-  for(const {header,x} of BI_PROGRES_PDF_STATUS){
-    header.forEach((line,i)=>ctx.fillText(line,x,header.length===1?363:354+i*20));
+    ctx.fillText(countLabel,x+34,y+45);
   }
-  ctx.textAlign='left';
-  const first=pageIndex*BI_PROGRES_PDF_PER_PAGE;
-  pairs.slice(first,first+BI_PROGRES_PDF_PER_PAGE).forEach((entry,i)=>{
-    const y=388+i*51;
-    const byStatus=new Map(biRawStatusStats(entry.rows).map(({label,count})=>[label,count]));
-    const counts=BI_PROGRES_PDF_STATUS.map(({label})=>byStatus.get(label)||0);
-    const shown=counts.reduce((sum,count)=>sum+count,0);
-    ctx.fillStyle=i%2?'#f6f9fd':'#ffffff';
-    ctx.fillRect(58,y,1568,51);
-    ctx.fillStyle='#163e68';ctx.font='18px Arial';
-    biCanvasText(ctx,entry.ppl,68,y+32,214);
-    biCanvasText(ctx,entry.pml,1372,y+32,239);
-    ctx.textAlign='center';
-    ctx.fillText(number(entry.rows.length),348,y+32);
-    counts.forEach((count,j)=>ctx.fillText(number(count),BI_PROGRES_PDF_STATUS[j].x,y+32));
-    ctx.textAlign='left';
-    if(shown){
-      const barX=858,barY=y+13,barW=492,barH=26;
-      let left=0;
-      counts.forEach((count,j)=>{
-        if(!count)return;
-        const right=left+barW*count/shown;
-        ctx.fillStyle=biStatusColor(BI_PROGRES_PDF_STATUS[j].label);
-        ctx.fillRect(barX+left,barY,right-left,barH);
-        const label=number(count);
-        ctx.font='bold 16px Arial';
-        const labelWidth=ctx.measureText(label).width;
-        if(right-left>=labelWidth+10){
-          ctx.fillStyle='#153754';
-          ctx.fillText(label,barX+(left+right-labelWidth)/2,barY+19);
-        }
-        left=right;
-      });
-    }else{
-      ctx.fillStyle='#526b84';
-      ctx.fillText('Tidak ada assignment pada lima status ini',858,y+32);
+}
+function biDrawPdfStatusBar(ctx,statuses,x,y,width){
+  const total=statuses.reduce((sum,status)=>sum+status.count,0);
+  ctx.fillStyle='#e6edf5';ctx.fillRect(x,y,width,26);
+  let left=0;
+  for(const {count,color} of statuses){
+    if(!count)continue;
+    const length=width*count/total;
+    ctx.fillStyle=color;ctx.fillRect(x+left,y,length,26);
+    const label=format.format(count);
+    ctx.font='bold 16px Arial';
+    const labelWidth=ctx.measureText(label).width;
+    if(length>=labelWidth+10){
+      ctx.fillStyle='#153754';ctx.fillText(label,x+left+(length-labelWidth)/2,y+19);
     }
-    ctx.fillStyle='#edf2f8';ctx.fillRect(58,y+50,1568,1);
-  });
-  biProgressCanvasFooter(ctx,pageIndex,pages,manual);
-  return canvas;
+    left+=length;
+  }
+}
+function biDrawPdfProgressName(ctx,value,x,y,width){
+  ctx.fillStyle='#163e68';ctx.font='bold 18px Arial';
+  const lines=biAssignmentWrap(ctx,value,width);
+  if(lines.length===1)ctx.fillText(lines[0],x,y+32);
+  else{
+    ctx.fillText(lines[0],x,y+21);
+    biCanvasText(ctx,lines.slice(1).join(' '),x,y+41,width);
+  }
+}
+function biProgressPdfReport(survey,pml,pairs,rows,manual){
+  const allPpl=pml===null;
+  const columns=allPpl?BI_ALL_PPL_PDF_COLUMNS:BI_PML_PDF_COLUMNS;
+  const pplCount=format.format(biPdfPeopleCount(pairs,'ppl'))+' PPL';
+  const detail=allPpl?pplCount+' · '+format.format(biPdfPeopleCount(pairs,'pml'))+' PML':
+    'PML: '+pml+' · '+pplCount+' · '+format.format(rows.length)+' assignment';
+  const {canvas,ctx}=biProgressCanvas(survey,detail,2,allPpl?'PROGRES SELURUH PPL':'PROGRES PPL PER PML');
+  const statuses=biRawStatusStats(rows);
+  const totals=new Map(statuses.map(({label,count})=>[label,count]));
+  const visibleStatuses=allPpl?columns.map(({status})=>({
+    label:status,color:biStatusColor(status),count:totals.get(status)||0
+  })):statuses;
+  const legend=biPdfProgressLegend(ctx,visibleStatuses);
+  const headY=legend.bottom+17,bodyY=headY+50,rowHeight=51;
+  const perPage=Math.max(1,Math.floor((1090-bodyY)/rowHeight));
+  const pages=Math.ceil(pairs.length/perPage);
+  const layout=allPpl?{totalX:329,graphX:751,graphW:516,percentX:1353,pplWidth:228}:
+    {totalX:443,graphX:788,graphW:710,percentX:1605,pplWidth:325};
+  return {pages,draw(pageIndex){
+    ctx.fillStyle='#fff';ctx.fillRect(0,160,1684,1031);
+    biDrawPdfProgressLegend(ctx,legend);
+    ctx.fillStyle='#d9e9fa';ctx.fillRect(58,headY,1568,50);
+    ctx.fillStyle='#184574';ctx.font='bold 17px Arial';
+    ctx.fillText('PPL',68,headY+32);
+    ctx.fillText('GRAFIK KOMPOSISI STATUS',layout.graphX,headY+32);
+    if(allPpl)ctx.fillText('PML',1378,headY+32);
+    ctx.textAlign='right';
+    ctx.fillText('% SUBMIT',layout.percentX,headY+32);
+    ctx.textAlign='center';
+    ctx.fillText('TOTAL',layout.totalX,headY+32);
+    for(const {header,x} of columns)ctx.fillText(header,x,headY+32);
+    ctx.textAlign='left';
+    const first=pageIndex*perPage;
+    pairs.slice(first,first+perPage).forEach((entry,i)=>{
+      const y=bodyY+i*rowHeight,total=entry.rows.length;
+      const counts=biCounts(entry.rows);
+      const progress=biRawStatusStats(entry.rows);
+      const byStatus=new Map(progress.map(({label,count})=>[label,count]));
+      ctx.fillStyle=i%2?'#f6f9fd':'#ffffff';ctx.fillRect(58,y,1568,rowHeight);
+      biDrawPdfProgressName(ctx,entry.ppl,68,y,layout.pplWidth);
+      if(allPpl)biDrawPdfProgressName(ctx,entry.pml,1378,y,232);
+      ctx.font='18px Arial';
+      ctx.textAlign='center';
+      ctx.fillText(format.format(total),layout.totalX,y+32);
+      for(const {status,metric,x} of columns){
+        ctx.fillText(format.format(status?(byStatus.get(status)||0):counts[metric]),x,y+32);
+      }
+      ctx.textAlign='left';
+      const segments=allPpl?visibleStatuses.map(status=>({...status,count:byStatus.get(status.label)||0})):progress;
+      biDrawPdfStatusBar(ctx,segments,layout.graphX,y+13,layout.graphW);
+      ctx.textAlign='right';ctx.font='bold 19px Arial';ctx.fillStyle='#174679';
+      ctx.fillText(percent(counts.submitted,total),layout.percentX,y+32);
+      ctx.textAlign='left';
+      ctx.fillStyle='#edf2f8';ctx.fillRect(58,y+rowHeight-1,1568,1);
+    });
+    biProgressCanvasFooter(ctx,pageIndex,pages,manual);
+    return canvas;
+  }};
 }
 function biDownloadLink(blob,filename,label){
   const url=URL.createObjectURL(blob);
@@ -1230,7 +1280,8 @@ function biAssignmentWrap(ctx,value,maxWidth){
   lines.push(line);
   return lines;
 }
-function biAssignmentPages(report){
+function biAssignmentPages(report,isPdf){
+  const fontFor=key=>isPdf&&['ppl','pml'].includes(key)?'bold 18px Arial':'18px Arial';
   const canvas=document.createElement('canvas');
   canvas.width=1600;
   canvas.height=1131;
@@ -1242,9 +1293,9 @@ function biAssignmentPages(report){
   const widths=report.columns.map(column=>usableWidth*column.width/weight);
   const pages=[];
   let page=[],y=top;
-  ctx.font='18px Arial';
   for(const item of report.items){
     const cells=report.columns.map(({key},i)=>{
+      ctx.font=fontFor(key);
       const value=item.cells[key]+(key==='assignment'&&item.row.boloStatusManual?
         ' · Status perhitungan manual: '+item.row.status:'');
       return biAssignmentWrap(ctx,value,widths[i]-24);
@@ -1278,14 +1329,20 @@ function biAssignmentPages(report){
     ctx.fillStyle='#e8f2ff';ctx.fillRect(margin,164,usableWidth,50);
     ctx.fillStyle='#173b5e';ctx.font='bold 19px Arial';
     let x=margin;
-    report.columns.forEach((column,i)=>{biCanvasText(ctx,column.label,x+12,196,widths[i]-24);x+=widths[i];});
-    ctx.font='18px Arial';
+    report.columns.forEach((column,i)=>{
+      const lines=biAssignmentWrap(ctx,column.label,widths[i]-24);
+      const baseline=lines.length>1?184:196;
+      biCanvasText(ctx,lines[0],x+12,baseline,widths[i]-24);
+      if(lines.length>1)biCanvasText(ctx,lines.slice(1).join(' '),x+12,206,widths[i]-24);
+      x+=widths[i];
+    });
     for(const row of pages[index]){
       ctx.fillStyle=row.odd?'#f2f7fd':'#fff';
       ctx.fillRect(margin,row.y,usableWidth,row.height);
       ctx.fillStyle='#193b5d';
       x=margin;
       row.cells.forEach((lines,i)=>{
+        ctx.font=fontFor(report.columns[i].key);
         lines.forEach((line,j)=>ctx.fillText(line,x+12,row.y+rowPadding+17+j*lineHeight));
         x+=widths[i];
       });
@@ -1325,7 +1382,7 @@ async function biExportAssignmentList(type,report,feedback){
     return;
   }
 
-  const reportPages=biAssignmentPages(report);
+  const reportPages=biAssignmentPages(report,type==='pdf');
   const pageCount=reportPages.pages.length;
   if(type==='pdf'){
     const JsPDF=await biLoadPdfLib();
@@ -1375,9 +1432,9 @@ async function biExportProgress(button){
   const c=biCounts(rows),summary={...c,total:rows.length,
     manual:rows.filter(r=>r.boloStatusManual).length};
   const isPdf=button.dataset.biExport==='pdf';
-  const pages=Math.ceil(pairs.length/(isPdf?BI_PROGRES_PDF_PER_PAGE:17));
+  const imagePages=Math.ceil(pairs.length/17);
   const namePart=biReportName(survey)+'_'+biReportName(pml||'Seluruh_PPL');
-  const multiPart=!isPdf&&pages>5;
+  const multiPart=!isPdf&&imagePages>5;
   const filename='BOLO_INPEK_Progres_PPL_'+namePart+(isPdf?'.pdf':'.png');
   siblings.forEach(x=>x.disabled=true);
   if(feedback)feedback.textContent='Menyiapkan '+(isPdf?'PDF':'gambar')+'…';
@@ -1386,25 +1443,24 @@ async function biExportProgress(button){
     if(isPdf){
       const JsPDF=await biLoadPdfLib();
       const doc=new JsPDF({orientation:'landscape',unit:'mm',format:'a4',compress:true});
-      const byStatus=new Map(biRawStatusStats(rows).map(({label,count})=>[label,count]));
-      for(let i=0;i<pages;i++){
-        const canvas=biProgresPdfPage(survey,pairs,i,pages,rows.length,byStatus,summary.manual);
+      const report=biProgressPdfReport(survey,pml,pairs,rows,summary.manual);
+      for(let i=0;i<report.pages;i++){
         if(i>0)doc.addPage('a4','landscape');
-        doc.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',0,0,297,210);
+        doc.addImage(report.draw(i).toDataURL('image/jpeg',0.95),'JPEG',0,0,297,210);
       }
       downloads.push({blob:doc.output('blob'),filename});
     }else{
       // Satu gambar tinggi jika memungkinkan; untuk laporan sangat panjang,
       // beberapa berkas PNG per 5 halaman menghindari batas ukuran canvas Windows.
       let startPage=0,part=1;
-      while(startPage<pages){
-        const portion=Math.min(5,pages-startPage);
+      while(startPage<imagePages){
+        const portion=Math.min(5,imagePages-startPage);
         const combined=document.createElement('canvas');
         combined.width=1684;combined.height=1191*portion;
         const context=combined.getContext('2d',{alpha:false});
         if(!context)throw new Error('Canvas laporan tidak tersedia.');
         for(let j=0;j<portion;j++){
-          const pg=biCanvasPage(survey,pml,pairs,startPage+j,pages,summary);
+          const pg=biCanvasPage(survey,pml,pairs,startPage+j,imagePages,summary);
           context.drawImage(pg,0,j*1191);
         }
         const blob=await biCanvasBlob(combined,'image/png');
