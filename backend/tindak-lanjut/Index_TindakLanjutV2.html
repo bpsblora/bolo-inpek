@@ -1247,7 +1247,6 @@ function renderHistory(){const s=selected();$('history').replaceChildren();const
 function renderReminders() {
   $('reminders').replaceChildren();
   const survey=selected();
-  $('openReminders').hidden=!survey;
   $('reminderDialogSurvey').textContent=survey?survey.nama_survei+' — '+survey.nama_periode:'';
   const surveyKey=survey?key(survey):null;
 
@@ -1277,6 +1276,8 @@ function renderReminders() {
       String(r.status_tindak_lanjut || '').trim().toUpperCase()
     )
   );
+
+  $('openReminders').hidden=!rows.length;
 
   // Pengingat paling awal ditampilkan terlebih dahulu.
   const waktuPengingat = r => {
