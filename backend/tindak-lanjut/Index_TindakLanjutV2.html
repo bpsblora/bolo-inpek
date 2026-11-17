@@ -12,6 +12,17 @@
   margin: 0;
 }
 
+.note-context {
+  padding: 12px 14px;
+  margin: 12px 0;
+  border: 1px solid #b9cde6;
+  border-radius: 8px;
+  background: #edf4ff;
+  overflow-wrap: anywhere;
+}
+.note-context p { margin: 4px 0 0; }
+.note-context-previous { white-space: pre-wrap; }
+
 .reminder-trigger {
   display: flex;
   width: 100%;
@@ -466,7 +477,14 @@
   <button type="button" id="openSentNote" class="secondary" hidden>Catat hasil konfirmasi</button>
 </div>
 </section>
-<section id="notePanel" class="panel" hidden><h2>Catatan dan Hasil Konfirmasi</h2><p id="chainInfo" class="muted"></p><div id="noteModePicker">
+<section id="notePanel" class="panel" hidden><h2>Catatan dan Hasil Konfirmasi</h2>
+<aside id="chainInfo" class="note-context" aria-labelledby="noteContextHeading" aria-live="polite" hidden>
+  <strong id="noteContextHeading">Konfirmasi untuk</strong>
+  <p id="noteContextSurvey"></p>
+  <p id="noteContextTarget"></p>
+  <p id="noteContextPrevious" class="note-context-previous" hidden></p>
+</aside>
+<div id="noteModePicker">
   <label for="noteMode">Cakupan catatan</label>
   <select id="noteMode">
     <option value="umum">Catatan umum survei</option>
@@ -480,7 +498,7 @@
 <div id="assignmentPicker" hidden>
   <label for="assignment">Assignment</label>
   <select id="assignment"></select>
-</div><label for="note">Catatan / hasil konfirmasi</label><textarea id="note"></textarea><label for="plan">Rencana perbaikan</label><textarea id="plan"></textarea><label for="followStatus">Status tindak lanjut</label><select id="followStatus"><option value="MENUNGGU_BALASAN">Menunggu balasan</option><option value="DALAM_PERBAIKAN">Dalam perbaikan</option><option value="SELESAI">Selesai</option></select><label for="target">Target selesai (opsional)</label><input id="target" type="datetime-local"><label for="nextDate">Pengingat berikutnya</label><input id="nextDate" type="datetime-local"><button id="saveNote">Simpan catatan</button><button id="newNote" class="secondary">Catatan baru</button></section>
+</div><label for="note">Catatan / hasil konfirmasi</label><textarea id="note"></textarea><label for="plan">Rencana perbaikan</label><textarea id="plan"></textarea><label for="followStatus">Status tindak lanjut</label><select id="followStatus"><option value="MENUNGGU_BALASAN">Menunggu balasan</option><option value="DALAM_PERBAIKAN">Dalam perbaikan</option><option value="SELESAI">Selesai</option></select><label for="target">Target selesai (opsional)</label><input id="target" type="datetime-local"><label for="nextDate">Pengingat berikutnya</label><input id="nextDate" type="datetime-local"><button id="saveNote" type="button" disabled>Simpan catatan</button><button id="newNote" type="button" class="secondary" hidden>Catatan baru</button></section>
 <section class="panel"><h2>Riwayat catatan survei terpilih</h2><div id="history"></div></section>
 </div>
 
@@ -665,7 +683,8 @@ async function action(fn){if(busy)return;busy=true;document.querySelectorAll('bu
    $('remindMenu').disabled=!allowed;
    $('noteMenu').disabled=!allowed;
  }
- aturKonfirmasiKirim();}}
+ aturKonfirmasiKirim();
+ updateNoteForm();}}
 function option(select,value,label){const o=document.createElement('option');o.value=value;o.textContent=label;select.append(o);}
 function selected(){return data?.survei.find(s=>key(s)===$('survey').value);}
 function surveyPickerLabel(s){
@@ -727,6 +746,7 @@ function switchPanel(id) {
   }
 
   tujuan.hidden = false;
+  updateNoteForm();
 
   requestAnimationFrame(() => {
     tujuan.scrollIntoView({
@@ -810,7 +830,7 @@ function renderSurvey(){chain=null;konteksCatatanKirim=null;noteId='';for(const 
 $('surveyPickerValue').textContent=s?surveyPickerLabel(s):'Pilih Survei dan Periode';
 $('remindMenu').disabled=!s;
 $('noteMenu').disabled=!s;
-$('context').textContent=s?s.nama_survei+' — '+s.nama_periode:data?.survei.length?'Survei dan periode':'Tidak ada survei aktif.';$('sourceTime').textContent=s?'Data sumber: '+[...new Set(data.assignment.filter(a=>key(a)===key(s)).map(a=>a.waktu_data_monitoring))].map(fmt).join(' | '):'';renderHistory();renderPerson();renderReminders();}
+$('context').textContent=s?s.nama_survei+' — '+s.nama_periode:data?.survei.length?'Survei dan periode':'Tidak ada survei aktif.';$('sourceTime').textContent=s?'Data sumber: '+[...new Set(data.assignment.filter(a=>key(a)===key(s)).map(a=>a.waktu_data_monitoring))].map(fmt).join(' | '):'';renderHistory();renderPerson();renderReminders();updateNoteForm();}
 const REPAIR_STATUSES=['OPEN','DRAFT','REJECT'];
 const REMINDER_STATUS_ORDER=['OPEN','DRAFT','REJECT','SUBMIT'];
 
@@ -1149,11 +1169,32 @@ function renderNoteAssignments(){
   for(const a of rows)option(field,a.assignment_id,a.nama_assignment||a.assignment_id);
 }
 
+function noteNeedsAssignment(){
+  return !chain&&!konteksCatatanKirim&&$('noteMode').value==='assignment';
+}
+
+function updateNoteForm(){
+  $('newNote').hidden=!chain&&!konteksCatatanKirim;
+  $('saveNote').disabled=busy||$('notePanel').hidden||!selected()||!$('note').value.trim()||
+    (noteNeedsAssignment()&&!$('assignment').value);
+}
+
+function showNoteContext(survey,details){
+  $('chainInfo').hidden=!details;
+  if(!details)return;
+  $('noteContextSurvey').textContent=surveyPickerLabel(survey);
+  $('noteContextTarget').textContent=[details.target,details.recipient].filter(Boolean).join(' · ');
+  const previous=$('noteContextPrevious');
+  previous.hidden=!details.previous;
+  previous.textContent=details.previous?'Catatan sebelumnya: '+details.previous:'';
+}
+
 function setNoteScope(){
   const specific=$('noteMode').value==='assignment';
   $('statusPicker').hidden=!specific;
   $('assignmentPicker').hidden=!specific||!$('assignmentStatus').value;
   if(!specific)$('assignment').value='';
+  updateNoteForm();
 }
 
 function initNote(r=null){
@@ -1187,7 +1228,13 @@ function initNote(r=null){
     option($('assignment'),r.assignment_id,r.nama_assignment||r.assignment_id);
     $('assignment').disabled=true;
   }
-  $('chainInfo').textContent=r?'Menambahkan hasil konfirmasi pada riwayat: '+(r.nama_assignment||r.nama_survei)+' · '+(r.peran_petugas||'umum'):'';
+  showNoteContext(survey,r?{
+    target:r.nama_assignment||r.assignment_id?'Assignment: '+(r.nama_assignment||r.assignment_id):
+      (r.kontak_id?'Seluruh pekerjaan petugas':'Catatan umum survei'),
+    recipient:[r.peran_petugas,r.nama_petugas||data.petugas?.find(p=>p.petugas_id===r.petugas_id)?.nama]
+      .filter(Boolean).join(' '),
+    previous:String(r.catatan_konfirmasi||'').trim()
+  }:null);
   $('note').value='';
   $('plan').value='';
   $('followStatus').value='MENUNGGU_BALASAN';
@@ -1796,6 +1843,8 @@ $('assignmentStatus').onchange=()=>{
   renderNoteAssignments();
   setNoteScope();
 };
+$('assignment').onchange=updateNoteForm;
+$('note').addEventListener('input',updateNoteForm);
 $('choices').onchange=updateReminderSelection;
 $('selectReminders').onchange=()=>{
   for(const input of $('choices').querySelectorAll('input:not(:disabled)')){
@@ -1887,6 +1936,7 @@ $('openSentNote').onclick=()=>{
 
     daftar.push({
       assignment_id: '',
+      nama_assignment: '',
       peran_petugas: peran,
       label: `Secara Keseluruhan — ${identitas}`
     });
@@ -1903,8 +1953,9 @@ $('openSentNote').onclick=()=>{
     for (const r of pekerjaan) {
       daftar.push({
         assignment_id: r.assignment_id,
+        nama_assignment: r.nama_assignment || r.assignment_id,
         peran_petugas: peran,
-        label: `${r.nama_assignment} — ${identitas}`
+        label: `${r.nama_assignment || r.assignment_id} — ${identitas}`
       });
     }
   }
@@ -1934,8 +1985,12 @@ $('openSentNote').onclick=()=>{
     $('assignment').value = item.assignment_id;
     $('assignment').disabled = true;
 
-    $('chainInfo').textContent = 'Catatan untuk: ' + item.label;
+    showNoteContext(selected(),{
+      target:item.assignment_id?'Assignment: '+item.nama_assignment:'Seluruh pekerjaan petugas',
+      recipient:[item.peran_petugas,hasil.nama_petugas||draft.nama].filter(Boolean).join(' ')
+    });
     pembungkus.hidden = false;
+    updateNoteForm();
   }
 
   pilihan.onchange = bukaPilihan;
@@ -1951,9 +2006,11 @@ $('saveNote').onclick = () => action(async () => {
   const s = selected();
   if (!s) throw Error('Pilih survei.');
 
-  if(!chain&&!konteksCatatanKirim&&$('noteMode').value==='assignment'&&!$('assignment').value){
+  if(noteNeedsAssignment()&&!$('assignment').value){
     throw Error('Pilih status dan assignment untuk catatan.');
   }
+  const catatan=$('note').value.trim();
+  if(!catatan)throw Error('Isi catatan atau hasil konfirmasi.');
   if (!noteId) noteId = reqId();
 
   await rpc('apiCatatan', token, {
@@ -1970,14 +2027,16 @@ $('saveNote').onclick = () => action(async () => {
       konteksCatatanKirim?.peran_petugas || '',
 
     tindak_lanjut_id: chain?.tindak_lanjut_id || '',
-    catatan: $('note').value,
+    catatan,
     rencana: $('plan').value,
     status: $('followStatus').value,
     target: iso('target'),
     pengingat: iso('nextDate')
   });
 
-  konteksCatatanKirim=null;
+  noteId='';
+  $('note').value='';
+  updateNoteForm();
   if(reminderQueue.length){
     const fresh=await rpc('apiData',token);
     data.riwayat=fresh.riwayat.filter(r=>data.survei.some(s=>key(s)===key(r)));
