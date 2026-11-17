@@ -1205,7 +1205,7 @@ function biProgressPdfReport(survey,pml,pairs,rows,manual){
   const headY=legend.bottom+17,bodyY=headY+50,rowHeight=51;
   const perPage=Math.max(1,Math.floor((1090-bodyY)/rowHeight));
   const pages=Math.ceil(pairs.length/perPage);
-  const layout=allPpl?{totalX:329,graphX:751,graphW:516,percentX:1353,pplWidth:228}:
+  const layout=allPpl?{totalX:329,graphX:751,graphW:516,percentX:1322,pplWidth:228}:
     {totalX:443,graphX:788,graphW:710,percentX:1605,pplWidth:325};
   return {pages,draw(pageIndex){
     ctx.fillStyle='#fff';ctx.fillRect(0,160,1684,1031);
@@ -1213,9 +1213,10 @@ function biProgressPdfReport(survey,pml,pairs,rows,manual){
     ctx.fillStyle='#d9e9fa';ctx.fillRect(58,headY,1568,50);
     ctx.fillStyle='#184574';ctx.font='bold 17px Arial';
     ctx.fillText('PPL',68,headY+32);
-    ctx.fillText('GRAFIK KOMPOSISI STATUS',layout.graphX,headY+32);
     if(allPpl)ctx.fillText('PML',1378,headY+32);
-    ctx.textAlign='right';
+    ctx.textAlign=allPpl?'center':'left';
+    ctx.fillText('GRAFIK KOMPOSISI STATUS',layout.graphX+(allPpl?layout.graphW/2:0),headY+32);
+    ctx.textAlign=allPpl?'center':'right';
     ctx.fillText('% SUBMIT',layout.percentX,headY+32);
     ctx.textAlign='center';
     ctx.fillText('TOTAL',layout.totalX,headY+32);
@@ -1239,8 +1240,13 @@ function biProgressPdfReport(survey,pml,pairs,rows,manual){
       ctx.textAlign='left';
       const segments=allPpl?visibleStatuses.map(status=>({...status,count:byStatus.get(status.label)||0})):progress;
       biDrawPdfStatusBar(ctx,segments,layout.graphX,y+13,layout.graphW);
-      ctx.textAlign='right';ctx.font='bold 19px Arial';ctx.fillStyle='#174679';
-      ctx.fillText(percent(counts.submitted,total),layout.percentX,y+32);
+      ctx.textAlign=allPpl?'center':'right';
+      ctx.font='bold 19px Arial';ctx.fillStyle='#174679';
+      ctx.fillText(percent(counts.submitted,total),layout.percentX,y+(allPpl?22:32));
+      if(allPpl){
+        ctx.font='15px Arial';ctx.fillStyle='#365d82';
+        ctx.fillText('('+format.format(counts.submitted)+'/'+format.format(total)+')',layout.percentX,y+41);
+      }
       ctx.textAlign='left';
       ctx.fillStyle='#edf2f8';ctx.fillRect(58,y+rowHeight-1,1568,1);
     });
