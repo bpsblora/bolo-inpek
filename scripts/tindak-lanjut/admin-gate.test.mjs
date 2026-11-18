@@ -148,8 +148,8 @@ test('Updater offers the guide first and requires a second action to reach the Z
   assert.match(page,/<button[^>]+id="boloUpdaterOpen"[^>]*>/);
   assert.match(page,/<button[^>]+id="boloUpdaterAsk"[^>]*>/);
   const confirmation=page.split('<dialog class="updater-dialog" id="boloUpdaterConfirm"')[1].split('</dialog>')[0];
-  assert.match(confirmation,/\.pdf"[^>]*>Belum, unduh panduan<\/a>/);
-  assert.match(confirmation,/\.zip"[^>]*>Sudah, unduh ZIP<\/a>/);
+  assert.match(confirmation,/\.pdf"[^>]*>Belum, Unduh Panduan<\/a>/);
+  assert.match(confirmation,/\.zip"[^>]*>Sudah, Unduh ZIP<\/a>/);
 });
 test('Tindak Lanjut requires explicit selection of survey in shared admin session',()=>{
   assert.match(tl,/if\(BOLO_ADMIN_GATE_NONCE\)option\(\$\('survey'\),'','— Pilih Survei dan Periode —'\)/);
