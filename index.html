@@ -438,6 +438,32 @@ body:has(#adminTools:not([hidden])) #refreshBoloData{display:inline-flex}
 .updater-dialog-body{padding:18px;color:#3b516b;line-height:1.5}
 .updater-dialog-body p{margin:0 0 14px}
 .updater-dialog-actions{display:flex;flex-wrap:wrap;gap:8px}
+#boloUpdaterModal{width:min(560px,calc(100% - 32px))}
+.updater-file-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.updater-file-card{display:grid;grid-template-rows:auto 1fr auto;justify-items:start;gap:10px;
+  padding:16px;border:1px solid #c9d9ec;border-radius:14px;background:#f7faff;color:#174478;
+  font:inherit;text-align:left;text-decoration:none;cursor:pointer}
+.updater-file-card:hover{border-color:#6997ca;background:#eaf3ff}
+.updater-file-card:focus-visible{outline:2px solid #174478;outline-offset:2px}
+.updater-file-name{font-size:16px;font-weight:800;line-height:1.25}
+.updater-file-action{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:750}
+.updater-file-icon{position:relative;display:grid;place-items:end center;width:48px;height:56px;
+  box-sizing:border-box;padding-bottom:6px;color:#fff;font-size:10px;font-weight:850;line-height:1}
+.updater-file-icon--guide{border-radius:5px 8px 8px 5px;border-left:6px solid #123a68;background:#2364a8}
+.updater-file-icon--guide::before{content:"";position:absolute;top:13px;left:9px;width:20px;height:2px;
+  border-radius:2px;background:#cfecff;box-shadow:0 6px 0 #cfecff}
+.updater-file-icon--zip{border-radius:5px;background:#415585;clip-path:polygon(0 0,70% 0,100% 25%,100% 100%,0 100%)}
+.updater-file-icon--zip::before{content:"";position:absolute;top:2px;left:14px;width:5px;height:30px;
+  background:repeating-linear-gradient(#cfdbf9 0 2px,transparent 2px 4px)}
+.updater-file-icon--zip::after{content:"";position:absolute;top:0;right:0;width:15px;height:14px;
+  border-radius:0 0 0 3px;background:#aebfe5}
+.updater-dialog-body .updater-file-access{margin:12px 0 0;font-size:13px}
+@media(max-width:360px){
+  .updater-file-grid{grid-template-columns:minmax(0,1fr)}
+  .updater-file-card{grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:12px;row-gap:4px}
+  .updater-file-icon{grid-row:span 2}
+  .updater-file-name{align-self:end}
+}
 @media(max-width:920px){
   .header-inner{flex-wrap:wrap}
   .survey-admin-top:has(#adminTools:not([hidden])){flex-basis:100%}
@@ -704,11 +730,19 @@ body.bolo-loading-active{overflow:hidden}
     <form method="dialog"><button class="survey-admin-close" aria-label="Tutup pilihan unduhan">Tutup ×</button></form>
   </div>
   <div class="updater-dialog-body">
-    <p>Masuk ke akun GitHub yang memiliki akses untuk mengunduh file.</p>
-    <div class="updater-dialog-actions">
-      <a class="survey-admin-btn" data-bolo-updater-download href="https://github.com/bpsblora/bolo-inpek-appscript/raw/refs/heads/main/docs/BOLO-INPEK-Panduan-Dashboard-Monitoring.pdf" target="_blank" rel="noopener noreferrer" autofocus>Unduh Buku Panduan (PDF)</a>
-      <button type="button" class="survey-admin-btn" id="boloUpdaterAsk" aria-haspopup="dialog" aria-controls="boloUpdaterConfirm">Unduh Updater Windows (ZIP)</button>
+    <div class="updater-file-grid">
+      <a class="updater-file-card" data-bolo-updater-download href="https://github.com/bpsblora/bolo-inpek-appscript/raw/refs/heads/main/docs/BOLO-INPEK-Panduan-Dashboard-Monitoring.pdf" target="_blank" rel="noopener noreferrer" autofocus>
+        <span class="updater-file-icon updater-file-icon--guide" aria-hidden="true">PDF</span>
+        <strong class="updater-file-name">Buku Panduan</strong>
+        <span class="updater-file-action">Unduh PDF <span aria-hidden="true">↓</span></span>
+      </a>
+      <button type="button" class="updater-file-card" id="boloUpdaterAsk" aria-haspopup="dialog" aria-controls="boloUpdaterConfirm">
+        <span class="updater-file-icon updater-file-icon--zip" aria-hidden="true">ZIP</span>
+        <strong class="updater-file-name">Updater Windows</strong>
+        <span class="updater-file-action">Pilih ZIP <span aria-hidden="true">→</span></span>
+      </button>
     </div>
+    <p class="updater-file-access">Unduhan memerlukan akun GitHub yang memiliki akses.</p>
   </div>
 </dialog>
 <dialog class="updater-dialog" id="boloUpdaterConfirm" aria-labelledby="boloUpdaterConfirmTitle" aria-describedby="boloUpdaterConfirmHint">
