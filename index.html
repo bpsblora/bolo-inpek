@@ -433,6 +433,11 @@ body:has(#adminTools:not([hidden])) #refreshBoloData{display:inline-flex}
 #surveyAdminModal[open]{display:flex;flex-direction:column}
 #surveyAdminFrame{width:100%;height:auto;flex:1 1 auto;min-height:0;border:0;background:#f4f8fd}
 .survey-admin-help{flex:1;overflow:auto;padding:28px;line-height:1.7;color:#3b516b}
+.updater-dialog{border:0;border-radius:16px;width:min(460px,calc(100% - 32px));padding:0;box-shadow:0 24px 90px #092f5666}
+.updater-dialog::backdrop{background:#0e2b4d99}
+.updater-dialog-body{padding:18px;color:#3b516b;line-height:1.5}
+.updater-dialog-body p{margin:0 0 14px}
+.updater-dialog-actions{display:flex;flex-wrap:wrap;gap:8px}
 @media(max-width:920px){
   .header-inner{flex-wrap:wrap}
   .survey-admin-top:has(#adminTools:not([hidden])){flex-basis:100%}
@@ -685,7 +690,7 @@ body.bolo-loading-active{overflow:hidden}
         </div>
         <div class="admin-actions">
           <button type="button" class="survey-admin-btn" id="openSurveyAdmin">⚙ Kelola Survei</button>
-          <a class="survey-admin-btn bolo-updater-btn" id="boloUpdaterOpen" href="https://github.com/bpsblora/bolo-inpek-appscript/releases/latest/download/BOLO-INPEK-Updater-Windows.zip" target="_blank" rel="noopener noreferrer" title="Unduh Updater Windows terbaru dari GitHub privat. Login GitHub diperlukan.">↻ Perbarui Survei</a>
+          <button type="button" class="survey-admin-btn bolo-updater-btn" id="boloUpdaterOpen" aria-haspopup="dialog" aria-controls="boloUpdaterModal">↻ Perbarui Survei</button>
           <button type="button" class="survey-admin-btn" id="adminTlMenu">✎ Tindak Lanjut</button>
           <button type="button" class="survey-admin-btn" id="adminStaffMenu" title="Tambah dan perbarui biodata petugas, email, dan nomor WhatsApp">♙ Kelola Petugas <span id="adminStaffPending" hidden aria-label="Petugas baru belum didaftarkan"></span></button>
         </div>
@@ -693,6 +698,32 @@ body.bolo-loading-active{overflow:hidden}
     </div>
   </div>
 </header>
+<dialog class="updater-dialog" id="boloUpdaterModal" aria-labelledby="boloUpdaterTitle">
+  <div class="survey-admin-bar">
+    <strong id="boloUpdaterTitle">Perbarui Survei FASIH</strong>
+    <form method="dialog"><button class="survey-admin-close" aria-label="Tutup pilihan unduhan">Tutup ×</button></form>
+  </div>
+  <div class="updater-dialog-body">
+    <p>Masuk ke akun GitHub yang memiliki akses untuk mengunduh file.</p>
+    <div class="updater-dialog-actions">
+      <a class="survey-admin-btn" data-bolo-updater-download href="https://github.com/bpsblora/bolo-inpek-appscript/raw/refs/heads/main/docs/BOLO-INPEK-Panduan-Dashboard-Monitoring.pdf" target="_blank" rel="noopener noreferrer" autofocus>Unduh Buku Panduan (PDF)</a>
+      <button type="button" class="survey-admin-btn" id="boloUpdaterAsk" aria-haspopup="dialog" aria-controls="boloUpdaterConfirm">Unduh Updater Windows (ZIP)</button>
+    </div>
+  </div>
+</dialog>
+<dialog class="updater-dialog" id="boloUpdaterConfirm" aria-labelledby="boloUpdaterConfirmTitle" aria-describedby="boloUpdaterConfirmHint">
+  <div class="survey-admin-bar">
+    <strong id="boloUpdaterConfirmTitle">Sudah membaca buku panduan?</strong>
+    <form method="dialog"><button class="survey-admin-close" aria-label="Kembali ke pilihan unduhan">Kembali</button></form>
+  </div>
+  <div class="updater-dialog-body">
+    <p id="boloUpdaterConfirmHint">Baca buku panduan dulu, lalu unduh ZIP Updater Windows.</p>
+    <div class="updater-dialog-actions">
+      <a class="survey-admin-btn" data-bolo-updater-download href="https://github.com/bpsblora/bolo-inpek-appscript/raw/refs/heads/main/docs/BOLO-INPEK-Panduan-Dashboard-Monitoring.pdf" target="_blank" rel="noopener noreferrer" autofocus>Belum, unduh panduan</a>
+      <a class="survey-admin-btn" data-bolo-updater-download href="https://github.com/bpsblora/bolo-inpek-appscript/releases/latest/download/BOLO-INPEK-Updater-Windows.zip" target="_blank" rel="noopener noreferrer">Sudah, unduh ZIP</a>
+    </div>
+  </div>
+</dialog>
 <dialog id="surveyAdminModal" aria-labelledby="surveyAdminTitle">
   <div class="survey-admin-bar"><strong id="surveyAdminTitle">Kelola Survei — BOLO INPEK</strong><button type="button" class="survey-admin-close" id="closeSurveyAdmin">Tutup ×</button></div>
   <div id="surveyAdminSetup" class="survey-admin-help" hidden><strong>Panel Admin Belum Disambungkan</strong><p>Pasang backend Apps Script Kelola Survei satu kali, kemudian isikan URL deployment di berkas <code>kelola-survei-link.json</code>. Setelah itu survei dapat ditambah, diedit, atau dinonaktifkan dari sini.</p></div>
@@ -2001,6 +2032,8 @@ body.bolo-loading-active{overflow:hidden}
   const surveyModal=document.getElementById('surveyAdminModal');
   const surveyFrame=document.getElementById('surveyAdminFrame');
   const surveySetup=document.getElementById('surveyAdminSetup');
+  const updaterModal=document.getElementById('boloUpdaterModal');
+  const updaterConfirm=document.getElementById('boloUpdaterConfirm');
   const surveyRequests=new Map();
   let surveyChannel='',surveyGeneration=0;
   let returnFocus=null, verifiedTLWindow=null, verifiedTLOrigin='';
@@ -2029,6 +2062,8 @@ body.bolo-loading-active{overflow:hidden}
   }
   function expireAdmin(){
     if(surveyModal.open)surveyModal.close();
+    if(updaterConfirm.open)updaterConfirm.close();
+    if(updaterModal.open)updaterModal.close();
     BOLO_ADMIN.verified=false;
     BOLO_ADMIN.nonce='';
     BOLO_ADMIN.since=0;
@@ -2167,10 +2202,21 @@ body.bolo-loading-active{overflow:hidden}
     openTL(button.dataset.tindakSurvei||'');
     commandTL('BOLO_INPEK_ADMIN_SHOW_TL');
   });
-  document.getElementById('boloUpdaterOpen').addEventListener('click',e=>{
-    if(boloAdminActive())return;
-    e.preventDefault();beginLogin();
+  document.getElementById('boloUpdaterOpen').addEventListener('click',()=>{
+    if(!boloAdminActive()){beginLogin();return;}
+    updaterModal.showModal();
   });
+  document.getElementById('boloUpdaterAsk').addEventListener('click',()=>{
+    if(!boloAdminActive()){beginLogin();return;}
+    updaterConfirm.showModal();
+  });
+  for(const link of document.querySelectorAll('[data-bolo-updater-download]')){
+    link.addEventListener('click',event=>{
+      if(boloAdminActive())return;
+      event.preventDefault();
+      beginLogin();
+    });
+  }
   // Apps Script HtmlService berjalan sebagai nested iframe googleusercontent;
   // event.source dapat berbeda dari iframe utama script.google.com.
   // Nonce acak + origin Google + event tepercaya mengikat callback login.

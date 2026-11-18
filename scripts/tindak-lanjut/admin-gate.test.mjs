@@ -15,11 +15,17 @@ const controller=page.slice(begin+'<script>\n'.length,end);
 function sandbox(){
   const allIds=['tlPopup','tlFrame','adminEnter','adminTools','adminExit','adminTlMenu',
     'adminInfo','tlPopupTitle','tlClose','boloUpdaterOpen','adminStaffMenu','adminStaffPending',
+    'boloUpdaterModal','boloUpdaterAsk','boloUpdaterConfirm','guideDownload','zipDownload',
     'surveyAdminFrame','surveyAdminSetup','surveyAdminModal','openSurveyAdmin','closeSurveyAdmin'];
   const el=id=>({
     id,hidden:false,open:false,src:'',textContent:'',
     listeners:{},addEventListener(type,cb){this.listeners[type]=cb;},
-    focus(){this.focused=true;},click(){this.listeners.click?.({preventDefault(){}})},
+    focus(){this.focused=true;},
+    click(){
+      let prevented=false;
+      this.listeners.click?.({preventDefault(){prevented=true;}});
+      return prevented;
+    },
     showModal(){this.open=true;},
     close(){this.open=false;this.listeners.close?.();}
   });
@@ -30,6 +36,9 @@ function sandbox(){
     documentElement:{style:{}},
     listeners:{},
     getElementById:id=>elements[id],
+    querySelectorAll:selector=>selector==='[data-bolo-updater-download]'
+      ? [elements.guideDownload,elements.zipDownload]
+      : [],
     addEventListener(type,fn){
       const previous=this.listeners[type];
       this.listeners[type]=previous?event=>{previous(event);fn(event)}:fn;
@@ -113,6 +122,34 @@ test('cancelled Admin login ignores delayed iframe success callback',()=>{
   s.window.listeners.message(callback);
   assert.equal(s.admin.verified,false);
   assert.equal(s.elements.adminTools.hidden,true);
+});
+test('Updater offers the guide first and requires a second action to reach the ZIP link',()=>{
+  const s=sandbox();
+  const {adminEnter,boloUpdaterOpen,boloUpdaterModal,boloUpdaterAsk,boloUpdaterConfirm,guideDownload,zipDownload,tlPopup}=s.elements;
+  boloUpdaterOpen.click();
+  assert.equal(tlPopup.open,true);
+  assert.equal(boloUpdaterModal.open,false);
+  s.window.listeners.message(grantEvent(s));
+  assert.equal(boloUpdaterOpen.click(),false);
+  assert.equal(boloUpdaterModal.open,true);
+  assert.equal(boloUpdaterConfirm.open,false);
+  boloUpdaterAsk.click();
+  assert.equal(boloUpdaterConfirm.open,true);
+  assert.equal(guideDownload.click(),false);
+  assert.equal(boloUpdaterConfirm.open,true);
+  assert.equal(zipDownload.click(),false);
+  s.admin.since=0;
+  assert.equal(zipDownload.click(),true);
+  assert.equal(boloUpdaterConfirm.open,false);
+  assert.equal(boloUpdaterModal.open,false);
+  assert.equal(tlPopup.open,true);
+  assert.equal(adminEnter.hidden,false);
+
+  assert.match(page,/<button[^>]+id="boloUpdaterOpen"[^>]*>/);
+  assert.match(page,/<button[^>]+id="boloUpdaterAsk"[^>]*>/);
+  const confirmation=page.split('<dialog class="updater-dialog" id="boloUpdaterConfirm"')[1].split('</dialog>')[0];
+  assert.match(confirmation,/\.pdf"[^>]*>Belum, unduh panduan<\/a>/);
+  assert.match(confirmation,/\.zip"[^>]*>Sudah, unduh ZIP<\/a>/);
 });
 test('Tindak Lanjut requires explicit selection of survey in shared admin session',()=>{
   assert.match(tl,/if\(BOLO_ADMIN_GATE_NONCE\)option\(\$\('survey'\),'','— Pilih Survei dan Periode —'\)/);
