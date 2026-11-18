@@ -437,15 +437,17 @@ body:has(#adminTools:not([hidden])) #refreshBoloData{display:inline-flex}
 .updater-dialog::backdrop{background:#0e2b4d99}
 .updater-dialog-body{padding:18px;color:#3b516b;line-height:1.5}
 .updater-dialog-body p{margin:0 0 14px}
-.updater-dialog-actions{display:flex;flex-wrap:wrap;gap:8px}
+.updater-dialog-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.updater-dialog-actions .survey-admin-btn{min-height:42px;text-align:center;white-space:normal;line-height:1.3}
 #boloUpdaterModal{width:min(560px,calc(100% - 32px))}
 .updater-file-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.updater-file-card{display:grid;grid-template-rows:auto 1fr auto;justify-items:start;gap:10px;
+.updater-file-card{display:grid;grid-template-rows:auto auto 1fr auto;justify-items:start;gap:10px;
   padding:16px;border:1px solid #c9d9ec;border-radius:14px;background:#f7faff;color:#174478;
   font:inherit;text-align:left;text-decoration:none;cursor:pointer}
 .updater-file-card:hover{border-color:#6997ca;background:#eaf3ff}
 .updater-file-card:focus-visible{outline:2px solid #174478;outline-offset:2px}
 .updater-file-name{font-size:16px;font-weight:800;line-height:1.25}
+.updater-file-description{color:#3b516b;font-size:13px;line-height:1.4}
 .updater-file-action{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:750}
 .updater-file-icon{position:relative;display:grid;place-items:end center;width:48px;height:56px;
   box-sizing:border-box;padding-bottom:6px;color:#fff;font-size:10px;font-weight:850;line-height:1}
@@ -460,9 +462,10 @@ body:has(#adminTools:not([hidden])) #refreshBoloData{display:inline-flex}
 .updater-dialog-body .updater-file-access{margin:12px 0 0;font-size:13px}
 @media(max-width:360px){
   .updater-file-grid{grid-template-columns:minmax(0,1fr)}
-  .updater-file-card{grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:12px;row-gap:4px}
-  .updater-file-icon{grid-row:span 2}
+  .updater-file-card{grid-template-columns:auto 1fr;grid-template-rows:repeat(3,auto);column-gap:12px;row-gap:4px}
+  .updater-file-icon{grid-row:span 3}
   .updater-file-name{align-self:end}
+  .updater-dialog-actions{grid-template-columns:minmax(0,1fr)}
 }
 @media(max-width:920px){
   .header-inner{flex-wrap:wrap}
@@ -734,24 +737,29 @@ body.bolo-loading-active{overflow:hidden}
       <a class="updater-file-card" data-bolo-updater-download href="https://github.com/bpsblora/bolo-inpek-appscript/raw/refs/heads/main/docs/BOLO-INPEK-Panduan-Dashboard-Monitoring.pdf" target="_blank" rel="noopener noreferrer" autofocus>
         <span class="updater-file-icon updater-file-icon--guide" aria-hidden="true">PDF</span>
         <strong class="updater-file-name">Buku Panduan</strong>
+        <span class="updater-file-description">Langkah pemasangan updater dan pembaruan data dashboard.</span>
         <span class="updater-file-action">Unduh PDF <span aria-hidden="true">↓</span></span>
       </a>
       <button type="button" class="updater-file-card" id="boloUpdaterAsk" aria-haspopup="dialog" aria-controls="boloUpdaterConfirm">
         <span class="updater-file-icon updater-file-icon--zip" aria-hidden="true">ZIP</span>
         <strong class="updater-file-name">Updater Windows</strong>
-        <span class="updater-file-action">Pilih ZIP <span aria-hidden="true">→</span></span>
+        <span class="updater-file-description">Paket ZIP untuk menjalankan updater di komputer Windows.</span>
+        <span class="updater-file-action">Konfirmasi Unduhan <span aria-hidden="true">→</span></span>
       </button>
     </div>
-    <p class="updater-file-access">Unduhan memerlukan akun GitHub yang memiliki akses.</p>
+    <p class="updater-file-access">Masuk ke GitHub dengan akun yang memiliki akses untuk mengunduh kedua file.</p>
   </div>
 </dialog>
 <dialog class="updater-dialog" id="boloUpdaterConfirm" aria-labelledby="boloUpdaterConfirmTitle" aria-describedby="boloUpdaterConfirmHint">
   <div class="survey-admin-bar">
-    <strong id="boloUpdaterConfirmTitle">Sudah membaca buku panduan?</strong>
+    <strong id="boloUpdaterConfirmTitle">Sudah Membaca Buku Panduan?</strong>
     <form method="dialog"><button class="survey-admin-close" aria-label="Kembali ke pilihan unduhan">Kembali</button></form>
   </div>
   <div class="updater-dialog-body">
-    <p id="boloUpdaterConfirmHint">Baca buku panduan dulu, lalu unduh ZIP Updater Windows.</p>
+    <div id="boloUpdaterConfirmHint">
+      <p>Buku panduan menjelaskan cara memasang updater, masuk ke SSO FASIH, dan memperbarui data dashboard.</p>
+      <p>Jika belum membacanya, unduh PDF terlebih dahulu. Setelah selesai membaca, kembali ke sini untuk mengunduh ZIP.</p>
+    </div>
     <div class="updater-dialog-actions">
       <a class="survey-admin-btn" data-bolo-updater-download href="https://github.com/bpsblora/bolo-inpek-appscript/raw/refs/heads/main/docs/BOLO-INPEK-Panduan-Dashboard-Monitoring.pdf" target="_blank" rel="noopener noreferrer" autofocus>Belum, Unduh Panduan</a>
       <a class="survey-admin-btn" data-bolo-updater-download href="https://github.com/bpsblora/bolo-inpek-appscript/releases/latest/download/BOLO-INPEK-Updater-Windows.zip" target="_blank" rel="noopener noreferrer">Sudah, Unduh ZIP</a>
